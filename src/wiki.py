@@ -122,6 +122,13 @@ def get_commons_thumb(genus: str,
     upload_date   = info.get("timestamp", "")[:10]          # 'YYYY-MM-DD'
     retrieval_date = datetime.date.today().isoformat()
 
+    #fallback if no imageinfo
+    page = next(iter(r3.json()["query"]["pages"].values()))
+    if "imageinfo" not in page:               # ← no image
+        return None, None, None, None, None, None
+
+    info = page["imageinfo"][0]
+    
     return (thumb_url, author, licence, licence_url,
             upload_date, retrieval_date)
 

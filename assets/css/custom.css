@@ -40,6 +40,11 @@ h6,
   color: #fff !important;  
 }
 
+h5,
+.h5 {                     
+  color: #fff !important;  
+}
+
 /* ==========  2. TOP BAR & LOGO  =============================== */
 #top-bar{
   position:relative;
@@ -56,12 +61,20 @@ h6,
 
 /* ==========  3. SEARCH PANEL  (top-left)  ===================== */
 #search-panel{
-  position:fixed; top:0; left:0; z-index:1040;
-  width:480px; padding:.75rem .9rem 1rem;
+  position:fixed; top:10%; left:20px; z-index:1040;
+  width:380px; padding:.8rem .9rem 1rem;
+  border-radius:.6rem;   
   display:flex; flex-direction:column; gap:.4rem;
   background:var(--glass-bg); color:var(--text-light);
-  backdrop-filter:var(--blur-md); box-shadow:0 2px 6px #0008;
+  backdrop-filter:var(--blur-md); box-shadow:0 2px 6px #0006;
 }
+
+
+
+/* arrow nudged right of search panel */
+#prev-btn{ left: calc(20px + 320px + 24px); }
+
+
 #search-panel .dash-dropdown,
 #search-panel .dash-select {
   background: white !important;
@@ -88,15 +101,6 @@ h6,
   border-color: #888 !important;
 }
 
-#random-btn{
-  background:rgba(0,0,0,.07)!important;
-  color:var(--text-light)!important;
-  border:1px solid #777;
-  padding:.4rem 0;
-  width:200px;
-  margin: 0 auto; 
-  display: block;  
-}
 
 
 #search-stack > div {
@@ -108,9 +112,9 @@ h6,
 
 /* ==========  4. SIDE TABS  ==================================== */
 /* side-tabs in gutter */
-.side-tab{
+/* ==========  4. SIDE TABS  ==================================== */
+.side-tab {
   position: fixed;
-  top: 40%;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   background: var(--glass-bg);
@@ -118,28 +122,22 @@ h6,
   padding: .55rem .45rem;
   font-size: .78rem;
   cursor: pointer;
-  transition: left .3s ease, right .3s ease;   /* smooth slide */
   z-index: 1050;
-}
-
-/* initial gutter positions */
-#citations-tab{ left: 0; }
-#settings-tab{  right: 0; }
-#bug-tab{       left: 0; top: 55%; }  /* stays fixed */
-
-
-/* fixed bug tab (unchanged) */
-#bug-tab{
-  position: fixed;
-  left: 0;
-  top: 55%;
-  transform: translateY(-50%) rotate(180deg);
-  z-index: 1050;
-}
-
-.side-tab{
   transition: left .3s ease, right .3s ease;
 }
+
+
+
+#citations-tab {
+  right: 0;
+  top: 70%;
+}
+
+#bug-tab {
+  right: 0;
+  top: 80%;
+}
+
 
 
 
@@ -156,7 +154,12 @@ h6,
   display: flex;
   flex-direction: column;
   text-align: center;
+  padding-left: 1.0rem !important;   /* ≈ 13 px */
+  padding-right: 5.0rem !important;  /* ≈ 13 px */
+  box-sizing: border-box;            /* ensures width stays fixed */
 }
+
+
 
 .offcanvas-header {
   padding-top: 12rem !important;
@@ -188,12 +191,66 @@ h6,
 
 #citation-box a{ color:var(--text-light); }
 
+/* Rounded switch styling */
+.form-switch .form-check-input {
+  width: 3rem;
+  height: 1.5rem;
+  border-radius: 1rem;
+  background-color: #ccc;
+  border: none;
+  vertical-align: middle;
+  margin-top: 0.2rem; /* tweak if necessary */
+  transition: background-color 0.3s, box-shadow 0.3s;
+  margin-left: auto;        /* takes up remaining space */
+}
+
+
+
+/* Optional: make it more visible when unchecked too */
+.form-switch .form-check-input:focus {
+  box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+}
+
+
+
+
+
+.form-switch.form-check {
+  padding: 0 0.5rem;        /* 0.5 rem left & right */
+  padding-left: 0;            /* <<< THE FIX */
+  display: flex;              /* keep them side-by-side */
+  align-items: center;        /* vertically centred */
+  justify-content: space-between;  /* pill stays flush right */
+  margin-bottom: 0.9rem;   /* tweak the 0.6rem until it feels right */
+}
+
+
+
+
+
+.form-switch .form-check-input:checked {
+  background-color: #4CAF50; /* soft green */
+  box-shadow: inset 0 0 0 1px #4CAF50;
+}
+
+.form-switch .form-check-label {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1.5rem;
+  flex: 1;        /* let text wrap but don’t push pill off-screen */
+  margin-bottom: 0;
+  line-height: 1.5rem;
+}
+
+
+
 /* ==========  6. MAIN DISPLAY AREA  ============================ */
 #page-centre-flex{
   min-height:calc(100vh - 220px);     /* header+footer buffer */
   display:flex; flex-direction:column;
   justify-content:center; align-items:center;
   text-align:center;
+  margin-top: 110px;
 }
 
 /* 6-a  title slab */
@@ -216,15 +273,24 @@ h6,
   position:relative; overflow:visible;
   width:clamp(300px,40vw,500px);
 }
-#species-img{
-  width:100%; border-radius:.5rem;
-  border:3px solid #ffffff55;
+/* limit to 80 % of the viewport height, scale automatically */
+#species-img {
+  max-height: 50vh;
+  height: auto;
+  width: auto;
+  max-width: 100%;         /* ensures it doesn't overflow horizontally */
+  object-fit: contain;
+  border-radius: .5rem;
+  display: block;
+  margin: 0 auto;          /* optional: center the image horizontally */
 }
+
+
 
 /* 6-c  info card + handle */
 #info-card{
-  position:absolute; top:95%; left:75%; transform:translateY(-50%);
-  width:380px; max-height:75%; overflow-y:auto;
+  position:absolute; top:120%; left:70%; transform:translateY(-50%);
+  width:380px; max-height:150%; overflow-y:auto;
   background:var(--glass-bg); border:var(--glass-brd);
   backdrop-filter:var(--blur-md); color:var(--text-light);
   padding:.9rem 1rem; font-size:.9rem; box-shadow:0 2px 6px #0008;border-radius:.8rem;
@@ -265,5 +331,93 @@ h6,
   font-size:.8rem; opacity:.7;
 }
 
-/*───────────────────────────────────────────────────────────────*/
 
+/* === NAVIGATION ARROWS =================================== */
+.edge-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1030;
+  background: none;
+  border: none;
+  font-size: 3rem;
+  color: #ffffffbb;       /* slightly translucent white */
+  cursor: pointer;
+  padding: 0 0.5rem;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.edge-nav:hover {
+  color: #ffffffee;        /* brighten on hover */
+  transform: translateY(-50%) scale(1.1);
+}
+
+#prev-btn {
+  left: 10rem;
+}
+
+#next-btn {
+  right: 10rem;
+}
+
+/* Optional: fine-tune font appearance */
+.edge-nav .label {
+  font-size: 1rem;
+  display: block;
+  text-align: center;
+  margin-top: 0.25rem;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+
+.collapse-icon{
+  cursor: pointer;
+  transition: transform .2s;
+}
+#search-panel[style*="display: none"] .collapse-icon{
+  transform: rotate(-90deg);   /* points right when collapsed */
+}
+
+/* --- slide tab for search panel -------------------------------- */
+
+
+.search-handle{
+  position: fixed;
+  top: 120px;                          /* same as panel */
+  left: calc(20px + 380px);           /* panel left + panel width */
+  width: 22px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--glass-bg);
+  border-radius: 0 .4rem .4rem 0;
+  color: #fff; font-size: 1.4rem; cursor: pointer;
+  z-index: 1041; transition: left .3s ease;
+}
+.search-handle.collapsed{
+  left: 0;                            /* park at screen edge */
+  border-radius: .4rem;
+}
+
+/* optional hover glow */
+.search-handle:hover{ background: rgba(255,255,255,.15); }
+
+
+/* when panel is open push handle to panel edge */
+body.search-open .search-handle{
+  left: 320px;                /* SEARCH_W */
+}
+
+.btn-outline-light {
+  color: white;
+  border: 1px solid white;
+  background-color: transparent;
+  font-weight: 400;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+/* On hover: lighter border or subtle glow */
+.btn-outline-light:hover {
+  color: white;
+  border-color: #ccc;
+  background-color: rgba(255, 255, 255, 0.1); /* optional glow */
+}
