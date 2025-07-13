@@ -91,7 +91,7 @@ def get_commons_thumb(genus: str,
                           if f.lower().endswith((".jpg", ".jpeg", ".png"))),
                          None)
         if not file_name:
-            return (None,)*4  # Nothing usable
+            return (None,)*6  # Nothing usable
 
         # get an on-the-fly thumbnail, same width
         thumb_url = (f"https://commons.wikimedia.org/w/index.php"

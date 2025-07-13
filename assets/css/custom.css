@@ -1,0 +1,128 @@
+/* ---------- overall layout ------------------------------------------------ */
+
+/* vertical blue-to-black ocean backdrop */
+body {
+    background: linear-gradient(to bottom,
+                #bde7ff 0%,   /* epipelagic */
+                #6ba9ff 35%,
+                #1e4eb7 60%,
+                #001b40 85%,
+                #000000 100%);
+    color: #f8f9fa;                 /* light text everywhere */
+    font-family: "Inter", sans-serif;
+}
+
+/* remove Bootstrap “container” max-width so things can breathe */
+.container-fluid {
+    max-width: 1600px;
+}
+
+/* ---------- top bar ------------------------------------------------------- */
+
+#top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .75rem 0;
+}
+
+/* make the “Pelagica” logo look like a logo */
+#logo {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+}
+
+/* -------- dropdowns & buttons -------------------------------------------- */
+
+.dash-dropdown,
+.dash-select {
+    background: rgba(255,255,255,.15) !important;
+    border: 1px solid #ffffff55 !important;
+    color: #fff !important;
+}
+
+.dash-dropdown:hover,
+.dash-select:hover,
+button.btn:hover {
+    background: rgba(255,255,255,.25) !important;
+}
+
+button.btn-secondary {
+    background: rgba(255,255,255,.15);
+    border: 0;
+    backdrop-filter: blur(4px);
+}
+
+/* ---------- species image panel ------------------------------------------ */
+
+#image-wrapper {
+    position: relative;
+    width: clamp(300px, 40vw, 500px);
+    margin: 1.5rem auto;
+}
+
+#species-img {
+    width: 100%;
+    border: 3px solid #ffffff55;
+    border-radius: .5rem;
+}
+
+/* ---------- overlay info card -------------------------------------------- */
+
+#info-card {
+    position: absolute;
+    right: -1rem;
+    bottom: -1rem;
+    width: 260px;
+    background: rgba(0,0,0,.65);
+    color: #fff;
+    padding: .9rem 1rem;
+    border-radius: .5rem;
+    backdrop-filter: blur(6px);
+    font-size: .9rem;
+}
+
+#info-close {
+    position: absolute;
+    top: -.9rem;
+    right: -.9rem;
+    width: 2rem;
+    height: 2rem;
+    background: #000;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+/* ---------- side tabs (citations / bug) ---------------------------------- */
+
+.side-tab {
+    position: fixed;
+    left: 0;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    background: rgba(255,255,255,.1);
+    border: 1px solid #ffffff33;
+    padding: .5rem .4rem;
+    font-size: .8rem;
+    letter-spacing: .05em;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+.side-tab:hover {
+    background: rgba(255,255,255,.25);
+}
+
+#citations-tab  { top: 35%; }
+#bug-tab        { top: 50%; }
+
+/* off-canvas panel for control/settings */
+.offcanvas-end {
+    background: rgba(0,0,0,.85);
+    color: #fff;
+}
+
