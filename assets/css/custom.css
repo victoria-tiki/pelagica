@@ -1,128 +1,269 @@
-/* ---------- overall layout ------------------------------------------------ */
+/*───────────────────────────────────────────────────────────────
+  PELAGICA  ‣  ONE-PAGE STYLE SHEET
+────────────────────────────────────────────────────────────────*/
 
-/* vertical blue-to-black ocean backdrop */
-body {
-    background: linear-gradient(to bottom,
-                #bde7ff 0%,   /* epipelagic */
-                #6ba9ff 35%,
-                #1e4eb7 60%,
-                #001b40 85%,
-                #000000 100%);
-    color: #f8f9fa;                 /* light text everywhere */
-    font-family: "Inter", sans-serif;
+/* ==========  0. DESIGN TOKENS  ================================= */
+:root{
+  --glass-bg : rgba(98, 112, 156,0.4);
+  --glass-brd: 1px solid rgba(255,255,255,.18);
+  --text-light: #fff;
+  --text-dark : #000;
+  --grad-1: #bfe4ff;
+  --grad-2: #7ab3ff;
+  --grad-3: #316fd1;
+  --grad-4: #0b2d75;
+  --grad-5: #000c28;
+  --scroll-thumb: rgba(255,255,255,.25);
+  --blur-sm : blur(4px);
+  --blur-md : blur(6px);
 }
 
-/* remove Bootstrap “container” max-width so things can breathe */
-.container-fluid {
-    max-width: 1600px;
+/* ==========  1. GLOBAL ELEMENTS  ============================== */
+html,body{ height:100%; }
+body{
+  margin:0;
+  font-family:"Inter",sans-serif;
+  color:var(--text-light);
+  background:linear-gradient(to bottom,
+              var(--grad-2) 0%,
+              var(--grad-3) 25%,
+              var(--grad-4) 70%,
+              var(--grad-5) 100%);
+  background-attachment:fixed;
 }
 
-/* ---------- top bar ------------------------------------------------------- */
+/* Dash container max-width */
+.container-fluid{ max-width:1600px; }
 
-#top-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: .75rem 0;
+h6,
+.h6 {                     
+  color: #fff !important;  
 }
 
-/* make the “Pelagica” logo look like a logo */
-#logo {
-    font-size: 2.5rem;
-    font-weight: 700;
-    letter-spacing: .05em;
+/* ==========  2. TOP BAR & LOGO  =============================== */
+#top-bar{
+  position:relative;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding-top:1.25rem;           /* clears search-panel radius */
+}
+#logo{
+  font-size:2.5rem;
+  font-weight:700;
+  letter-spacing:.05em;
 }
 
-/* -------- dropdowns & buttons -------------------------------------------- */
-
-.dash-dropdown,
-.dash-select {
-    background: rgba(255,255,255,.15) !important;
-    border: 1px solid #ffffff55 !important;
-    color: #fff !important;
+/* ==========  3. SEARCH PANEL  (top-left)  ===================== */
+#search-panel{
+  position:fixed; top:0; left:0; z-index:1040;
+  width:480px; padding:.75rem .9rem 1rem;
+  display:flex; flex-direction:column; gap:.4rem;
+  background:var(--glass-bg); color:var(--text-light);
+  backdrop-filter:var(--blur-md); box-shadow:0 2px 6px #0008;
+}
+#search-panel .dash-dropdown,
+#search-panel .dash-select {
+  background: white !important;
+  color: black !important;
 }
 
-.dash-dropdown:hover,
-.dash-select:hover,
-button.btn:hover {
-    background: rgba(255,255,255,.25) !important;
+/* Selected value (shown when dropdown is closed) */
+#search-panel .Select-value-label,
+#search-panel .Select-placeholder {
+  color: black !important;
 }
 
-button.btn-secondary {
-    background: rgba(255,255,255,.15);
-    border: 0;
-    backdrop-filter: blur(4px);
+/* Dropdown options (shown when open) */
+#search-panel .Select-menu {
+  background: white !important;
+  color: black !important;
+}
+#search-panel .Select-option {
+  color: black !important;
 }
 
-/* ---------- species image panel ------------------------------------------ */
 
-#image-wrapper {
-    position: relative;
-    width: clamp(300px, 40vw, 500px);
-    margin: 1.5rem auto;
+#search-panel .Select-control:hover {
+  border-color: #888 !important;
 }
 
-#species-img {
-    width: 100%;
-    border: 3px solid #ffffff55;
-    border-radius: .5rem;
+#random-btn{
+  background:rgba(0,0,0,.07)!important;
+  color:var(--text-light)!important;
+  border:1px solid #777;
+  padding:.4rem 0;
+  width:200px;
+  margin: 0 auto; 
+  display: block;  
 }
 
-/* ---------- overlay info card -------------------------------------------- */
 
-#info-card {
-    position: absolute;
-    right: -1rem;
-    bottom: -1rem;
-    width: 260px;
-    background: rgba(0,0,0,.65);
-    color: #fff;
-    padding: .9rem 1rem;
-    border-radius: .5rem;
-    backdrop-filter: blur(6px);
-    font-size: .9rem;
+#search-stack > div {
+  margin-bottom: 10px;
 }
+
+
+
+
+/* ==========  4. SIDE TABS  ==================================== */
+/* side-tabs in gutter */
+.side-tab{
+  position: fixed;
+  top: 40%;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  background: var(--glass-bg);
+  border: var(--glass-brd);
+  padding: .55rem .45rem;
+  font-size: .78rem;
+  cursor: pointer;
+  transition: left .3s ease, right .3s ease;   /* smooth slide */
+  z-index: 1050;
+}
+
+/* initial gutter positions */
+#citations-tab{ left: 0; }
+#settings-tab{  right: 0; }
+#bug-tab{       left: 0; top: 55%; }  /* stays fixed */
+
+
+/* fixed bug tab (unchanged) */
+#bug-tab{
+  position: fixed;
+  left: 0;
+  top: 55%;
+  transform: translateY(-50%) rotate(180deg);
+  z-index: 1050;
+}
+
+.side-tab{
+  transition: left .3s ease, right .3s ease;
+}
+
+
+
+
+/* ==========  5. OFF-CANVAS PANELS  ============================ */
+.offcanvas{
+  background:var(--glass-bg)!important;
+  color:var(--text-light)!important;
+  border-left:var(--glass-brd);
+}
+.offcanvas-title,
+.offcanvas-body{ color:var(--text-light)!important; }
+.offcanvas-header, .offcanvas-body {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.offcanvas-header {
+  padding-top: 12rem !important;
+  display: flex;
+  flex-direction: row; /* instead of column */
+  justify-content: space-between;
+  align-items: center;
+  text-align: center;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+
+.offcanvas-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  flex: 1;                
+  text-align: center;     
+}
+
+
+
+
+/* citation text wraps */
+#citation-box{
+  white-space:pre-wrap; word-wrap:break-word;
+  color:var(--text-light); font-size:.9rem;
+}
+
+#citation-box a{ color:var(--text-light); }
+
+/* ==========  6. MAIN DISPLAY AREA  ============================ */
+#page-centre-flex{
+  min-height:calc(100vh - 220px);     /* header+footer buffer */
+  display:flex; flex-direction:column;
+  justify-content:center; align-items:center;
+  text-align:center;
+}
+
+/* 6-a  title slab */
+#species-titles{
+  display:inline-block; margin:.5rem 0 1rem;
+  padding:.6rem 1.4rem .8rem;
+  background:var(--glass-bg); border:var(--glass-brd);
+  backdrop-filter:var(--blur-md); box-shadow:0 2px 6px #0008;
+  border-radius:2rem;
+}
+
+
+#species-titles h1,
+#species-titles h4{ margin:0; color:var(--text-light); }
+#species-titles h1{ font-size:1.5rem; }
+#species-titles h4{ font-weight:400; font-style:italic; }
+
+/* 6-b  image wrapper */
+#image-wrapper{
+  position:relative; overflow:visible;
+  width:clamp(300px,40vw,500px);
+}
+#species-img{
+  width:100%; border-radius:.5rem;
+  border:3px solid #ffffff55;
+}
+
+/* 6-c  info card + handle */
+#info-card{
+  position:absolute; top:95%; left:75%; transform:translateY(-50%);
+  width:380px; max-height:75%; overflow-y:auto;
+  background:var(--glass-bg); border:var(--glass-brd);
+  backdrop-filter:var(--blur-md); color:var(--text-light);
+  padding:.9rem 1rem; font-size:.9rem; box-shadow:0 2px 6px #0008;border-radius:.8rem;
+}
+
+#info-card a{ color:var(--text-light); }
+
+#info-card::-webkit-scrollbar{ width:6px; }
+#info-card::-webkit-scrollbar-thumb{
+  background:var(--scroll-thumb); border-radius:3px;
+}
+#info-card{ scrollbar-color:var(--scroll-thumb) transparent; }
 
 #info-close {
-    position: absolute;
-    top: -.9rem;
-    right: -.9rem;
-    width: 2rem;
-    height: 2rem;
-    background: #000;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    cursor: pointer;
+    position: absolute;top: .5rem;right: .5rem;width: 1.6rem;height: 1.6rem;display: grid;
+    place-items: center;background: transparent;border-radius: 50%;color: var(--text-light);
+    cursor: pointer;z-index: 2;font-weight: bold;font-size: 1.2rem;
 }
 
-/* ---------- side tabs (citations / bug) ---------------------------------- */
-
-.side-tab {
-    position: fixed;
-    left: 0;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    background: rgba(255,255,255,.1);
-    border: 1px solid #ffffff33;
-    padding: .5rem .4rem;
-    font-size: .8rem;
-    letter-spacing: .05em;
-    cursor: pointer;
-    transition: background .2s;
+#info-close:hover {
+    background: rgba(255,255,255,0.1);
 }
 
-.side-tab:hover {
-    background: rgba(255,255,255,.25);
+
+
+#info-handle{
+  position:absolute; right:-1rem; bottom:-1rem;
+  width:2rem; height:2rem; display:grid; place-items:center;
+  background:var(--glass-bg); border:var(--glass-brd); border-radius:50%;
+  color:var(--text-light); cursor:pointer; font-weight:600;
+  backdrop-filter:var(--blur-md); box-shadow:0 2px 6px #0008;
+  display:none;                /* shown/hidden via JS callback */
 }
 
-#citations-tab  { top: 35%; }
-#bug-tab        { top: 50%; }
-
-/* off-canvas panel for control/settings */
-.offcanvas-end {
-    background: rgba(0,0,0,.85);
-    color: #fff;
+/* ==========  7. FOOTER CREDIT  ================================ */
+#footer-credit{
+  position:fixed; right:1rem; bottom:1rem;
+  font-size:.8rem; opacity:.7;
 }
+
+/*───────────────────────────────────────────────────────────────*/
 

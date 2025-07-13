@@ -1,0 +1,6 @@
+external_stylesheets = [
+    dbc.themes.LUX,
+    "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap",
+]
+app = Dash(__name__, external_stylesheets=external_stylesheets)
+
