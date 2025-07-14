@@ -62,7 +62,7 @@ h5,
 /* ==========  3. SEARCH PANEL  (top-left)  ===================== */
 #search-panel{
   position:fixed; top:10%; left:20px; z-index:1040;
-  width:380px; padding:.8rem .9rem 1rem;
+  width:440px; padding:.8rem .9rem 1rem;
   border-radius:.6rem;   
   display:flex; flex-direction:column; gap:.4rem;
   background:var(--glass-bg); color:var(--text-light);
@@ -155,7 +155,7 @@ h5,
   flex-direction: column;
   text-align: center;
   padding-left: 1.0rem !important;   /* ≈ 13 px */
-  padding-right: 5.0rem !important;  /* ≈ 13 px */
+  padding-right: 1.0rem !important;  /* ≈ 13 px */
   box-sizing: border-box;            /* ensures width stays fixed */
 }
 
@@ -240,13 +240,15 @@ h5,
   flex: 1;        /* let text wrap but don’t push pill off-screen */
   margin-bottom: 0;
   line-height: 1.5rem;
+  margin-left: 0.5rem;
 }
+
 
 
 
 /* ==========  6. MAIN DISPLAY AREA  ============================ */
 #page-centre-flex{
-  min-height:calc(100vh - 220px);     /* header+footer buffer */
+  min-height:calc(100vh - 150px);     /* header+footer buffer */
   display:flex; flex-direction:column;
   justify-content:center; align-items:center;
   text-align:center;
@@ -268,62 +270,155 @@ h5,
 #species-titles h1{ font-size:1.5rem; }
 #species-titles h4{ font-weight:400; font-style:italic; }
 
-/* 6-b  image wrapper */
-#image-wrapper{
-  position:relative; overflow:visible;
-  width:clamp(300px,40vw,500px);
-}
-/* limit to 80 % of the viewport height, scale automatically */
-#species-img {
-  max-height: 50vh;
+
+
+#image-inner {
+  position: relative;
+  width: 100%;
   height: auto;
-  width: auto;
-  max-width: 100%;         /* ensures it doesn't overflow horizontally */
+}
+
+
+
+
+#image-wrapper{
+  position: relative;
+  width: clamp(320px, 52vw, 520px);   /* overall image width */
+  margin: 0 auto;
+
+  /* vertical fade (top & bottom) 
+  -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 12%,
+      black 88%,
+      transparent 100%);
+          mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 12%,
+      black 88%,
+      transparent 100%);
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;*/
+}
+
+
+
+#species-img {
+  max-height: 40vh;
+  width: 100%;
+  height: auto;
   object-fit: contain;
-  border-radius: .5rem;
   display: block;
-  margin: 0 auto;          /* optional: center the image horizontally */
+
+  /* Combine horizontal and vertical fades 
+  -webkit-mask-image: 
+    linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+  mask-image: 
+    linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+
+  -webkit-mask-composite: intersect;
+  mask-composite: intersect;
+
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;*/
 }
 
 
 
-/* 6-c  info card + handle */
-#info-card{
-  position:absolute; top:120%; left:70%; transform:translateY(-50%);
-  width:380px; max-height:150%; overflow-y:auto;
-  background:var(--glass-bg); border:var(--glass-brd);
-  backdrop-filter:var(--blur-md); color:var(--text-light);
-  padding:.9rem 1rem; font-size:.9rem; box-shadow:0 2px 6px #0008;border-radius:.8rem;
+
+
+
+/* Info card anchored *overlapping* below the image */
+#info-card {
+  background: var(--glass-bg);
+  border: var(--glass-brd);
+  backdrop-filter: var(--blur-md);
+  color: var(--text-light);
+  padding: 1rem 1.2rem;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 6px #0008;
+  border-radius: 0.8rem;
+  overflow-y: auto;
+  z-index: 1;
+  position: absolute;
+  top: calc(100% + 0.3rem);    /* small gap under image */
+  left: 0;
+  width: 100%;
+  max-width: 100%;             /* exactly as wide as image-wrapper */
+  scrollbar-color: var(--scroll-thumb) transparent;
 }
 
-#info-card a{ color:var(--text-light); }
 
-#info-card::-webkit-scrollbar{ width:6px; }
-#info-card::-webkit-scrollbar-thumb{
-  background:var(--scroll-thumb); border-radius:3px;
+/* Handle remains bottom-left of image */
+#info-handle {
+  position: absolute;
+  left: 0.6rem;
+  bottom: 0.6rem;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  background: var(--glass-bg);
+  border: var(--glass-brd);
+  border-radius: 50%;
+  color: var(--text-light);
+  cursor: pointer;
+  font-weight: 600;
+  backdrop-filter: var(--blur-md);
+  box-shadow: 0 2px 6px #0008;
+  display: none;  /* toggle via JS/callback */
 }
-#info-card{ scrollbar-color:var(--scroll-thumb) transparent; }
 
+
+/* Make close button more button-like */
 #info-close {
-    position: absolute;top: .5rem;right: .5rem;width: 1.6rem;height: 1.6rem;display: grid;
-    place-items: center;background: transparent;border-radius: 50%;color: var(--text-light);
-    cursor: pointer;z-index: 2;font-weight: bold;font-size: 1.2rem;
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  color: var(--text-light);
+  cursor: pointer;
+  z-index: 2;
+  font-weight: bold;
+  font-size: 1.2rem;
+  border: 1px solid #ffffff44;
 }
+
 
 #info-close:hover {
-    background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+
+#info-card a {
+  color: var(--text-light);
+}
+
+#info-card::-webkit-scrollbar {
+  width: 6px;
+}
+#info-card::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 3px;
 }
 
 
 
-#info-handle{
-  position:absolute; right:-1rem; bottom:-1rem;
-  width:2rem; height:2rem; display:grid; place-items:center;
-  background:var(--glass-bg); border:var(--glass-brd); border-radius:50%;
-  color:var(--text-light); cursor:pointer; font-weight:600;
-  backdrop-filter:var(--blur-md); box-shadow:0 2px 6px #0008;
-  display:none;                /* shown/hidden via JS callback */
-}
+
+
+
+
+
+
 
 /* ==========  7. FOOTER CREDIT  ================================ */
 #footer-credit{
@@ -333,7 +428,7 @@ h5,
 
 
 /* === NAVIGATION ARROWS =================================== */
-.edge-nav {
+ /*.edge-nav {
   position: fixed;
   top: 50%;
   transform: translateY(-50%);
@@ -341,16 +436,16 @@ h5,
   background: none;
   border: none;
   font-size: 3rem;
-  color: #ffffffbb;       /* slightly translucent white */
+  color: #ffffffbb;      
   cursor: pointer;
   padding: 0 0.5rem;
-  transition: color 0.3s ease, transform 0.3s ease;
+  transition: color 0.3s ease, transform 0.3s ease;*/
 }
 
-.edge-nav:hover {
-  color: #ffffffee;        /* brighten on hover */
+ /* .edge-nav:hover {
+  color: #ffffffee;       
   transform: translateY(-50%) scale(1.1);
-}
+} */
 
 #prev-btn {
   left: 10rem;
@@ -360,7 +455,7 @@ h5,
   right: 10rem;
 }
 
-/* Optional: fine-tune font appearance */
+/* Optional: fine-tune font appearance 
 .edge-nav .label {
   font-size: 1rem;
   display: block;
@@ -368,7 +463,7 @@ h5,
   margin-top: 0.25rem;
   letter-spacing: 0.05em;
   opacity: 0.6;
-}
+}*/
 
 .collapse-icon{
   cursor: pointer;
@@ -384,7 +479,7 @@ h5,
 .search-handle{
   position: fixed;
   top: 120px;                          /* same as panel */
-  left: calc(20px + 380px);           /* panel left + panel width */
+  left: calc(20px + 440px);           /* panel left + panel width */
   width: 22px; height: 40px;
   display: flex; align-items: center; justify-content: center;
   background: var(--glass-bg);
@@ -421,3 +516,200 @@ body.search-open .search-handle{
   border-color: #ccc;
   background-color: rgba(255, 255, 255, 0.1); /* optional glow */
 }
+
+#adv-box .gx-1 > .col > .btn {
+    white-space: nowrap;          /* keep labels on one line */
+}
+
+
+/* vertical nav inherits ALL styling from .edge-nav 
+.vert-nav{
+  z-index: 1030;
+  background: none;
+  border: none;
+  font-size: 3rem;
+  color: #ffffffbb;      
+  cursor: pointer;
+  padding: 0 0.5rem;
+  transition: color 0.3s ease, transform 0.3s ease;
+  
+  position: fixed;
+  display: flex;                 
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;                   
+}
+
+.vert-nav .chev{
+  transform: rotate(90deg);
+  display: block;
+  line-height: 1;                
+}
+
+helper text size matches the sideways labels 
+.vert-nav .label{
+  font-size: 1rem;
+  margin-top: 0.25rem;
+  opacity: 0.6;
+}*/
+
+
+
+/* shared look is already in .vert-nav – here we just position
+#up-btn{
+  position: absolute;
+  top: -12.0rem;             
+  left: 50%;
+  transform: translateX(-50%);   
+  bottom: calc(-1 * var(--depth-arrow-offset));
+}
+#down-btn{
+  position: absolute;
+  bottom: -8.0rem;           
+  left: 50%;
+  transform: translateX(-50%);
+  top:    calc(-1 * var(--depth-arrow-offset));
+}*/
+
+
+
+
+
+
+
+.settings-header {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.settings-group {
+  margin-bottom: 1.2rem;
+  padding-left: 0.3rem;
+}
+
+.settings-note {
+  margin-top: 0.3rem;
+  padding-left: 2rem;
+  font-size: 0.85em;
+  line-height: 1.4;
+  opacity: 0.7;
+  max-width: 280px;
+}
+
+
+
+
+/* --- dial container -------------------------------------------------- */
+
+
+/* positions */
+.nav-wrap.up    .nav-icon { transform: rotate(-90deg); }
+.nav-wrap.down  .nav-icon { transform: rotate(90deg); }
+.nav-wrap.left  .nav-icon { transform: rotate(180deg); }
+.nav-wrap.right .nav-icon { transform: rotate(0deg);  }
+
+
+
+
+
+/* ─── PANEL container ─────────────────────────────────────────────── */
+#nav-panel {
+  position: fixed;
+  top: 6.5rem;      /* adjust downward if needed */
+  right: 1rem;
+  width: 210px;
+  height: 210px;
+  padding: 0.5rem;  /* give header room */
+  background: rgba(0,0,0,0.2);
+  border-radius: 0.5rem;
+  color: #fff;
+  z-index: 1030;
+  pointer-events: none; /* only nav-wraps get pointer-events */
+}
+
+/* header row */
+.nav-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.3rem;
+  pointer-events: auto;
+}
+.nav-title { font-weight: 600; font-size: 0.9rem; }
+.nav-info-icon { cursor: pointer; opacity: 0.7; pointer-events: auto; font-size: 1.5rem; }
+
+/* dial background inside the panel */
+.dial-bg {
+  position: absolute;
+  top: 2.2rem; left: 50%;
+  transform: translateX(-50%);
+  width: 150px;  /* or whatever fits */
+  user-select: none;
+  pointer-events: none;
+}
+
+/* arrow + label wrappers */
+.nav-wrap {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+}
+
+/* position each arrow around the dial */
+.nav-wrap.up    { top: 1.0rem !important;  left: 50% !important; transform: translate(-50%, -45%) !important; }
+.nav-wrap.down  { bottom: 1.9rem !important; left: 50% !important; transform: translate(-50%, 45%) !important; }
+.nav-wrap.left  { left: 1.5rem !important;  top: 50% !important; transform: translate(-45%, -50%) !important; }
+.nav-wrap.right { right: 1.5rem !important; top: 50% !important; transform: translate(45%, -50%) !important; }
+
+/* arrow styling */
+.nav-icon {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: #fff !important;
+}
+.nav-label {
+  position: relative
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* target only the label inside a nav-wrap */
+.nav-wrap .nav-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 2.5rem;  
+  margin: 0;     /* clear any other margins */
+  line-height: 1;
+}
+
+
+
+/* info text under panel */
+#nav-info-text {
+  position: absolute;
+  top: 0.5rem;          /* same vertical offset */
+  right: 100%;           /* place its left edge at the panel’s right edge */
+  margin-left: 0.4rem;  /* breathing room */
+
+  width: 300px;
+  font-size: 0.9rem;
+  line-height: 1.2;
+
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.25rem;
+  pointer-events: auto;
+  opacity: 0.9;
+}
+
+
+

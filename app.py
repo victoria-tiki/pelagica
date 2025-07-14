@@ -12,7 +12,8 @@ import dash_bootstrap_components as dbc
 import pandas as pd, random, datetime
 
 from src.process_data import load_species_data
-from src.wiki import get_blurb, get_commons_thumb          # cached versions!
+from src.wiki import get_blurb, get_commons_thumb         
+from src.utils import assign_random_depth
 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
@@ -93,7 +94,7 @@ search_stack = html.Div(id="search-stack", children=[
         [
             html.Button("⚙ Settings", id="open-settings-btn",
                         className="btn btn-outline-light btn-sm"),
-            html.Button("Random Species", id="random-btn",
+            html.Button("Random", id="random-btn",
                         className="btn btn-outline-light btn-sm")
         ],
         style={
@@ -111,32 +112,101 @@ search_panel = html.Div(search_stack, id="search-panel")
 
 
 
-CITATION_W  = 400   
+CITATION_W  = 300   
 PANEL_WIDTH  = CITATION_W
-SEARCH_W, SEARCH_TOP = 380, 120    # width px, distance below top bar
+SEARCH_W, SEARCH_TOP = 440, 120    # width px, distance below top bar
 
 advanced_filters = html.Div(                # collapsible area
     [
-        html.H6("Filters"),
-        dbc.Checklist(id="wiki-toggle",
-                      options=[{"label": "Only species with Wikipedia entry",
-                                "value": "wiki"}],
-                      value=["wiki"], switch=True),
-        dbc.Checklist(id="popular-toggle",
-                      options=[{"label": "Only popular species", "value": "pop"}],
-                      value=["pop"], switch=True),
-        html.Div("Limits to ~100 curated species.",
-                 style={"fontSize":".8rem","marginBottom":".8rem","opacity":.75}),
-        html.H6("Size Comparison"),
-        dbc.Checklist(id="size-toggle",
-                      options=[{"label": "Show size comparison", "value": "size"}],
-                      value=["size"], switch=True),
-        html.Div("If off: compare by depth (beta).",
-                 style={"fontSize":".8rem","marginTop":"-.5rem","marginBottom":"0.8rem","opacity":.75}),
-        dbc.Checklist(id="order-toggle",
-                      options=[{"label": "…only within same order", "value": "order"}],
-                      value=[], switch=True,
-                      style={"display":"none"})
+    html.H6("Filters", className="settings-header"),
+
+    html.Div([
+        dbc.Checklist(
+            id="wiki-toggle",
+            options=[{"label": "Only species with Wikipedia entry", "value": "wiki"}],
+            value=["wiki"],
+            switch=True
+        )
+    ], className="settings-group"),
+
+    html.Div([
+        dbc.Checklist(
+            id="popular-toggle",
+            options=[{"label": "Only popular species", "value": "pop"}],
+            value=["pop"],
+            switch=True
+        ),
+        html.Div("Limits to ~100 curated species.", className="settings-note")
+    ], className="settings-group"),
+
+    html.H6("Depth Comparison", className="settings-header"),
+
+    html.Div([
+        dbc.Checklist(
+            id="depth-toggle",
+            options=[{"label": "Show depth comparison", "value": "depth"}],
+            value=[],
+            switch=True
+        ),
+        html.Div("For comparison, we use a random depth within the species' depth range.",
+                 className="settings-note"),
+    ], className="settings-group"),
+
+    html.H6("Size Comparison", className="settings-header"),
+
+    html.Div([
+        dbc.Checklist(
+            id="size-toggle",
+            options=[{"label": "Show size comparison", "value": "size"}],
+            value=["size"],
+            switch=True
+        ),
+        dbc.Checklist(
+            id="order-toggle",
+            options=[{"label": "…only within same order", "value": "order"}],
+            value=[],
+            switch=True,
+            style={"display": "none"}
+        )
+    ], className="settings-group"),
+
+    html.Hr(style={"opacity": .3}),
+
+        html.H6("Quick jumps"),
+        #dbc.Row(
+        #    [
+        #        dbc.Col(
+        #            html.Button("jump to shallowest", id="shallowest-btn",
+        #                        className="btn btn-outline-light btn-sm w-100"),
+        #            width=6
+        #        ),
+        #        
+        #        dbc.Col(
+        #            html.Button("jump to deepest",    id="deepest-btn",
+        #                        className="btn btn-outline-light btn-sm w-100"),
+        #            width=6
+        #        ),
+        #    ],
+        #    className="gx-1", style={"marginBottom": ".4rem"}
+        #),
+        
+
+        dbc.Row(
+            [
+                dbc.Col(
+                    html.Button("jump to smallest",  id="smallest-btn",
+                                className="btn btn-outline-light btn-sm w-100"),
+                    width=6
+                ),
+                dbc.Col(
+                    html.Button("jump to largest",   id="largest-btn",
+                                className="btn btn-outline-light btn-sm w-100"),
+                    width=6
+                ),
+            ],
+            className="gx-1"
+        ),
+
     ],
     id="adv-box",
     style={"display": "none"} 
@@ -255,19 +325,24 @@ citations_panel = dbc.Offcanvas(
 # --------------------------------------------------------------------
 #  Centre-page flex wrapper
 # --------------------------------------------------------------------
+
 centre_flex = html.Div(id="page-centre-flex", children=[
-    #html.Div(id="species-titles"),
     html.Div(id="image-wrapper", children=[
-        html.Img(id="species-img"),
-        # --- info card ---
+
+        # this div now contains the image AND the up/down buttons
+        html.Div(id="image-inner", children=[
+            html.Img(id="species-img"),
+            html.Div("i", id="info-handle", style={"display": "none"})
+        ]),
+
+        # info card remains outside image-inner
         html.Div(id="info-card", children=[
             html.Div(id="info-close", children="✕"),
             html.Div(id="info-content")
-        ]),
-        # --- tiny handle to reopen ---
-        html.Div("i", id="info-handle", style={"display":"none"})
+        ])
     ])
 ])
+
 
 
 
@@ -292,12 +367,57 @@ footer = html.Div(
         "opacity": .7
     }
 )
+  
 
-# Fixed edge buttons
-nav_buttons = html.Div([
-    html.Button(id="prev-btn", className="edge-nav"),
-    html.Button(id="next-btn", className="edge-nav")
-], id="edge-nav-wrapper")
+
+
+# ─── NAVIGATION PANEL w/ DIAL ─────────────────────────────────────────
+nav_panel = html.Div([
+    # ── Header ────────────────────────────────────────────────
+    html.Div([
+        html.Span("ⓘ", id="nav-info-icon", className="nav-info-icon"),
+    ], className="nav-header"),
+
+    # ── Compass in one layer ───────────────────────────────────
+    html.Img(src="/assets/dial.webp", className="dial-bg"),
+
+    html.Div([
+        html.Button("〉", id="up-btn", className="nav-icon"),
+        html.Small("shallower", className="nav-label"),
+    ], id="up-wrap", className="nav-wrap up"),
+
+    html.Div([
+        html.Button("〉", id="down-btn", className="nav-icon"),
+        html.Small("deeper", className="nav-label"),
+    ], id="down-wrap", className="nav-wrap down"),
+
+    html.Div([
+        html.Button("〉", id="prev-btn", className="nav-icon"),
+        html.Small("smaller", className="nav-label"),
+    ], id="prev-wrap", className="nav-wrap left"),
+
+    html.Div([
+        html.Button("〉", id="next-btn", className="nav-icon"),
+        html.Small("larger", className="nav-label"),
+    ], id="next-wrap", className="nav-wrap right"),
+
+    # ── Hidden explanation ─────────────────────────────────────
+    html.Div([
+        "Navigation Menu",
+        html.Br(), html.Br(),
+        "Explore species by size or depth. Move from shallow waters to the deep sea, and from tiny creatures to giants."
+    ],
+        id="nav-info-text",
+        style={"display": "none"}
+    )
+
+], id="nav-panel")
+
+
+
+
+
+
 
 search_handle = html.Div("‹", id="search-handle", className="search-handle")
 
@@ -306,6 +426,7 @@ search_handle = html.Div("‹", id="search-handle", className="search-handle")
 app.layout = dbc.Container([
     search_panel,
     search_handle,
+    dcc.Store(id="rand-seed", storage_type="session"),
     top_bar,
     #settings_panel,
     citations_panel,
@@ -316,11 +437,11 @@ app.layout = dbc.Container([
     html.Div("report a bug",   id="bug-tab",       className="side-tab"),
 
     html.Div(centre_flex, id="main-content", style={"display": "none"}),
-    nav_buttons,
+    nav_panel,
 
 
     footer,
-    dcc.Store(id="selected-species")
+    dcc.Store(id="selected-species", data=None)
 ], fluid=True)
 
 
@@ -382,7 +503,7 @@ def update_species_options(genus, wiki_val, pop_val, current):
 # Callback 2 – whenever any chooser fires, update selected-species
 # -------------------------------------------------------------------
 @app.callback(
-    Output("selected-species", "data"),
+    Output("selected-species", "data",allow_duplicate=True),
     Input("species-dd", "value"),
     Input("genus-dd",   "value"),
     Input("common-dd",  "value"),
@@ -446,9 +567,8 @@ def toggle_settings(n, settings_open):
 # --- CITATIONS panel toggle -----------------------------------
 @app.callback(
     Output("citations-canvas", "is_open"),
-    #Output("settings-canvas",  "is_open", allow_duplicate=True),
-    Output("info-card",        "style",   allow_duplicate=True),
-    Output("info-handle",      "style",   allow_duplicate=True),  # 👈 NEW
+    Output("info-card",        "style", allow_duplicate=True),
+    Output("info-handle",      "style", allow_duplicate=True),
     Input("citations-tab",     "n_clicks"),
     State("citations-canvas",  "is_open"),
     prevent_initial_call=True
@@ -460,7 +580,6 @@ def toggle_citations(n, citations_open):
     new_citations = not citations_open
     return (
         new_citations,         # open / close citations
-        False,                 # always close settings
         {"display": "none"},   # hide info card
         {"display": "block"}   # show little "i" handle
     )
@@ -540,15 +659,33 @@ def fill_citation(gs_name):
     Input("units-toggle",     "value")        # <-- NEW
 )
 def update_image(gs_name, units):
+    habitat_defs = {
+        "benthopelagic":     "swims near the sea floor and in open water",
+        "pelagic-oceanic":   "lives in the open ocean, away from land or sea floor",
+        "reef-associated":   "lives near coral reefs",
+        "benthic":           "lives on or in the sea floor",
+        "pelagic":           "inhabits open water, not near the bottom",
+        "demersal":          "lives close to the bottom, often resting there",
+        "pelagic-neritic":   "lives in coastal open water, above the continental shelf",
+        "bathydemersal":     "inhabits deep waters near the sea floor",
+        "sessile":           "attached to a surface and doesn’t move"
+    }
+
+
     if not gs_name:
         raise PreventUpdate
 
     genus, species = gs_name.split(" ", 1)
-    summary, url = get_blurb(genus, species)
+    summary, url = get_blurb(genus, species, 4)
     thumb, *_ = get_commons_thumb(genus, species)
 
     # -------- pull the chosen row once -------
-    row = df_wiki.loc[df_wiki["Genus_Species"] == gs_name].iloc[0]
+    #row = df_wiki.loc[df_wiki["Genus_Species"] == gs_name].iloc[0]
+    
+    row_full = df.loc[df["Genus_Species"] == gs_name]
+    if row_full.empty:                 
+        raise PreventUpdate
+    row = row_full.iloc[0]
 
     # ---------- LENGTH ----------
     if units == "metric":
@@ -580,11 +717,18 @@ def update_image(gs_name, units):
     info_lines = [
         html.H5(common, style={"marginBottom": "0.2rem"}),
         html.H6(gs_name, style={"marginTop": "0", "marginBottom": "1rem"}),
-        html.Span(f"length: {length}  |  depth: {depth}")
+        html.Span([
+            html.Span("length", title="Maximum recorded length of species", style={"textDecoration": "underline dashed"}),
+            f": {length}  |  ",
+            html.Span("depth", title="Pelagica shows you this species at a random depth within this range.", style={"textDecoration": "underline dashed"}),
+            f": {depth}"
+        ])
+
+
     ]
 
 
-    # ---------- WATER TYPE ----------
+    # ---------- WATER TYPE + PELAGIC ZONE ----------
     if row.get("Fresh") == 1:
         salinity = "freshwater"
     elif row.get("Saltwater") == 1:
@@ -594,11 +738,33 @@ def update_image(gs_name, units):
     else:
         salinity = None
 
+    zone = row.get("DemersPelag")
+    zone_desc = habitat_defs.get(str(zone).lower()) if pd.notna(zone) else None
+
+    # ───── HABITAT LINE: salinity + zone (like "pelagic") ─────
+    habitat_bits = []
+
     if salinity:
+        habitat_bits.append(salinity)
+
+    if zone:
+        if habitat_bits:
+            habitat_bits.append(", ")
+
+        if zone_desc:
+            habitat_bits.append(
+                html.Span(zone, title=zone_desc, style={"textDecoration": "underline dashed"})
+            )
+        else:
+            habitat_bits.append(zone)
+
+    if habitat_bits:
         info_lines.extend([
             html.Br(),
-            html.Span("habitat: " + salinity)
+            html.Span(["habitat: "] + habitat_bits)
         ])
+
+
 
 
     # ---------- LONGEVITY ----------
@@ -625,7 +791,7 @@ def update_image(gs_name, units):
     ])
 
     # ---------- DATABASE COMMENTS (only when present) ----------------
-    '''comments = row.get("Comments")
+    comments = row.get("Comments")
     src      = str(row.get("Database", "")).lower()      # "sealifebase" / "fishbase"
 
     if pd.notna(comments) and comments.strip():
@@ -639,9 +805,9 @@ def update_image(gs_name, units):
 
         info_lines.extend([
             html.Br(),
-            html.Span(comments.strip()), html.Br(),
+            html.Span(" ".join(comments.strip().split()[:100]) + "…"), html.Br(),
             html.A(f"{src_name} ↗", href=cite_url, target="_blank")
-        ])'''
+        ])
 
 
 
@@ -707,84 +873,124 @@ def sync_dropdowns(gs_name):
     return common, genus, species
 
 
-@app.callback(
-    Output("selected-species", "data", allow_duplicate=True),
-    Input("next-btn", "n_clicks"),
-    Input("prev-btn", "n_clicks"),
-    State("selected-species", "data"),
-    State("size-toggle",   "value"),
-    State("popular-toggle","value"),   # ← NEW
-    prevent_initial_call=True
-)
-def next_prev_species(n_next, n_prev, current, size_val, pop_val):
-    if not current:
-        raise PreventUpdate
+# ──────────────────────────────────────────────────────────────
+# Helper: build one consistent dataframe for the current filters
+# ──────────────────────────────────────────────────────────────
+def get_filtered_df(size_on: bool, depth_on: bool,
+                    wiki_val, pop_val, seed=None):
+    """
+    Build one dataframe that respects all active toggles.
 
-    size_mode = "size" in size_val
-    forward = ctx.triggered_id == "next-btn"
-    reverse = ctx.triggered_id == "prev-btn"
-    if not (forward or reverse):
-        raise PreventUpdate
+    • If *size_on*  → keep only rows with Length_cm.
+    • If *depth_on* → keep only rows with (any) depth.
+    • Both on?      → require **both** length *and* depth.
 
-    # --- Always get current species row first
-    row = df.loc[df["Genus_Species"] == current]
-    if row.empty:
-        raise PreventUpdate
-    row = row.iloc[0]
+    When *depth_on* is True we also attach the RandDepth column (needs seed).
+    """
+    df_use = df.copy()
 
-    # --- Choose sorting column(s)
-    if size_mode:
-        sort_cols = ["Length_cm", "Length_in"]
-        df_use = df[df["Length_cm"].notna()].copy()
-    else:
-        use_com = row.DepthComPreferred
-        if use_com:
-            sort_cols = ["DepthRangeComShallow", "DepthRangeComDeep"]
-            df_use = df[df["DepthRangeComShallow"].notna()].copy()
-        else:
-            sort_cols = ["DepthRangeShallow", "DepthRangeDeep"]
-            df_use = df[df["DepthRangeShallow"].notna()].copy()
+    # --- per-axis availability ------------------------------------------
+    if size_on:
+        df_use = df_use[df_use["Length_cm"].notna()]
 
-    # --- Apply popular filter if toggle is on
+    if depth_on:
+        df_use = df_use[
+            df_use["DepthRangeComShallow"].notna() |
+            df_use["DepthRangeShallow"].notna()
+        ]
+
+    # --- global filters -------------------------------------------------
+    if "wiki" in wiki_val:
+        df_use = df_use[df_use["has_wiki_page"]]
+
     if "pop" in pop_val:
         df_use = df_use[df_use["Genus_Species"].isin(popular_set)]
-        if df_use.empty:
-            raise PreventUpdate
 
-    # --- Final sort and navigation logic
-    df_sorted = df_wiki[df_wiki.index.isin(df_use.index)].sort_values(sort_cols)
-    species_list = df_sorted["Genus_Species"].tolist()
+    # --- random depth column (only when needed) -------------------------
+    if depth_on and seed is not None:
+        df_use = assign_random_depth(df_use, seed)
 
-    if current not in species_list:
-        current = species_list[0]
-        #raise PreventUpdate
+    return df_use
 
-    idx = species_list.index(current)
-    if forward and idx < len(species_list) - 1:
-        return species_list[idx + 1]
-    elif reverse and idx > 0:
-        return species_list[idx - 1]
+'''# ─── size-axis navigation (left / right) ────────────────────────────
+@app.callback(
+    Output("selected-species", "data", allow_duplicate=True),
+    Input("next-btn",  "n_clicks"),
+    Input("prev-btn",  "n_clicks"),
+    Input("size-toggle",     "value"),
+    Input("depth-toggle",    "value"),   # ← ADD THIS
+    Input("wiki-toggle",     "value"),
+    Input("popular-toggle",  "value"),
+    State("rand-seed",       "data"),
+    prevent_initial_call=True
+)
+def next_prev_species(n_next, n_prev, current,
+                      size_val, depth_val,          # ← …and THIS
+                      wiki_val, pop_val, seed):
 
-    raise PreventUpdate  # stay on current
+    # -------- guard rails -------------------------------------------
+    if not current or "size" not in size_val:    # size axis is off
+        raise PreventUpdate
+
+    trig_prev = ctx.triggered_id == "prev-btn"
+    trig_next = ctx.triggered_id == "next-btn"
+    if not (trig_prev or trig_next):
+        raise PreventUpdate
+
+    # -------- build filtered frame ----------------------------------
+    size_on  = True                              # we know it’s on
+    depth_on = "depth" in depth_val
+    df_use   = get_filtered_df(size_on, depth_on,
+                               wiki_val, pop_val, seed)
+
+    if df_use.empty:
+        raise PreventUpdate
+
+    # -------- order by length only (size axis) ----------------------
+    df_use = df_use.sort_values(["Length_cm", "Length_in"])
+    species = df_use["Genus_Species"].tolist()
+    if current not in species:
+        current = species[0]
+
+    idx = species.index(current)
+    idx = (idx - 1) % len(species) if trig_prev else (idx + 1) % len(species)
+    return species[idx]'''
+
+
+'''@app.callback(
+    Output("prev-btn", "children"),
+    Output("next-btn", "children"),
+    Input("selected-species", "data"),
+    Input("size-toggle",      "value"),
+)
+def set_size_labels(current, size_val):
+    if "size" not in size_val or not current:
+        return "‹", "›"
+    return ["‹", html.Span("smaller", className="label")], \
+           ["›", html.Span("larger", className="label")]
 
 
 @app.callback(
-    Output("prev-btn", "children"),
-    Output("next-btn", "children"),
-    Input("size-toggle", "value")
+    Output("up-btn",   "children"),
+    Output("down-btn", "children"),
+    Input("selected-species", "data"),
+    Input("depth-toggle",     "value"),
 )
-def set_nav_labels(size_val):
-    if "size" in size_val:
-        left_lbl, right_lbl = "smaller", "larger"
-    else:
-        left_lbl, right_lbl = "shallower", "deeper"
+def set_depth_labels(current, depth_val):
+    if "depth" not in depth_val or not current:
+        return "‹", "›"                   
+    return [
+        html.Span("‹", className="chev"),
+        html.Span("shallower", className="label")
+    ], [
+        html.Span("deeper", className="label"),
+        html.Span("›", className="chev")
+    ]'''
 
-    return (
-        [html.Span(left_lbl,  className="label"), html.Span("‹")],
-        [html.Span(right_lbl, className="label"), html.Span("›")]
-    )
 
 
+
+####------------------------------------------------------------
 
 @app.callback(
     Output("common-dd", "options"),
@@ -839,6 +1045,235 @@ def toggle_search_box(n, panel_style):
     else:
         return {"display": "none"}, "›", "search-handle collapsed"  # Collapse
 
+
+# -----------------------------------------------------------------------
+#  Quick-jump: extremes in the *current* filtered dataset
+# -----------------------------------------------------------------------
+@app.callback(
+    Output("selected-species", "data", allow_duplicate=True),
+    #Input("deepest-btn",    "n_clicks"),
+    #Input("shallowest-btn", "n_clicks"),
+    Input("largest-btn",    "n_clicks"),
+    Input("smallest-btn",   "n_clicks"),
+    State("wiki-toggle",    "value"),
+    State("popular-toggle", "value"),
+    prevent_initial_call=True
+)
+def jump_to_extremes(n_large, n_small,
+                     wiki_val, pop_val):
+    trig = ctx.triggered_id
+    if trig is None:                       # no button actually clicked
+        raise PreventUpdate
+
+    # ---------- build filtered frames ----------
+    if trig in ("largest-btn", "smallest-btn"):
+        # need rows that *have* a length
+
+        size_on  = trig in ("largest-btn", "smallest-btn")
+        depth_on = False                     # quick-jump is size-only now
+        df_use   = get_filtered_df(size_on, depth_on,
+                                   wiki_val, pop_val, seed=None)
+
+        df_use = df_use.sort_values(["Length_cm", "Length_in"])
+        if df_use.empty:
+            raise PreventUpdate
+        row = df_use.iloc[-1] if trig == "largest-btn" else df_use.iloc[0]
+
+    else:  # depth buttons
+
+        size_on  = trig in ("largest-btn", "smallest-btn")
+        depth_on = False                     # quick-jump is size-only now
+        df_use   = get_filtered_df(size_on, depth_on,
+                                   wiki_val, pop_val, seed=None)
+
+        df_use = df_use.assign(
+            sort_shallow=df_use["DepthRangeComShallow"]
+                           .fillna(df_use["DepthRangeShallow"]),
+            sort_deep=df_use["DepthRangeComDeep"]
+                        .fillna(df_use["DepthRangeDeep"])
+        )
+        # sort by *deep* first, fall back to shallow if needed
+        df_use = df_use.sort_values(["sort_deep", "sort_shallow"])
+        if df_use.empty:
+            raise PreventUpdate
+        row = df_use.iloc[-1] if trig == "deepest-btn" else df_use.iloc[0]
+
+    return row["Genus_Species"]
+
+
+@app.callback(
+    Output("rand-seed", "data", allow_duplicate=True),
+    Input("rand-seed", "data"),
+    prevent_initial_call=True
+)
+def _init_seed(cur):
+    if cur is None:                       # first page-load in this tab
+        import random
+        return random.randint(0, 2**32-1)
+    raise PreventUpdate
+
+
+@app.callback(
+    Output("selected-species", "data", allow_duplicate=True),
+    Input("next-btn",  "n_clicks"),
+    Input("prev-btn",  "n_clicks"),
+    Input("size-toggle",      "value"),
+    Input("depth-toggle",     "value"),
+    Input("wiki-toggle",      "value"),
+    Input("popular-toggle",   "value"),
+    State("selected-species", "data"),    # ← add this
+    State("rand-seed",        "data"),
+    prevent_initial_call=True
+)
+def step_size(n_next, n_prev,
+              size_val, depth_val, wiki_val, pop_val,
+              current, seed): 
+
+    if not current or "size" not in size_val:
+        raise PreventUpdate                      # size axis is off
+
+    size_on  = "size"  in size_val
+    depth_on = "depth" in depth_val
+    df_use   = get_filtered_df(size_on, depth_on,
+                               wiki_val, pop_val, seed)
+    if df_use.empty:
+        raise PreventUpdate
+
+    df_use = df_use.sort_values(["Length_cm", "Length_in"])
+    species = df_use["Genus_Species"].tolist()
+    if current not in species:
+        current = species[0]
+
+    idx = species.index(current)
+    idx = (idx - 1) % len(species) if ctx.triggered_id == "prev-btn" \
+         else (idx + 1) % len(species)
+    return species[idx]
+
+
+@app.callback(
+    Output("selected-species", "data", allow_duplicate=True),
+    Input("up-btn",   "n_clicks"),
+    Input("down-btn", "n_clicks"),
+    Input("size-toggle",      "value"),
+    Input("depth-toggle",     "value"),
+    Input("wiki-toggle",      "value"),
+    Input("popular-toggle",   "value"),
+    State("selected-species", "data"),    
+    State("rand-seed",        "data"),
+    prevent_initial_call=True
+)
+def step_depth(n_up, n_down,
+               size_val, depth_val, wiki_val, pop_val,
+               current, seed):
+    if not current or "depth" not in depth_val:
+        raise PreventUpdate                      # depth axis is off
+
+    size_on  = "size"  in size_val
+    depth_on = "depth" in depth_val
+    df_use   = get_filtered_df(size_on, depth_on,
+                               wiki_val, pop_val, seed)
+    if df_use.empty:
+        raise PreventUpdate
+
+    df_use = df_use.sort_values("RandDepth")
+    species = df_use["Genus_Species"].tolist()
+    if current not in species:
+        current = species[0]
+
+    idx = species.index(current)
+    idx = (idx - 1) % len(species) if ctx.triggered_id == "up-btn" \
+         else (idx + 1) % len(species)
+    return species[idx]
+
+
+# ─── left / right buttons — show only when size-comp is ON and a species picked
+'''@app.callback(
+    Output("prev-btn", "children"),
+    Output("prev-btn", "style"),
+    Output("next-btn", "children"),
+    Output("next-btn", "style"),
+    Input("selected-species", "data"),
+    Input("size-toggle",      "value"),
+    prevent_initial_call=True
+)
+def render_size_buttons(current, size_val):
+
+    active = current and ("size" in size_val)
+
+    if not active:
+        # hide buttons completely
+        return "‹", {"display": "none"}, "›", {"display": "none"}
+
+    # visible + correct labels
+    return (
+        ["‹", html.Span("smaller", className="label")], {},
+        ["›", html.Span("larger",  className="label")], {}
+    )'''
+
+
+# ─── up / down buttons — show only when depth-comp is ON and a species picked
+'''@app.callback(
+    Output("up-btn",   "children"),
+    Output("up-btn",   "style"),
+    Output("down-btn", "children"),
+    Output("down-btn", "style"),
+    Input("selected-species", "data"),
+    Input("depth-toggle",     "value"),
+    prevent_initial_call=True
+)
+def render_depth_buttons(current, depth_val):
+
+    active = current and ("depth" in depth_val)
+
+    if not active:
+        return "‹", {"display": "none"}, "›", {"display": "none"}
+
+    return (
+        [html.Span("‹", className="chev"),
+         html.Span("shallower", className="label")], {},
+
+        [html.Span("deeper", className="label"),
+         html.Span("›", className="chev")], {}
+    )'''
+
+# ── show/hide size arrows ─────────────────────────────────────────────
+@app.callback(
+    Output("prev-wrap", "style"),
+    Output("next-wrap", "style"),
+    Input("selected-species", "data"),
+    Input("size-toggle",      "value"),
+    prevent_initial_call=True
+)
+def toggle_size_wrap(gs, size_val):
+    if gs and "size" in size_val:
+        return {}, {}
+    return {"display":"none"}, {"display":"none"}
+
+
+# ── show/hide depth arrows ────────────────────────────────────────────
+@app.callback(
+    Output("up-wrap",   "style"),
+    Output("down-wrap", "style"),
+    Input("selected-species", "data"),
+    Input("depth-toggle",     "value"),
+    prevent_initial_call=True
+)
+def toggle_depth_wrap(gs, depth_val):
+    if gs and "depth" in depth_val:
+        return {}, {}
+    return {"display":"none"}, {"display":"none"}
+
+
+@app.callback(
+    Output("nav-info-text", "style"),
+    Input("nav-info-icon", "n_clicks"),
+    State("nav-info-text", "style"),
+    prevent_initial_call=True
+)
+def toggle_nav_info(n, style):
+    if style and style.get("display") == "none":
+        return {"display": "block", "marginTop": "0.5rem", "opacity": 0.85}
+    return {"display": "none"}
 
 
 if __name__ == "__main__":
