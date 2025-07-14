@@ -145,10 +145,10 @@ advanced_filters = html.Div(                # collapsible area
         dbc.Checklist(
             id="depth-toggle",
             options=[{"label": "Show depth comparison", "value": "depth"}],
-            value=[],
+            value=["depth"],
             switch=True
         ),
-        html.Div("For comparison, we use a random depth within the species' depth range.",
+        html.Div("For navigation, we use a random depth within the species' depth range.",
                  className="settings-note"),
     ], className="settings-group"),
 
@@ -161,13 +161,15 @@ advanced_filters = html.Div(                # collapsible area
             value=["size"],
             switch=True
         ),
-        dbc.Checklist(
-            id="order-toggle",
-            options=[{"label": "…only within same order", "value": "order"}],
-            value=[],
-            switch=True,
-            style={"display": "none"}
-        )
+        html.Div("Uses length as a proxy for size.",
+                 className="settings-note")
+        #dbc.Checklist(
+        #    id="order-toggle",
+        #    options=[{"label": "…only within same order", "value": "order"}],
+        #    value=[],
+        #    switch=True,
+        #    style={"display": "none"}
+        #)
     ], className="settings-group"),
 
     html.Hr(style={"opacity": .3}),
@@ -720,7 +722,7 @@ def update_image(gs_name, units):
         html.Span([
             html.Span("length", title="Maximum recorded length of species", style={"textDecoration": "underline dashed"}),
             f": {length}  |  ",
-            html.Span("depth", title="Pelagica shows you this species at a random depth within this range.", style={"textDecoration": "underline dashed"}),
+            html.Span("depth", title="Pelagica shows you this species at a random depth within this range. Range may be inaccurate for certain species - check citation tab", style={"textDecoration": "underline dashed"}),
             f": {depth}"
         ])
 
@@ -848,12 +850,12 @@ def slide_settings_tab(opened):
         return {"right": f"{SETTINGS_W}px"}  # slide left
     return {"right": "0px"}'''
 
-@app.callback(
+'''@app.callback(
     Output("order-toggle", "style"),
     Input("size-toggle", "value"),
 )
 def show_order_switch(size_val):
-    return {"display": "block"} if "size" in size_val else {"display": "none"}
+    return {"display": "block"} if "size" in size_val else {"display": "none"}'''
 
 
 
@@ -1117,21 +1119,20 @@ def _init_seed(cur):
     Output("selected-species", "data", allow_duplicate=True),
     Input("next-btn",  "n_clicks"),
     Input("prev-btn",  "n_clicks"),
-    Input("size-toggle",      "value"),
-    Input("depth-toggle",     "value"),
-    Input("wiki-toggle",      "value"),
-    Input("popular-toggle",   "value"),
-    State("selected-species", "data"),    # ← add this
+    State("size-toggle",      "value"),
+    State("depth-toggle",     "value"),
+    State("wiki-toggle",      "value"),
+    State("popular-toggle",   "value"),
+    State("selected-species", "data"),
     State("rand-seed",        "data"),
     prevent_initial_call=True
 )
 def step_size(n_next, n_prev,
               size_val, depth_val, wiki_val, pop_val,
-              current, seed): 
-
-    if not current or "size" not in size_val:
-        raise PreventUpdate                      # size axis is off
-
+              current, seed):
+    trig = ctx.triggered_id
+    if trig not in ("prev-btn", "next-btn"):
+        raise PreventUpdate
     size_on  = "size"  in size_val
     depth_on = "depth" in depth_val
     df_use   = get_filtered_df(size_on, depth_on,
@@ -1154,19 +1155,20 @@ def step_size(n_next, n_prev,
     Output("selected-species", "data", allow_duplicate=True),
     Input("up-btn",   "n_clicks"),
     Input("down-btn", "n_clicks"),
-    Input("size-toggle",      "value"),
-    Input("depth-toggle",     "value"),
-    Input("wiki-toggle",      "value"),
-    Input("popular-toggle",   "value"),
-    State("selected-species", "data"),    
-    State("rand-seed",        "data"),
+    State("size-toggle",      "value"),
+    State("depth-toggle",     "value"),
+    State("wiki-toggle",      "value"),
+    State("popular-toggle",   "value"),
+    State("selected-species","data"),
+    State("rand-seed",       "data"),
     prevent_initial_call=True
 )
 def step_depth(n_up, n_down,
                size_val, depth_val, wiki_val, pop_val,
                current, seed):
-    if not current or "depth" not in depth_val:
-        raise PreventUpdate                      # depth axis is off
+    trig = ctx.triggered_id
+    if trig not in ("up-btn", "down-btn"):
+        raise PreventUpdate
 
     size_on  = "size"  in size_val
     depth_on = "depth" in depth_val
@@ -1246,8 +1248,10 @@ def render_depth_buttons(current, depth_val):
 )
 def toggle_size_wrap(gs, size_val):
     if gs and "size" in size_val:
-        return {}, {}
-    return {"display":"none"}, {"display":"none"}
+        style = {"opacity": "1", "pointer-events": "auto"}
+    else:
+        style = {"opacity": "0.3", "pointer-events": "none"}
+    return style, style
 
 
 # ── show/hide depth arrows ────────────────────────────────────────────
@@ -1259,9 +1263,13 @@ def toggle_size_wrap(gs, size_val):
     prevent_initial_call=True
 )
 def toggle_depth_wrap(gs, depth_val):
+    # when depth‐comparison is on and we have a species, make arrows fully visible…
     if gs and "depth" in depth_val:
-        return {}, {}
-    return {"display":"none"}, {"display":"none"}
+        style = {"opacity": "1", "pointer-events": "auto"}
+    # …otherwise “grey out” (low opacity + no clicks)
+    else:
+        style = {"opacity": "0.3", "pointer-events": "none"}
+    return style, style
 
 
 @app.callback(
@@ -1279,3 +1287,4 @@ def toggle_nav_info(n, style):
 if __name__ == "__main__":
     app.run(debug=True)
 
+    raise PreventUpdate                      
