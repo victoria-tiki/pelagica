@@ -11,13 +11,14 @@ from dash import Dash, dcc, html, Input, Output, State, ctx, no_update
 import dash_bootstrap_components as dbc
 import pandas as pd, random, datetime
 
-from src.process_data import load_species_data
+from src.process_data import load_species_data, load_homo_sapiens
 from src.wiki import get_blurb, get_commons_thumb         
 from src.utils import assign_random_depth
 
+import numpy as np 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
-df = load_species_data()          # your helper in src/data.py
+df = load_species_data()          
 df_wiki = df[df["has_wiki_page"]].copy() #only those with wikipedia page
 # --- Popular-species whitelist -----------------------------------
 popular_df   = pd.read_csv("data/processed/popular_species.csv")        # <-- path in /mnt/data
@@ -43,9 +44,34 @@ app = Dash(__name__, external_stylesheets=external_stylesheets)
 # ─── TOP BAR ───────────────────────────────────────────────
 top_bar = html.Div(
     [
-        html.Img(src="/assets/logo_pelagica.webp", id="logo",
-                 style={"height": "60px"}),
-        dbc.RadioItems(                    # units toggle now lives here
+        # logo + tagline container
+        html.Div(
+            [
+                html.Img(
+                    src="/assets/logo_pelagica_colour.webp",
+                    id="logo",
+                    style={"height": "50px", "display": "block"}
+                ),
+                html.Span(
+                    "The Aquatic Life Atlas",
+                    id="tagline",
+                    style={
+                        "marginLeft": "0.5rem",
+                        "fontSize": "0.9rem",
+                        "fontWeight": "500",
+                        "lineHeight": "60px",      # vertically center with the logo
+                        "color": "#f5f5f5"  # or whatever CSS var you’re using
+                    }
+                ),
+            ],
+            style={
+                "display": "flex",
+                "alignItems": "center"
+            },
+        ),
+
+        # push the units toggle to the far right
+        dbc.RadioItems(
             id="units-toggle",
             value="metric",
             inline=True,
@@ -53,21 +79,15 @@ top_bar = html.Div(
                 {"label": "Metric",   "value": "metric"},
                 {"label": "Imperial", "value": "imperial"},
             ],
-            style={"marginLeft": "auto"}   # push to far right
+            style={"marginLeft": "auto"}
         ),
     ],
     id="top-bar",
+    className="glass-panel",
     style={
         "display": "flex",
         "alignItems": "center",
-        "justifyContent": "space-between",
-        "padding": "0.25rem 1rem",
-        "gap": "1rem",
-        "position": "fixed",
-        "top": 0, "left": 0, "right": 0,
-        "zIndex": 1050,
-        "background": "var(--glass-bg)",
-        "backdropFilter": "var(--blur-md)"
+        "padding": "0.5rem 1rem"
     }
 )
 
@@ -133,10 +153,10 @@ advanced_filters = html.Div(                # collapsible area
         dbc.Checklist(
             id="popular-toggle",
             options=[{"label": "Only popular species", "value": "pop"}],
-            value=["pop"],
+            value=[""],
             switch=True
         ),
-        html.Div("Limits to ~100 curated species.", className="settings-note")
+        html.Div("Limits to ~200 curated species.", className="settings-note")
     ], className="settings-group"),
 
     html.H6("Depth Comparison", className="settings-header"),
@@ -175,22 +195,22 @@ advanced_filters = html.Div(                # collapsible area
     html.Hr(style={"opacity": .3}),
 
         html.H6("Quick jumps"),
-        #dbc.Row(
-        #    [
-        #        dbc.Col(
-        #            html.Button("jump to shallowest", id="shallowest-btn",
-        #                        className="btn btn-outline-light btn-sm w-100"),
-        #            width=6
-        #        ),
-        #        
-        #        dbc.Col(
-        #            html.Button("jump to deepest",    id="deepest-btn",
-        #                        className="btn btn-outline-light btn-sm w-100"),
-        #            width=6
-        #        ),
-        #    ],
-        #    className="gx-1", style={"marginBottom": ".4rem"}
-        #),
+        dbc.Row(
+            [
+                dbc.Col(
+                    html.Button("jump to shallowest", id="shallowest-btn",
+                                className="btn btn-outline-light btn-sm w-100"),
+                    width=6
+                ),
+                
+                dbc.Col(
+                    html.Button("jump to deepest",    id="deepest-btn",
+                                className="btn btn-outline-light btn-sm w-100"),
+                    width=6
+                ),
+            ],
+            className="gx-1", style={"marginBottom": ".4rem"}
+        ),
         
 
         dbc.Row(
@@ -226,7 +246,7 @@ search_header = html.Div(
 
 search_panel = html.Div(
     [search_header, search_stack, advanced_filters],
-    id="search-panel"
+    id="search-panel", className="glass-panel"
 )
 
 
@@ -312,6 +332,7 @@ settings_panel = dbc.Offcanvas(
 
 citations_panel = dbc.Offcanvas(
     id="citations-canvas",
+    className="glass-panel",
     placement="end",
     title="Citations",
     is_open=False,
@@ -338,7 +359,7 @@ centre_flex = html.Div(id="page-centre-flex", children=[
         ]),
 
         # info card remains outside image-inner
-        html.Div(id="info-card", children=[
+        html.Div(id="info-card", className="glass-panel",children=[
             html.Div(id="info-close", children="✕"),
             html.Div(id="info-content")
         ])
@@ -385,22 +406,22 @@ nav_panel = html.Div([
 
     html.Div([
         html.Button("〉", id="up-btn", className="nav-icon"),
-        html.Small("shallower", className="nav-label"),
+        html.Small("shallower", id="nav-label-up", className="nav-label"),
     ], id="up-wrap", className="nav-wrap up"),
 
     html.Div([
         html.Button("〉", id="down-btn", className="nav-icon"),
-        html.Small("deeper", className="nav-label"),
+        html.Small("deeper", id="nav-label-down", className="nav-label"),
     ], id="down-wrap", className="nav-wrap down"),
 
     html.Div([
         html.Button("〉", id="prev-btn", className="nav-icon"),
-        html.Small("smaller", className="nav-label"),
+        html.Small("smaller", id="nav-label-left", className="nav-label"),
     ], id="prev-wrap", className="nav-wrap left"),
 
     html.Div([
         html.Button("〉", id="next-btn", className="nav-icon"),
-        html.Small("larger", className="nav-label"),
+        html.Small("larger", id="nav-label-right", className="nav-label"),
     ], id="next-wrap", className="nav-wrap right"),
 
     # ── Hidden explanation ─────────────────────────────────────
@@ -413,7 +434,7 @@ nav_panel = html.Div([
         style={"display": "none"}
     )
 
-], id="nav-panel")
+], id="nav-panel", className="glass-panel")
 
 
 
@@ -617,39 +638,57 @@ def fill_citation(gs_name):
     # ---------- try Wikimedia Commons -------------
     thumb, author, lic, lic_url, up, ret = get_commons_thumb(genus, species)
 
-    # ---------- database citation  ----------------
-    src      = str(row.get("Database", "")).lower()
-    slug     = f"{genus}-{species}".replace(" ", "-")
-    src_name = "SeaLifeBase" if src == "sealifebase" else "FishBase"
-    cite_url = (
-        f"https://www.sealifebase.se/summary/{slug}.html"
-        if src == "sealifebase" else
-        f"https://www.fishbase.se/summary/{slug}"
-    )
-    today = datetime.date.today().isoformat()
-
-    # ---------- build blocks ----------------------
+    # ---------- build the image block if any ------------
     image_block = []
-    if author:                                   # only when an image exists
+    if author:
         image_block = [
             html.Span("Image © "), html.Strong(author),
             html.Span(", "),
             html.Span((lic or "") + " "),
-            html.A("(license link)", href=lic_url) if lic_url else None,
+            html.A("(license link)", href=lic_url, target="_blank") if lic_url else None,
             html.Span(f" — uploaded {up}, retrieved {ret} from Wikimedia Commons"),
             html.Br(), html.Br(),
         ]
 
-    return image_block + [
-        html.Span("Text excerpt: Wikipedia — CC BY-SA 4.0, retrieved "),
+    # ---------- Wikipedia text excerpt (always) ----------
+    today = datetime.date.today().isoformat()
+    wiki_block = [
+        html.Span("Text excerpt: Wikipedia — CC BY‑SA 4.0, retrieved "),
         html.Span(today),
         html.Br(), html.Br(),
-        html.Span("Taxonomic, length, habitat, longevity, and depth data from "),
-        html.A(src_name, href=cite_url, target="_blank"),
-        html.Span(" — retrieved 12 Jul 2025.")
     ]
 
+    # ---------- now the data‑source line -------------
+    if row.get("Database") == 0:
+        data_block = [
+            html.Span("Size information retrieved from "),
+            html.A("Our World in Data", href="https://ourworldindata.org/human-height", target="_blank"),
+            html.Span(", depth from "),
+            html.A("Divessi", href="https://www.divessi.com/en/blog/Worlds-Most-Incredible-Freediving-Records-9332.html", target="_blank"),
+            html.Span(", danger levels from "),
+            html.A("Wikipedia", href="https://en.wikipedia.org/wiki/List_of_animals_deadliest_to_humans", target="_blank"),
+            html.Span(" and "),
+            html.A("Smithsonian Magazine", href="https://www.smithsonianmag.com/science-nature/humans-take-more-wild-species-than-any-other-predator-on-earth-180982478/", target="_blank"),
+            html.Span(", and lifespan from "),
+            html.A("Cleveland Clinic", href="https://my.clevelandclinic.org/health/articles/lifespan", target="_blank"),
+            html.Span(" — retrieved Jul 14 2025"),
+        ]
+    else:
+        src      = str(row.get("Database", "")).lower()
+        slug     = f"{genus}-{species}".replace(" ", "-")
+        src_name = "SeaLifeBase" if src == "sealifebase" else "FishBase"
+        cite_url = (
+            f"https://www.sealifebase.se/summary/{slug}.html"
+            if src == "sealifebase" else
+            f"https://www.fishbase.se/summary/{slug}"
+        )
+        data_block = [
+            html.Span("Taxonomic information, length, habitat, longevity, danger, depth, and additional comments from "),
+            html.A(src_name, href=cite_url, target="_blank"),
+            html.Span(" — retrieved 12 Jul 2025."),
+        ]
 
+    return image_block + wiki_block + data_block
 
 
 # --- populate image + overlay + titles whenever species or units change ----------
@@ -670,7 +709,9 @@ def update_image(gs_name, units):
         "demersal":          "lives close to the bottom, often resting there",
         "pelagic-neritic":   "lives in coastal open water, above the continental shelf",
         "bathydemersal":     "inhabits deep waters near the sea floor",
-        "sessile":           "attached to a surface and doesn’t move"
+        "sessile":           "attached to a surface and doesn’t move",
+        "bathypelagic":      "inhabits the open‑waters at the ocean’s mid‑depths (roughly 1 000–4 000 m)",
+        "others":             "other habitats, may not be strictly aquatic"
     }
 
 
@@ -691,10 +732,34 @@ def update_image(gs_name, units):
 
     # ---------- LENGTH ----------
     if units == "metric":
-        length = f"{row.Length_cm:.1f} cm" if pd.notna(row.Length_cm) else "?"
+        if pd.notna(row.Length_cm):
+            if row.Length_cm >= 100:
+                # show in meters to two decimals
+                length = f"{row.Length_cm/100:.2f} m"
+            else:
+                length = f"{row.Length_cm:.1f} cm"
+        else:
+            length = "?"
     else:
-        length = f"{row.Length_in:.1f} in" if pd.notna(row.Length_in) else "?"
+        if pd.notna(row.Length_in):
+            if row.Length_in >= 12:                     # 12 in = 1 ft
+                length = f"{row.Length_in/12:.2f} ft"   # decimal feet
+            else:
+                length = f"{row.Length_in:.1f} in"
+        else:
+            length = "?"
 
+
+    if row.get("Database") == 0:
+        length_tooltip = "Global average height"
+        depth_tooltip  = "Unassisted freediving record depth"
+    else:
+        length_tooltip = "Maximum recorded length of species"
+        depth_tooltip  = (
+            "Pelagica shows you this species at a random depth within this range. "
+            "Range may be inaccurate for certain species – check citation"
+        )
+        
     # ---------- DEPTH (prefers the …Com* pair) ----------
     use_com = row.DepthComPreferred
     if units == "metric":
@@ -720,9 +785,13 @@ def update_image(gs_name, units):
         html.H5(common, style={"marginBottom": "0.2rem"}),
         html.H6(gs_name, style={"marginTop": "0", "marginBottom": "1rem"}),
         html.Span([
-            html.Span("length", title="Maximum recorded length of species", style={"textDecoration": "underline dashed"}),
-            f": {length}  |  ",
-            html.Span("depth", title="Pelagica shows you this species at a random depth within this range. Range may be inaccurate for certain species - check citation tab", style={"textDecoration": "underline dashed"}),
+            html.Span("length",
+                      title=length_tooltip,
+                      style={"textDecoration": "underline dashed"}),
+            f": {length}  |  ",
+            html.Span("depth",
+                      title=depth_tooltip,
+                      style={"textDecoration": "underline dashed"}),
             f": {depth}"
         ])
 
@@ -776,12 +845,26 @@ def update_image(gs_name, units):
             html.Span(f"lifespan: {int(row.LongevityWild)} years")
         ])
 
+
+        
+        
     # ---------- DANGEROUS ----------
     if pd.notna(row.get("Dangerous")):
-        info_lines.extend([
-            html.Br(),
-            html.Span("danger level: " + row.Dangerous)
-        ])
+        info_lines.append(html.Span(f" | danger level: "))
+
+        # now append just the value, underlining only when Database==0
+        if row.get("Database") == 0:
+            info_lines.append(html.Span(
+                str(row.Dangerous),
+                title=(
+                    "drives the largest annual biomass loss "
+                    "of any species, causes more human deaths "
+                    "than any other species except mosquitoes"
+                ),
+                style={"textDecoration": "underline dashed"}
+            ))
+        else:
+            info_lines.append(html.Span(str(row.Dangerous)))
 
 
     # ---------- BLURB ----------
@@ -1053,19 +1136,24 @@ def toggle_search_box(n, panel_style):
 # -----------------------------------------------------------------------
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
-    #Input("deepest-btn",    "n_clicks"),
-    #Input("shallowest-btn", "n_clicks"),
+    Input("deepest-btn",    "n_clicks"),
+    Input("shallowest-btn", "n_clicks"),
     Input("largest-btn",    "n_clicks"),
     Input("smallest-btn",   "n_clicks"),
     State("wiki-toggle",    "value"),
     State("popular-toggle", "value"),
+    State("rand-seed",      "data"),    
     prevent_initial_call=True
 )
-def jump_to_extremes(n_large, n_small,
-                     wiki_val, pop_val):
+def jump_to_extremes(n_deep, n_shallow,
+                     n_largest, n_smallest,
+                     wiki_val, pop_val,
+                     seed):
+             
     trig = ctx.triggered_id
-    if trig is None:                       # no button actually clicked
+    if not trig:
         raise PreventUpdate
+
 
     # ---------- build filtered frames ----------
     if trig in ("largest-btn", "smallest-btn"):
@@ -1081,26 +1169,31 @@ def jump_to_extremes(n_large, n_small,
             raise PreventUpdate
         row = df_use.iloc[-1] if trig == "largest-btn" else df_use.iloc[0]
 
-    else:  # depth buttons
-
-        size_on  = trig in ("largest-btn", "smallest-btn")
-        depth_on = False                     # quick-jump is size-only now
+    if trig in ("largest-btn", "smallest-btn"):
+        # … exactly as you have it for size …
+        size_on  = True
+        depth_on = False
         df_use   = get_filtered_df(size_on, depth_on,
                                    wiki_val, pop_val, seed=None)
+        df_use = df_use.sort_values(["Length_cm", "Length_in"])
+        if df_use.empty:
+            raise PreventUpdate
+        row = df_use.iloc[-1] if trig == "largest-btn" else df_use.iloc[0]
 
-        df_use = df_use.assign(
-            sort_shallow=df_use["DepthRangeComShallow"]
-                           .fillna(df_use["DepthRangeShallow"]),
-            sort_deep=df_use["DepthRangeComDeep"]
-                        .fillna(df_use["DepthRangeDeep"])
-        )
-        # sort by *deep* first, fall back to shallow if needed
-        df_use = df_use.sort_values(["sort_deep", "sort_shallow"])
+    else:  # deepest / shallowest
+        size_on  = False         # size-axis off
+        depth_on = True          # ← turn depth-axis on
+        df_use   = get_filtered_df(size_on, depth_on,
+                                   wiki_val, pop_val, seed)
+
+        # now sort by the random depth (smallest: index 0; deepest: last)
+        df_use = df_use.sort_values("RandDepth")
         if df_use.empty:
             raise PreventUpdate
         row = df_use.iloc[-1] if trig == "deepest-btn" else df_use.iloc[0]
 
     return row["Genus_Species"]
+
 
 
 @app.callback(

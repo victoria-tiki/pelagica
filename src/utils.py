@@ -73,7 +73,7 @@ from scipy.stats import beta
 import numpy as np, pandas as pd
 from scipy.stats import beta
 
-def assign_random_depth(df, seed,
+'''def assign_random_depth(df, seed,
                         small_thresh=200,   # “small” range if w < small_thresh
                         surf_thresh=150,    # “surface” if s < surf_thresh
                         k_min=2.0,          # flattest Beta
@@ -147,6 +147,79 @@ def assign_random_depth(df, seed,
         a = B_shallow / (B_shallow + B_deep)
 
         # mode and concentration
+        m = a*s + (1 - a)*d
+        k = k_min + (1 - w/w_max)*(k_max - k_min)
+
+        x0 = (m - s) / (d - s)
+        α  = 1 + k * x0
+        β  = 1 + k * (1 - x0)
+
+        u = rng.beta(α, β)
+        depths.append(s + u * (d - s))
+
+    out["RandDepth"] = depths
+    return out'''
+    
+    
+def assign_random_depth(df, seed,
+                        small_thresh=200,   # “small” range if w < small_thresh
+                        surf_thresh=150,    # “surface” if s < surf_thresh
+                        k_min=2.0,          # flattest Beta
+                        k_max=20.0,         # tightest Beta
+                        zero_boost=5.0):    # extra surface‑bias when s == 0
+    """
+    ...
+      - same as before, plus:
+      - if s == 0 or ComShallow == 0, B_surf is multiplied by zero_boost,
+        making the final a = B_shallow/(B_shallow+B_deep) ≈ 1 → extreme shallow bias.
+    """
+    import numpy as np, pandas as pd
+    from scipy.stats import beta
+
+    rng = np.random.default_rng(seed)
+    out = df.copy()
+
+    def phi_small(w): return np.exp(-w / small_thresh)
+    def phi_large(w): return 1 - np.exp(-w / small_thresh)
+    def phi_surf(s):  return np.exp(-s / surf_thresh)
+    def phi_deep(s):  return 1 - np.exp(-s / surf_thresh)
+
+    # extract bounds
+    def bounds(row):
+        s = row["DepthRangeComShallow"] if pd.notna(row["DepthRangeComShallow"]) \
+            else row["DepthRangeShallow"]
+        d = row["DepthRangeComDeep"]   if pd.notna(row["DepthRangeComDeep"])   \
+            else row["DepthRangeDeep"]
+        return float(s), float(d)
+
+    bnds   = out.apply(bounds, axis=1).tolist()
+    widths = np.array([d-s for s, d in bnds], dtype=float)
+    w_max  = widths.max() if len(widths) else 0.0
+
+    depths = []
+    for s, d in bnds:
+        if np.isnan(s) or np.isnan(d) or s == d or w_max == 0:
+            depths.append(s)
+            continue
+
+        w = d - s
+
+        # shallow/deep bias building
+        B_small = phi_small(w)
+        B_surf  = phi_surf(s)
+        # BOOST the surface bias if the shallow bound is zero
+        if s == 0:
+            B_surf *= zero_boost
+
+        B_shallow = B_small + B_surf
+
+        B_range = phi_large(w)
+        B_deep  = B_range + phi_deep(s)
+
+        # mix ratio
+        a = B_shallow / (B_shallow + B_deep)
+
+        # mode m and concentration k
         m = a*s + (1 - a)*d
         k = k_min + (1 - w/w_max)*(k_max - k_min)
 

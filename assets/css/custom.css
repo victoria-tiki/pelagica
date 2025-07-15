@@ -18,6 +18,20 @@
   --blur-md : blur(6px);
 }
 
+.glass-panel {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0.5rem;
+  color: #fff;
+  pointer-events: auto;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 6px #0006;
+  padding: 0.5rem;
+}
+
+
+
+
+
 /* ==========  1. GLOBAL ELEMENTS  ============================== */
 html,body{ height:100%; }
 body{
@@ -46,27 +60,46 @@ h5,
 }
 
 /* ==========  2. TOP BAR & LOGO  =============================== */
-#top-bar{
-  position:relative;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  padding-top:1.25rem;           /* clears search-panel radius */
+#top-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  
+  padding: 0.3rem 1rem;
+  height: 4rem;         
+
+  /* a hint of color for airiness */
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+
+  border-bottom-left-radius: 0.0rem;
+  border-bottom-right-radius: 0.0rem;
+  z-index: 1050;
 }
-#logo{
-  font-size:2.5rem;
-  font-weight:700;
-  letter-spacing:.05em;
+
+/* shrink the logo slightly to fit the bar */
+#logo {
+  font-size: 1.8rem;
+  line-height: 2rem;    /* vertically center it in the 3rem bar */
 }
+
+/* if you have radio items or other controls inside, bump their line‑height too */
+#top-bar .form-check {
+  line-height: 1.5rem;
+}
+
 
 /* ==========  3. SEARCH PANEL  (top-left)  ===================== */
 #search-panel{
   position:fixed; top:10%; left:20px; z-index:1040;
   width:440px; padding:.8rem .9rem 1rem;
-  border-radius:.6rem;   
+  border-radius:.6rem .0rem .6rem .6rem;   
   display:flex; flex-direction:column; gap:.4rem;
-  background:var(--glass-bg); color:var(--text-light);
-  backdrop-filter:var(--blur-md); box-shadow:0 2px 6px #0006;
+  /*background:var(--glass-bg); color:var(--text-light);border: var(--glass-brd);
+  backdrop-filter:var(--blur-md); box-shadow:0 2px 6px #0006;*/
 }
 
 
@@ -117,10 +150,14 @@ h5,
   position: fixed;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  background: var(--glass-bg);
+  background: rgba(0, 0, 0, 0.2);
   border: var(--glass-brd);
+  border-radius: 0rem 0.4rem 0.4rem 0rem;
+  color: #fff;
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
   padding: .55rem .45rem;
-  font-size: .78rem;
+  font-size: .85rem;
   cursor: pointer;
   z-index: 1050;
   transition: left .3s ease, right .3s ease;
@@ -144,9 +181,10 @@ h5,
 
 /* ==========  5. OFF-CANVAS PANELS  ============================ */
 .offcanvas{
-  background:var(--glass-bg)!important;
+  /*background:var(--glass-bg)!important;
   color:var(--text-light)!important;
   border-left:var(--glass-brd);
+  box-shadow: 0 2px 6px #0006;*/
 }
 .offcanvas-title,
 .offcanvas-body{ color:var(--text-light)!important; }
@@ -334,10 +372,10 @@ h5,
 
 /* Info card anchored *overlapping* below the image */
 #info-card {
-  background: var(--glass-bg);
+  /*background: var(--glass-bg);
   border: var(--glass-brd);
   backdrop-filter: var(--blur-md);
-  color: var(--text-light);
+  color: var(--text-light);*/
   padding: 1rem 1.2rem;
   font-size: 0.9rem;
   box-shadow: 0 2px 6px #0008;
@@ -478,13 +516,16 @@ h5,
 
 .search-handle{
   position: fixed;
-  top: 120px;                          /* same as panel */
+  top: 98px;                          /* same as panel */
   left: calc(20px + 440px);           /* panel left + panel width */
-  width: 22px; height: 40px;
+  width: 30px; height: 40px;
   display: flex; align-items: center; justify-content: center;
-  background: var(--glass-bg);
   border-radius: 0 .4rem .4rem 0;
-  color: #fff; font-size: 1.4rem; cursor: pointer;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+  font-size: 1.4rem; cursor: pointer;
   z-index: 1041; transition: left .3s ease;
 }
 .search-handle.collapsed{
@@ -602,35 +643,22 @@ helper text size matches the sideways labels
 
 
 
-/* --- dial container -------------------------------------------------- */
-
-
-/* positions */
-.nav-wrap.up    .nav-icon { transform: rotate(-90deg); }
-.nav-wrap.down  .nav-icon { transform: rotate(90deg); }
-.nav-wrap.left  .nav-icon { transform: rotate(180deg); }
-.nav-wrap.right .nav-icon { transform: rotate(0deg);  }
-
-
-
-
-
-/* ─── PANEL container ─────────────────────────────────────────────── */
+/* ─── PANEL ─────────────────────────────────────────────────────── */
 #nav-panel {
   position: fixed;
-  top: 6.5rem;      /* adjust downward if needed */
+  top: 6.5rem;
   right: 1rem;
   width: 210px;
   height: 210px;
-  padding: 0.5rem;  /* give header room */
-  background: rgba(0,0,0,0.2);
+  padding: 0.5rem;
+  /*background: rgba(0,0,0,0.2);
   border-radius: 0.5rem;
-  color: #fff;
+  color: #fff;*/
   z-index: 1030;
-  pointer-events: none; /* only nav-wraps get pointer-events */
+  pointer-events: none;
 }
 
-/* header row */
+/* ─── HEADER ───────────────────────────────────────────────────── */
 .nav-header {
   display: flex;
   justify-content: space-between;
@@ -638,79 +666,137 @@ helper text size matches the sideways labels
   margin-bottom: 0.3rem;
   pointer-events: auto;
 }
-.nav-title { font-weight: 600; font-size: 0.9rem; }
-.nav-info-icon { cursor: pointer; opacity: 0.7; pointer-events: auto; font-size: 1.5rem; }
+.nav-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.nav-info-icon {
+  cursor: pointer;
+  opacity: 0.7;
+  pointer-events: auto;
+  font-size: 1.5rem;
+}
 
-/* dial background inside the panel */
+/* ─── DIAL BACKGROUND ──────────────────────────────────────────── */
 .dial-bg {
   position: absolute;
-  top: 2.2rem; left: 50%;
+  top: 2.1rem;
+  left: 50%;
   transform: translateX(-50%);
-  width: 150px;  /* or whatever fits */
+  width: 150px;
   user-select: none;
   pointer-events: none;
 }
 
-/* arrow + label wrappers */
-.nav-wrap {
+/* ─── BUTTONS (ARROWS) ─────────────────────────────────────────── */
+
+/* UP BUTTON */
+#up-btn {
   position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  pointer-events: auto;
+  top: 0%;       /* relative to panel height */
+  left: 50%;
+  transform: translateX(-50%) rotate(90deg) scaleX(-1);
 }
 
-/* position each arrow around the dial */
-.nav-wrap.up    { top: 1.0rem !important;  left: 50% !important; transform: translate(-50%, -45%) !important; }
-.nav-wrap.down  { bottom: 1.9rem !important; left: 50% !important; transform: translate(-50%, 45%) !important; }
-.nav-wrap.left  { left: 1.5rem !important;  top: 50% !important; transform: translate(-45%, -50%) !important; }
-.nav-wrap.right { right: 1.5rem !important; top: 50% !important; transform: translate(45%, -50%) !important; }
+/* DOWN BUTTON */
+#down-btn {
+  position: absolute;
+  bottom: 0%;
+  left: 50%;
+  transform: translateX(-50%) rotate(90deg);
+}
 
-/* arrow styling */
+/* LEFT BUTTON */
+#prev-btn {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  transform: translateY(-50%) scaleX(-1);
+}
+
+/* RIGHT BUTTON */
+#next-btn {
+  position: absolute;
+  top: 50%;
+  right: 0%;
+  transform: translateY(-50%) rotate(0deg);
+}
+
+/* ─── LABELS ───────────────────────────────────────────────────── */
+
+/* UP LABEL */
+#nav-label-up {
+  position: absolute;
+  top: 2%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* DOWN LABEL */
+#nav-label-down {
+  position: absolute;
+  bottom: 2%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* LEFT LABEL */
+#nav-label-left {
+  position: absolute;
+  top: 50%;
+  left: -6%;
+  transform: translateY(-50%) rotate(-90deg);
+  transform-origin: center;
+}
+
+/* RIGHT LABEL */
+#nav-label-right {
+  position: absolute;
+  top: 50%;
+  right: -5%;
+  transform: translateY(-50%) rotate(90deg);
+  transform-origin: center;
+}
+
+/* ─── ICON AND LABEL BASE STYLES ───────────────────────────────── */
 .nav-icon {
   background: none;
   border: none;
   font-size: 1.8rem;
   cursor: pointer;
-  color: #fff !important;
+  color: #fff;
+  pointer-events: auto;
 }
+
 .nav-label {
-  position: relative
   font-size: 0.75rem;
   opacity: 0.8;
-}
-
-/* target only the label inside a nav-wrap */
-.nav-wrap .nav-label {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: 2.5rem;  
-  margin: 0;     /* clear any other margins */
   line-height: 1;
+  white-space: nowrap;
+  pointer-events: auto;
 }
 
-
-
-/* info text under panel */
+/* ─── INFO TEXT ───────────────────────────────────────────────── */
 #nav-info-text {
   position: absolute;
-  top: 0.5rem;          /* same vertical offset */
-  right: 100%;           /* place its left edge at the panel’s right edge */
-  margin-left: 0.4rem;  /* breathing room */
+  top: 0.5rem;
+  right: 100%;
+  margin-left: 0.4rem;
 
-  width: 300px;
+  /* Match main panel style */
+  width: 210px;
+  height: 210px;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  border-radius: 0.5rem;
+  opacity: 1;  /* match nav-panel’s visual presence */
+
+  /* Text styling */
   font-size: 0.9rem;
   line-height: 1.2;
 
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  padding: 0.3rem 0.5rem;
-  border-radius: 0.25rem;
   pointer-events: auto;
-  opacity: 0.9;
+  display: none;  /* toggled by interaction */
 }
-
-
-
 

@@ -49,7 +49,11 @@ def load_species_data(csv_path="data/processed/filtered_combined_species.csv"):
 
 def load_species_data(csv_path="data/processed/filtered_combined_species.csv"):
     df = pd.read_csv(csv_path)
-
+    
+    homo = load_homo_sapiens()
+    homo = homo.dropna(axis=1, how="all")
+    df = pd.concat([df, homo], ignore_index=True)
+    
     # Trim whitespace
     df["Genus"] = df["Genus"].astype(str).str.strip()
     df["Species"] = df["Species"].astype(str).str.strip()
@@ -81,3 +85,38 @@ def load_species_data(csv_path="data/processed/filtered_combined_species.csv"):
 
     return df
 
+
+def load_homo_sapiens():
+    return pd.DataFrame([{
+        "SpecCode":              "0",
+        "Genus":               "Homo",
+        "Species":             "Sapiens",
+        "FBname":              "Human",
+
+        "has_wiki_page":       True,  
+        "Database":             0,
+
+        "Length":           165.0, # e.g. 12.3
+
+        "DepthRangeComShallow": None,
+        "DepthRangeComDeep":    None,
+        "DepthRangeShallow":    0,
+        "DepthRangeDeep":       103.0,
+        "DemersPelag":          "others",
+        "Vulnerability":          None,
+        "LTypeMaxM":            "SL",
+        "CommonLength":           None,
+        "LTypeComM":              None,
+        "LongevityWild":          73,
+        "Electrogenic":            None, 
+        "Comments":                None,
+        
+
+        "Fresh":               0,
+        "Saltwater":           0,
+        "Brack":               0,
+        "Dangerous":           "extreme",
+        "Longevity":         73,
+        "Genus_Species":        "Homo sapiens"
+
+    }])
