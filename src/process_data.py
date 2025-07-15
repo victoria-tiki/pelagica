@@ -90,7 +90,7 @@ def load_homo_sapiens():
     return pd.DataFrame([{
         "SpecCode":              "0",
         "Genus":               "Homo",
-        "Species":             "Sapiens",
+        "Species":             "sapiens",
         "FBname":              "Human",
 
         "has_wiki_page":       True,  

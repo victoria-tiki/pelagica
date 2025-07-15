@@ -12,6 +12,11 @@ from urllib.parse import quote_plus
 import re, datetime
 from functools import lru_cache
 
+from rembg import remove
+from PIL import Image
+import io, base64
+
+
 
 HEADERS = {
     # Tell Wikimedia who you are (policy requirement)
@@ -76,7 +81,15 @@ def get_commons_thumb(genus: str,
     pages = r.json().get("query", {}).get("pages", {})
     page  = next(iter(pages.values()), {})
     file_name = page.get("pageimage")            # e.g. Blue_Whale_001.jpg
-    thumb_url = page.get("thumbnail", {}).get("source")
+    
+    #thumb_url = page.get("thumbnail", {}).get("source")
+    raw_thumb_url = page.get("thumbnail", {}).get("source")
+    #thumb_url = remove_background_base64(raw_thumb_url, headers=HEADERS)
+    
+    if raw_thumb_url and "wikimedia.org/static/images/" not in raw_thumb_url:
+        thumb_url = remove_background_base64(raw_thumb_url, headers=HEADERS)
+    else:
+        thumb_url = raw_thumb_url  
 
     # ---- Pass B: fallback if no lead image ----
     if not thumb_url:
@@ -134,4 +147,33 @@ def get_commons_thumb(genus: str,
 
 
 
+def remove_background_base64(image_url: str, headers: dict = None) -> str | None:
+    """
+    Downloads an image from a URL, removes its background using rembg,
+    and returns a base64-encoded PNG string.
+
+    Parameters
+    ----------
+    image_url : str
+        The URL of the image to download and process.
+    headers : dict, optional
+        HTTP headers to use when fetching the image (e.g. User-Agent)
+
+    Returns
+    -------
+    str | None
+        A data:image/png;base64,... string if successful, or None on failure.
+    """
+    try:
+        r = requests.get(image_url, headers=headers, timeout=10)
+        r.raise_for_status()
+        input_data = r.content
+
+        output_data = remove(input_data)
+        b64_img = base64.b64encode(output_data).decode("utf-8")
+        return f"data:image/png;base64,{b64_img}"
+
+    except Exception as e:
+        print(f"[rembg] Failed to process image: {e}")
+        return None
 

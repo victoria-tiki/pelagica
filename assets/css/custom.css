@@ -34,17 +34,30 @@
 
 /* ==========  1. GLOBAL ELEMENTS  ============================== */
 html,body{ height:100%; }
-body{
-  margin:0;
-  font-family:"Inter",sans-serif;
-  color:var(--text-light);
-  background:linear-gradient(to bottom,
-              var(--grad-2) 0%,
-              var(--grad-3) 25%,
-              var(--grad-4) 70%,
-              var(--grad-5) 100%);
-  background-attachment:fixed;
+
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  color: var(--text-light);
+  background-image: url('/assets/epipelagic.png'); /* adjust path as needed */
+  background-size: cover; /* makes the image fill the screen */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed; /* keeps it stationary while scrolling */
 }
+
+body::before {
+  content: "";
+  position: fixed; /* or absolute if not using background-attachment: fixed */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0, 0.5); /* adjust color + transparency */
+  z-index: -1; /* sits under foreground content, over the image */
+  pointer-events: none; /* allows clicks to pass through */
+}
+
 
 /* Dash container max-width */
 .container-fluid{ max-width:1600px; }
@@ -344,7 +357,7 @@ h5,
 
 
 #species-img {
-  max-height: 40vh;
+  max-height: 70vh;
   width: 100%;
   height: auto;
   object-fit: contain;
@@ -378,12 +391,12 @@ h5,
   color: var(--text-light);*/
   padding: 1rem 1.2rem;
   font-size: 0.9rem;
-  box-shadow: 0 2px 6px #0008;
+  /*box-shadow: 0 2px 6px #0008;*/
   border-radius: 0.8rem;
   overflow-y: auto;
   z-index: 1;
   position: absolute;
-  top: calc(100% + 0.3rem);    /* small gap under image */
+  top: calc(100% + 0.0rem);    /* small gap under image */
   left: 0;
   width: 100%;
   max-width: 100%;             /* exactly as wide as image-wrapper */
@@ -516,7 +529,7 @@ h5,
 
 .search-handle{
   position: fixed;
-  top: 98px;                          /* same as panel */
+  top: 85px;                          /* same as panel */
   left: calc(20px + 440px);           /* panel left + panel width */
   width: 30px; height: 40px;
   display: flex; align-items: center; justify-content: center;

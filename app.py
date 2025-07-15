@@ -15,6 +15,8 @@ from src.process_data import load_species_data, load_homo_sapiens
 from src.wiki import get_blurb, get_commons_thumb         
 from src.utils import assign_random_depth
 
+
+
 import numpy as np 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
@@ -39,7 +41,6 @@ external_stylesheets = [
     "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
 ]
 app = Dash(__name__, external_stylesheets=external_stylesheets)
-
 
 # ─── TOP BAR ───────────────────────────────────────────────
 top_bar = html.Div(
@@ -647,6 +648,10 @@ def fill_citation(gs_name):
             html.Span((lic or "") + " "),
             html.A("(license link)", href=lic_url, target="_blank") if lic_url else None,
             html.Span(f" — uploaded {up}, retrieved {ret} from Wikimedia Commons"),
+            html.Br(), html.Br(),
+            html.Span("Background removed using "),
+            html.A("rembg", href="https://github.com/danielgatis/rembg", target="_blank"),
+            html.Span(", an open-source background removal tool by Daniel Gatis."),
             html.Br(), html.Br(),
         ]
 
@@ -1377,7 +1382,8 @@ def toggle_nav_info(n, style):
     return {"display": "none"}
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
+app.run(host="0.0.0.0", port=8050, debug=True)
 
-    raise PreventUpdate                      
+#if __name__ == "__main__":
+#    app.run(debug=True)
+#    raise PreventUpdate                      
