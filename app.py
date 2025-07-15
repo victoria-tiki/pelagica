@@ -757,7 +757,7 @@ def update_image(gs_name, units):
         length_tooltip = "Maximum recorded length of species"
         depth_tooltip  = (
             "Pelagica shows you this species at a random depth within this range. "
-            "Range may be inaccurate for certain species – check citation"
+            "Max depth in database may be inaccurate for certain species – check citation"
         )
         
     # ---------- DEPTH (prefers the …Com* pair) ----------

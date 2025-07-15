@@ -162,16 +162,27 @@ from scipy.stats import beta
     
     
 def assign_random_depth(df, seed,
-                        small_thresh=200,   # “small” range if w < small_thresh
-                        surf_thresh=150,    # “surface” if s < surf_thresh
-                        k_min=2.0,          # flattest Beta
-                        k_max=20.0,         # tightest Beta
-                        zero_boost=5.0):    # extra surface‑bias when s == 0
+                        surf_thresh    = 150.0,   # controls how quickly surface bias decays
+                        k_max          = 20.0,    # concentration for Beta tails
+                        zero_clamp     = 200.0,   # max depth when s==0
+                        surface_boost  = 10.0,    # extra push for truly surface species
+                        deep_threshold = 5000.0,  # threshold for deep‑push
+                        deep_boost     = 3.0):    # moderate deep‑push factor
     """
-    ...
-      - same as before, plus:
-      - if s == 0 or ComShallow == 0, B_surf is multiplied by zero_boost,
-        making the final a = B_shallow/(B_shallow+B_deep) ≈ 1 → extreme shallow bias.
+    For each species with (s,d):
+      1. If s==0, clamp d = min(d, zero_clamp).
+      2. Compute surface‑bias φ_s = exp(-s/surf_thresh).
+         If s==0, φ_s *= surface_boost.
+      3. Compute deep‑bias   φ_d = 1 - exp(-s/surf_thresh).
+         If d > deep_threshold, φ_d *= deep_boost.
+      4. Mix weight a = φ_s / (φ_s + φ_d).
+      5. Mode m = a*s + (1-a)*d.
+      6. Use Beta(α,β) around m with concentration k_max:
+         x0 = (m - s)/(d - s)
+         α = 1 + k_max * x0
+         β = 1 + k_max * (1 - x0)
+         u ~ Beta(α,β)
+      7. RandDepth = s + u*(d - s)
     """
     import numpy as np, pandas as pd
     from scipy.stats import beta
@@ -179,58 +190,56 @@ def assign_random_depth(df, seed,
     rng = np.random.default_rng(seed)
     out = df.copy()
 
-    def phi_small(w): return np.exp(-w / small_thresh)
-    def phi_large(w): return 1 - np.exp(-w / small_thresh)
+    # bias functions
     def phi_surf(s):  return np.exp(-s / surf_thresh)
     def phi_deep(s):  return 1 - np.exp(-s / surf_thresh)
 
-    # extract bounds
-    def bounds(row):
-        s = row["DepthRangeComShallow"] if pd.notna(row["DepthRangeComShallow"]) \
-            else row["DepthRangeShallow"]
-        d = row["DepthRangeComDeep"]   if pd.notna(row["DepthRangeComDeep"])   \
-            else row["DepthRangeDeep"]
-        return float(s), float(d)
+    # extract and clamp bounds
+    def get_bounds(row):
+        s = row.get("DepthRangeComShallow", np.nan)
+        if pd.isna(s): s = row["DepthRangeShallow"]
+        d = row.get("DepthRangeComDeep", np.nan)
+        if pd.isna(d): d = row["DepthRangeDeep"]
+        s, d = float(s), float(d)
+        if s == 0:
+            d = min(d, zero_clamp)
+        return s, d
 
-    bnds   = out.apply(bounds, axis=1).tolist()
-    widths = np.array([d-s for s, d in bnds], dtype=float)
-    w_max  = widths.max() if len(widths) else 0.0
+    bounds = out.apply(get_bounds, axis=1).tolist()
 
     depths = []
-    for s, d in bnds:
-        if np.isnan(s) or np.isnan(d) or s == d or w_max == 0:
+    for s, d in bounds:
+        if np.isnan(s) or np.isnan(d) or s == d:
             depths.append(s)
             continue
 
-        w = d - s
+        # 1) surface & deep bias
+        Bs = phi_surf(s)
+        Bd = phi_deep(s)
 
-        # shallow/deep bias building
-        B_small = phi_small(w)
-        B_surf  = phi_surf(s)
-        # BOOST the surface bias if the shallow bound is zero
+        # 2) extra surface‐boost for true surface species
         if s == 0:
-            B_surf *= zero_boost
+            Bs *= surface_boost
 
-        B_shallow = B_small + B_surf
+        # 3) moderate deep‐boost for ultra‐deep species
+        if d > deep_threshold:
+            Bd *= deep_boost
 
-        B_range = phi_large(w)
-        B_deep  = B_range + phi_deep(s)
+        # 4) mix
+        a = Bs / (Bs + Bd)
 
-        # mix ratio
-        a = B_shallow / (B_shallow + B_deep)
-
-        # mode m and concentration k
+        # 5) mode
         m = a*s + (1 - a)*d
-        k = k_min + (1 - w/w_max)*(k_max - k_min)
 
+        # 6) Beta sampling with fixed concentration
         x0 = (m - s) / (d - s)
-        α  = 1 + k * x0
-        β  = 1 + k * (1 - x0)
+        α  = 1 + k_max * x0
+        β  = 1 + k_max * (1 - x0)
+        u  = rng.beta(α, β)
 
-        u = rng.beta(α, β)
+        # 7) scale back to [s, d]
         depths.append(s + u * (d - s))
 
     out["RandDepth"] = depths
     return out
-
 
