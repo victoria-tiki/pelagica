@@ -9,15 +9,18 @@
 from dash.exceptions import PreventUpdate
 from dash import Dash, dcc, html, Input, Output, State, ctx, no_update
 import dash_bootstrap_components as dbc
+from flask import send_from_directory
+
 import pandas as pd, random, datetime
+import numpy as np 
 
 from src.process_data import load_species_data, load_homo_sapiens
 from src.wiki import get_blurb, get_commons_thumb         
 from src.utils import assign_random_depth
+import os
 
 
 
-import numpy as np 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
 df = load_species_data()          
@@ -41,6 +44,10 @@ external_stylesheets = [
     "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
 ]
 app = Dash(__name__, external_stylesheets=external_stylesheets)
+
+@app.server.route('/cached-images/<path:filename>')
+def serve_cached_images(filename):
+    return send_from_directory('image_cache', filename)
 
 # ─── TOP BAR ───────────────────────────────────────────────
 top_bar = html.Div(
@@ -637,7 +644,10 @@ def fill_citation(gs_name):
     row = df.loc[df["Genus_Species"] == gs_name].iloc[0]
 
     # ---------- try Wikimedia Commons -------------
+    import time
+    start = time.time()
     thumb, author, lic, lic_url, up, ret = get_commons_thumb(genus, species)
+    print(f"Image time: {time.time() - start:.2f}s")
 
     # ---------- build the image block if any ------------
     image_block = []

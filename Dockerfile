@@ -20,7 +20,6 @@ RUN cd /usr/src && \
     ln -sf /usr/local/bin/python3.12 /usr/bin/python3 && \
     ln -sf /usr/local/bin/pip3.12 /usr/bin/pip3
 
-
 # Set working directory
 WORKDIR /pelagica
 
@@ -33,9 +32,10 @@ RUN apt-get update && \
     pip3 install poetry && \
     poetry config virtualenvs.create false && \
     poetry install && \
-    pip3 install rembg
+    pip3 install rembg && \
+    python3 -c "from rembg import session_factory; session_factory.new_session('u2net')"
 
-
+RUN mkdir -p /root/.u2net
 
 ENV LLVM_CONFIG=/usr/bin/llvm-config-10
 

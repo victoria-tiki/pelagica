@@ -529,7 +529,7 @@ h5,
 
 .search-handle{
   position: fixed;
-  top: 85px;                          /* same as panel */
+  top: 99px;                          /* same as panel */
   left: calc(20px + 440px);           /* panel left + panel width */
   width: 30px; height: 40px;
   display: flex; align-items: center; justify-content: center;
