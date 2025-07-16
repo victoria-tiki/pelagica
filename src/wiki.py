@@ -22,6 +22,7 @@ from src.image_cache import (
 )
 from src.text_cache import load_cached_blurb, save_cached_blurb
 import os
+import gc
 
 
 HEADERS = {
@@ -37,40 +38,43 @@ def clean_html(raw: str) -> str:
 
 
 # ---------- Text summary (Wikipedia REST API) ----------------------
+
+
 @lru_cache(maxsize=1000)
 def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None, str | None]:
     """
     Return a short plain-text blurb and canonical article URL.
     Uses a persistent disk-backed cache keyed by genus, species, and sentence count.
     """
-    # Build stable cache key
     key_string = f"{genus.strip().lower()}_{species.strip().lower()}_{sentences}"
     stem = url_to_stem(key_string)
 
-    # Try loading from disk cache
     cached = load_cached_blurb(stem)
     if cached:
         return cached.get("summary"), cached.get("page_url")
 
-    # Fetch from Wikipedia API
     title = f"{genus}_{species}".replace(" ", "_")
     url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote_plus(title)}"
 
     try:
-        r = requests.get(url, headers=HEADERS, timeout=10)
-        r.raise_for_status()
-        data = r.json()
+        with requests.get(url, headers=HEADERS, timeout=10) as r:
+            r.raise_for_status()
+            data = r.json()
 
         summary = html.unescape(data.get("extract", ""))
         summary = ". ".join(summary.split(". ")[:sentences]).strip() + "."
         page_url = data.get("content_urls", {}).get("desktop", {}).get("page")
 
         save_cached_blurb(stem, {"summary": summary, "page_url": page_url})
+
+        del data
+        gc.collect()
         return summary, page_url
 
     except Exception as e:
         print(f"[blurb cache] Failed to fetch summary for {genus} {species}: {e}")
         return None, None
+
         
 '''
 @lru_cache(maxsize=1000)
@@ -102,18 +106,10 @@ def get_commons_thumb(genus: str,
                       width: int = 640
 ) -> tuple[str | None, str | None, str | None, str | None,
            str | None, str | None]:
-    """
-    Returns
-    -------
-    thumb_url, author, licence_short, licence_url,
-    upload_date(ISO), retrieval_date(ISO)
-    """
-
     title_plain = f"{genus} {species}"
     key = f"{title_plain}_{width}"
     stem = url_to_stem(key)
 
-    # ---------- CACHE HIT ----------
     cached_path, cached_meta = load_cached_image_and_meta(key)
     if cached_path and cached_meta:
         return (
@@ -125,70 +121,84 @@ def get_commons_thumb(genus: str,
             cached_meta.get("retrieval_date"),
         )
 
-    # ---------- FALLBACK TO API ----------
-    title_enc = quote_plus(title_plain)
-
-    # -- Try PageImages API --
-    r = requests.get("https://en.wikipedia.org/w/api.php",
-                     params=dict(action="query", titles=title_plain,
-                                 prop="pageimages",
-                                 piprop="thumbnail|name",
-                                 pithumbsize=width,
-                                 redirects=1,
-                                 format="json"),
-                     headers=HEADERS, timeout=10)
-    pages = r.json().get("query", {}).get("pages", {})
-    page = next(iter(pages.values()), {})
-    file_name = page.get("pageimage")
-    raw_thumb_url = page.get("thumbnail", {}).get("source")
-
-    # -- If no thumbnail, fallback to image list --
-    if not raw_thumb_url:
-        r2 = requests.get("https://en.wikipedia.org/w/api.php",
+    # --- Wikipedia PageImages API ---
+    try:
+        with requests.get("https://en.wikipedia.org/w/api.php",
                           params=dict(action="query", titles=title_plain,
-                                      prop="images", imlimit=50,
-                                      redirects=1, format="json"),
-                          headers=HEADERS, timeout=10)
-        pages2 = r2.json().get("query", {}).get("pages", {})
-        files = [img["title"] for p in pages2.values()
-                 for img in p.get("images", [])]
-        file_name = next((f.split("File:")[-1] for f in files
-                          if f.lower().endswith((".jpg", ".jpeg", ".png"))), None)
-        if not file_name:
-            return (None,) * 6
-        raw_thumb_url = (f"https://commons.wikimedia.org/w/index.php"
-                         f"?title=Special:FilePath/{quote_plus(file_name)}"
-                         f"&width={width}")
+                                      prop="pageimages", piprop="thumbnail|name",
+                                      pithumbsize=width, redirects=1, format="json"),
+                          headers=HEADERS, timeout=10) as r:
+            pages = r.json().get("query", {}).get("pages", {})
+            page = next(iter(pages.values()), {})
+            file_name = page.get("pageimage")
+            raw_thumb_url = page.get("thumbnail", {}).get("source")
 
-    # -- Metadata from Commons API --
-    r3 = requests.get("https://commons.wikimedia.org/w/api.php",
-                      params=dict(action="query", titles=f"File:{file_name}",
-                                  prop="imageinfo",
-                                  iiprop="extmetadata|url|timestamp",
-                                  iiurlwidth=width,
-                                  format="json"),
-                      headers=HEADERS, timeout=10)
-    page = next(iter(r3.json()["query"]["pages"].values()))
-    if "imageinfo" not in page:
+        del r, pages, page
+    except Exception as e:
+        print(f"[Commons] Failed to get PageImages: {e}")
         return (None,) * 6
 
-    info = page["imageinfo"][0]
-    meta = info["extmetadata"]
+    # --- Fallback to image list if no thumbnail ---
+    if not raw_thumb_url:
+        try:
+            with requests.get("https://en.wikipedia.org/w/api.php",
+                              params=dict(action="query", titles=title_plain,
+                                          prop="images", imlimit=50,
+                                          redirects=1, format="json"),
+                              headers=HEADERS, timeout=10) as r2:
+                pages2 = r2.json().get("query", {}).get("pages", {})
+                files = [img["title"] for p in pages2.values()
+                         for img in p.get("images", [])]
 
-    raw_author = (meta.get("Artist", {}).get("value") or
-                  meta.get("Credit", {}).get("value") or
-                  meta.get("Attribution", {}).get("value") or "")
-    author = clean_html(raw_author) or "Unknown author"
-    licence = clean_html(meta.get("LicenseShortName", {}).get("value", ""))
-    licence_url = meta.get("LicenseUrl", {}).get("value", "")
-    upload_date = info.get("timestamp", "")[:10]
-    retrieval_date = datetime.date.today().isoformat()
+            file_name = next((f.split("File:")[-1] for f in files
+                              if f.lower().endswith((".jpg", ".jpeg", ".png"))), None)
 
-    # -- Download and background removal --
+            if not file_name:
+                return (None,) * 6
+
+            raw_thumb_url = (f"https://commons.wikimedia.org/w/index.php"
+                             f"?title=Special:FilePath/{quote_plus(file_name)}"
+                             f"&width={width}")
+
+            del r2, pages2, files
+        except Exception as e:
+            print(f"[Commons fallback] Failed to list images: {e}")
+            return (None,) * 6
+
+    # --- Get metadata from Commons ---
     try:
-        response = requests.get(raw_thumb_url, headers=HEADERS, timeout=10)
-        response.raise_for_status()
-        processed_image = remove(response.content)
+        with requests.get("https://commons.wikimedia.org/w/api.php",
+                          params=dict(action="query", titles=f"File:{file_name}",
+                                      prop="imageinfo",
+                                      iiprop="extmetadata|url|timestamp",
+                                      iiurlwidth=width,
+                                      format="json"),
+                          headers=HEADERS, timeout=10) as r3:
+            page = next(iter(r3.json()["query"]["pages"].values()))
+            if "imageinfo" not in page:
+                return (None,) * 6
+            info = page["imageinfo"][0]
+            meta = info["extmetadata"]
+
+        raw_author = (meta.get("Artist", {}).get("value") or
+                      meta.get("Credit", {}).get("value") or
+                      meta.get("Attribution", {}).get("value") or "")
+        author = clean_html(raw_author) or "Unknown author"
+        licence = clean_html(meta.get("LicenseShortName", {}).get("value", ""))
+        licence_url = meta.get("LicenseUrl", {}).get("value", "")
+        upload_date = info.get("timestamp", "")[:10]
+        retrieval_date = datetime.date.today().isoformat()
+
+        del r3, page, meta, info
+    except Exception as e:
+        print(f"[Commons metadata] Failed: {e}")
+        return (None,) * 6
+
+    # --- Download + background removal ---
+    try:
+        with requests.get(raw_thumb_url, headers=HEADERS, timeout=10) as response:
+            response.raise_for_status()
+            processed_image = remove(response.content)
 
         save_image_to_cache(stem, processed_image)
         save_metadata_to_cache(stem, {
@@ -199,7 +209,9 @@ def get_commons_thumb(genus: str,
             "retrieval_date": retrieval_date,
             "thumb_url": raw_thumb_url
         })
+
         enforce_cache_limit()
+        gc.collect()
 
         return (
             f"/cached-images/{os.path.basename(get_cached_image_path(stem))}",
@@ -209,6 +221,7 @@ def get_commons_thumb(genus: str,
     except Exception as e:
         print(f"[rembg/cache] Failed to process image for {genus} {species}: {e}")
         return (None,) * 6
+
 
 
 '''

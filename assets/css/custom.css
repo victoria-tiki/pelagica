@@ -39,7 +39,7 @@ body {
   margin: 0;
   font-family: "Inter", sans-serif;
   color: var(--text-light);
-  background-image: url('/assets/surface_ocean.png'); /* adjust path as needed */
+  background-image: url('/assets/epipelagic.png'); /* adjust path as needed */
   background-size: cover; /* makes the image fill the screen */
   background-repeat: no-repeat;
   background-position: center;
@@ -487,6 +487,15 @@ body.search-open .search-handle {
 
 
 
+@keyframes subtle-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
 #species-img {
   max-height: 70vh;
   width: 120%;
@@ -494,19 +503,7 @@ body.search-open .search-handle {
   object-fit: contain;
   display: block;
 
-  /* Combine horizontal and vertical fades 
-  -webkit-mask-image: 
-    linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%),
-    linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
-  mask-image: 
-    linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%),
-    linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
-
-  -webkit-mask-composite: intersect;
-  mask-composite: intersect;
-
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;*/
+  animation: subtle-bounce 2.5s ease-in-out infinite;
 }
 
 
