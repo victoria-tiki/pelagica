@@ -37,6 +37,7 @@ def clean_html(raw: str) -> str:
 
 
 # ---------- Text summary (Wikipedia REST API) ----------------------
+@lru_cache(maxsize=1000)
 def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None, str | None]:
     """
     Return a short plain-text blurb and canonical article URL.

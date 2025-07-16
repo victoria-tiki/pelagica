@@ -39,7 +39,7 @@ body {
   margin: 0;
   font-family: "Inter", sans-serif;
   color: var(--text-light);
-  background-image: url('/assets/epipelagic.png'); /* adjust path as needed */
+  background-image: url('/assets/surface_ocean.png'); /* adjust path as needed */
   background-size: cover; /* makes the image fill the screen */
   background-repeat: no-repeat;
   background-position: center;
@@ -53,7 +53,7 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0, 0.5); /* adjust color + transparency */
+  background: rgba(0,0,0, 0.3); /* adjust color + transparency */
   z-index: -1; /* sits under foreground content, over the image */
   pointer-events: none; /* allows clicks to pass through */
 }
@@ -104,54 +104,185 @@ h5,
   line-height: 1.5rem;
 }
 
+/* Hide tagline on screens smaller than 600px (adjust as needed) */
+@media (max-width: 600px) {
+  .tagline {
+    display: none;
+  }
+}
+/* ==========  3. SEARCH PANEL (top-left)  ===================== */
 
-/* ==========  3. SEARCH PANEL  (top-left)  ===================== */
-#search-panel{
-  position:fixed; top:10%; left:20px; z-index:1040;
-  width:440px; padding:.8rem .9rem 1rem;
-  border-radius:.6rem .0rem .6rem .6rem;   
-  display:flex; flex-direction:column; gap:.4rem;
-  /*background:var(--glass-bg); color:var(--text-light);border: var(--glass-brd);
-  backdrop-filter:var(--blur-md); box-shadow:0 2px 6px #0006;*/
+#search-panel {
+  position: fixed;
+  top: 10%;
+  left: 20px;
+  z-index: 1040;
+  width: 450px;
+  padding: 0.8rem 0.9rem 1rem;
+  border-radius: 0.6rem 0 0.6rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
+/* Hidden unless explicitly open */
+#search-panel:not(.open) {
+  display: none;
+}
 
+/* Arrow position adjustment */
+#prev-btn {
+  left: calc(20px + 320px + 24px);
+}
 
-/* arrow nudged right of search panel */
-#prev-btn{ left: calc(20px + 320px + 24px); }
-
-
+/* Dropdown overrides */
 #search-panel .dash-dropdown,
-#search-panel .dash-select {
+#search-panel .dash-select,
+#search-panel .Select-menu,
+#search-panel .Select-option,
+#search-panel .Select-placeholder,
+#search-panel .Select-value-label {
   background: white !important;
   color: black !important;
 }
-
-/* Selected value (shown when dropdown is closed) */
-#search-panel .Select-value-label,
-#search-panel .Select-placeholder {
-  color: black !important;
-}
-
-/* Dropdown options (shown when open) */
-#search-panel .Select-menu {
-  background: white !important;
-  color: black !important;
-}
-#search-panel .Select-option {
-  color: black !important;
-}
-
 
 #search-panel .Select-control:hover {
   border-color: #888 !important;
 }
 
-
-
 #search-stack > div {
   margin-bottom: 10px;
 }
+
+/* COLLAPSE ICON ROTATION (when search panel is hidden inline-style) */
+#search-panel[style*="display: none"] .collapse-icon {
+  transform: rotate(-90deg);   /* points right */
+}
+
+/* ─── Search Handle ─────────────────────────────── */
+.search-handle {
+  position: fixed;
+  top: 128px;
+  left: calc(-10px + 450px);
+  width: 100px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius:  0rem 0rem 0.4rem 0.4rem;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+  font-size: 0.75rem;
+  cursor: pointer;
+  z-index: 1041;
+  transition: left 0.3s ease;
+  line-height: 1.1;
+  padding: 0.3rem 0;
+  transform: rotate(-90deg);
+}
+
+.search-handle.collapsed {
+  left: -32px;
+}
+
+.search-handle:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* When panel is open, push handle to edge */
+body.search-open .search-handle {
+  left: 320px;
+}
+
+/* ─── Mobile Styles ─────────────────────────────── */
+@media (max-width: 768px) {
+  #search-panel {
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    padding: 1.5rem 1rem;
+    border-radius: 0;
+    background-color: rgba(0, 20, 40, 0.96);
+    backdrop-filter: blur(8px);
+    gap: 1rem;
+    box-shadow: none;
+    display: none;
+    z-index: 2000;
+  }
+
+  #search-panel.open {
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.search-open #search-handle {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    left: auto;
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    font-size: 1.5rem;
+    background: white;
+    color: black;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    line-height: 1;
+    z-index: 2100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+
+  body.search-open #search-handle::before {
+    content: "×";
+    position: absolute;
+    font-size: 1.5rem;
+  }
+
+  body.search-open #search-handle > * {
+    visibility: hidden;
+  }
+}
+
+/* Mobile-only close button INSIDE the search panel */
+#mobile-close-btn {
+  display: none; /* hidden by default */
+}
+
+@media (max-width: 768px) {
+  #mobile-close-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0.5rem;
+    right: 1rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    background: white;
+    color: black;
+    font-size: 1.5rem;
+    font-weight: bold;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+    z-index: 9999;
+  }
+
+  #search-panel:not(.open) #mobile-close-btn {
+    display: none; /* don’t show if panel isn’t open */
+  }
+}
+
 
 
 
@@ -358,7 +489,7 @@ h5,
 
 #species-img {
   max-height: 70vh;
-  width: 100%;
+  width: 120%;
   height: auto;
   object-fit: contain;
   display: block;
@@ -520,40 +651,8 @@ h5,
   cursor: pointer;
   transition: transform .2s;
 }
-#search-panel[style*="display: none"] .collapse-icon{
-  transform: rotate(-90deg);   /* points right when collapsed */
-}
-
-/* --- slide tab for search panel -------------------------------- */
 
 
-.search-handle{
-  position: fixed;
-  top: 99px;                          /* same as panel */
-  left: calc(20px + 440px);           /* panel left + panel width */
-  width: 30px; height: 40px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 0 .4rem .4rem 0;
-  background: rgba(0, 0, 0, 0.2);
-  color: #fff;
-  backdrop-filter: blur(6px);
-  pointer-events: auto;
-  font-size: 1.4rem; cursor: pointer;
-  z-index: 1041; transition: left .3s ease;
-}
-.search-handle.collapsed{
-  left: 0;                            /* park at screen edge */
-  border-radius: .4rem;
-}
-
-/* optional hover glow */
-.search-handle:hover{ background: rgba(255,255,255,.15); }
-
-
-/* when panel is open push handle to panel edge */
-body.search-open .search-handle{
-  left: 320px;                /* SEARCH_W */
-}
 
 .btn-outline-light {
   color: white;
@@ -723,7 +822,7 @@ helper text size matches the sideways labels
 #prev-btn {
   position: absolute;
   top: 50%;
-  left: 0%;
+  left: 4%;
   transform: translateY(-50%) scaleX(-1);
 }
 
@@ -731,7 +830,7 @@ helper text size matches the sideways labels
 #next-btn {
   position: absolute;
   top: 50%;
-  right: 0%;
+  right: 4%;
   transform: translateY(-50%) rotate(0deg);
 }
 
@@ -791,16 +890,17 @@ helper text size matches the sideways labels
 
 /* ─── INFO TEXT ───────────────────────────────────────────────── */
 #nav-info-text {
-  position: absolute;
-  top: 0.5rem;
-  right: 100%;
-  margin-left: 0.4rem;
+  position: fixed;
+  top: 2rem;
+  right: 0rem;
+  width: 210px;
+  height: 210px;
 
   /* Match main panel style */
   width: 210px;
   height: 210px;
   padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.99);
   color: #fff;
   border-radius: 0.5rem;
   opacity: 1;  /* match nav-panel’s visual presence */
@@ -812,4 +912,5 @@ helper text size matches the sideways labels
   pointer-events: auto;
   display: none;  /* toggled by interaction */
 }
+
 

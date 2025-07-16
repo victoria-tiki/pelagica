@@ -19,12 +19,17 @@ from src.wiki import get_blurb, get_commons_thumb
 from src.utils import assign_random_depth
 import os
 
-
+import gc
 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
-df = load_species_data()          
+df = load_species_data()       
+
 df_wiki = df[df["has_wiki_page"]].copy() #only those with wikipedia page
+
+df_light = df[["Genus", "Species", "Genus_Species", "FBname", "has_wiki_page"]].copy()
+df_light["dropdown_label"] = df_light["FBname"] + " (" + df_light["Genus"] + " " + df_light["Species"] + ")"
+
 # --- Popular-species whitelist -----------------------------------
 popular_df   = pd.read_csv("data/processed/popular_species.csv")        # <-- path in /mnt/data
 popular_set  = set(popular_df["Genus"] + " " + popular_df["Species"])
@@ -63,12 +68,13 @@ top_bar = html.Div(
                 html.Span(
                     "The Aquatic Life Atlas",
                     id="tagline",
+                    className="tagline",
                     style={
                         "marginLeft": "0.5rem",
                         "fontSize": "0.9rem",
                         "fontWeight": "500",
-                        "lineHeight": "60px",      # vertically center with the logo
-                        "color": "#f5f5f5"  # or whatever CSS var you’re using
+                        "lineHeight": "60px",
+                        "color": "#f5f5f5"
                     }
                 ),
             ],
@@ -87,7 +93,7 @@ top_bar = html.Div(
                 {"label": "Metric",   "value": "metric"},
                 {"label": "Imperial", "value": "imperial"},
             ],
-            style={"marginLeft": "auto"}
+            style={"marginLeft": "auto", "font-size": "0.8rem"}
         ),
     ],
     id="top-bar",
@@ -135,14 +141,13 @@ search_stack = html.Div(id="search-stack", children=[
 
 ])
 
-# >>> NEW  –  fixed panel that lives on its own
-search_panel = html.Div(search_stack, id="search-panel")
+
 
 
 
 CITATION_W  = 300   
 PANEL_WIDTH  = CITATION_W
-SEARCH_W, SEARCH_TOP = 440, 120    # width px, distance below top bar
+SEARCH_W, SEARCH_TOP = 450, 120    # width px, distance below top bar
 
 advanced_filters = html.Div(                # collapsible area
     [
@@ -161,10 +166,10 @@ advanced_filters = html.Div(                # collapsible area
         dbc.Checklist(
             id="popular-toggle",
             options=[{"label": "Only popular species", "value": "pop"}],
-            value=[""],
+            value=["pop"],
             switch=True
         ),
-        html.Div("Limits to ~200 curated species.", className="settings-note")
+        html.Div("Limits to ~1000 curated species. Longer loading times if toggled off.", className="settings-note")
     ], className="settings-group"),
 
     html.H6("Depth Comparison", className="settings-header"),
@@ -243,18 +248,23 @@ advanced_filters = html.Div(                # collapsible area
 )
 
 search_header = html.Div(
-    [
-        html.Span("🔍 Search", id="search-toggle",
-                  style={"fontWeight":"600","cursor":"pointer"})
-    ],
+    #[
+    #    html.Span("🔍 Search", id="search-toggle",
+    #              style={"fontWeight":"600","cursor":"pointer"})
+    #],
     style={"display":"flex","justifyContent":"space-between",
            "alignItems":"center","marginBottom":"0.6rem"}
 )
 
 
 search_panel = html.Div(
-    [search_header, search_stack, advanced_filters],
-    id="search-panel", className="glass-panel"
+    [
+        html.Div("×", id="mobile-close-btn", className="mobile-close"),
+        search_header,
+        search_stack,
+        advanced_filters
+    ],
+    id="search-panel", className="glass-panel search-panel open"
 )
 
 
@@ -346,6 +356,8 @@ citations_panel = dbc.Offcanvas(
     is_open=False,
     close_button=False,
     backdrop=False,
+    autoFocus=False, 
+    scrollable=True,
     style={"width": f"{CITATION_W}px"},   # <-- inject Python var here
     children=html.Div(id="citation-box", style={"whiteSpace": "pre-wrap"})
 )
@@ -374,6 +386,24 @@ centre_flex = html.Div(id="page-centre-flex", children=[
     ])
 ])
 
+center_message=html.Div(
+    id="load-message",
+    children="Loading species…",
+    style={
+        "position": "fixed",
+        "top": "50%",
+        "left": "50%",
+        "transform": "translate(-50%, -50%)",
+        "zIndex": 9999,
+        "padding": "1rem 2rem",
+        "backgroundColor": "rgba(0, 0, 0, 0.7)",
+        "color": "white",
+        "fontSize": "1.2rem",
+        "borderRadius": "0.5rem",
+        "display": "none",  # hidden by default
+        "textAlign": "center"
+    }
+),
 
 
 
@@ -450,8 +480,7 @@ nav_panel = html.Div([
 
 
 
-search_handle = html.Div("‹", id="search-handle", className="search-handle")
-
+search_handle = html.Div(["🔍 Search"], id="search-handle", className="search-handle", **{"data-mobile-x": "true"})
     
 #  Assemble Layout
 app.layout = dbc.Container([
@@ -460,7 +489,6 @@ app.layout = dbc.Container([
     dcc.Store(id="rand-seed", storage_type="session"),
     top_bar,
     #settings_panel,
-    citations_panel,
 
     # -- side tabs, rendered once and slid by callbacks --
     html.Div("citations",      id="citations-tab", className="side-tab"),
@@ -472,7 +500,8 @@ app.layout = dbc.Container([
 
 
     footer,
-    dcc.Store(id="selected-species", data=None)
+    dcc.Store(id="selected-species", data=None),
+    citations_panel,
 ], fluid=True)
 
 
@@ -484,7 +513,8 @@ app.layout = dbc.Container([
     State("genus-dd", "value"),
 )
 def filter_genus(wiki_val, pop_val, current):
-    df_use = df.copy()
+    df_use = df_light.copy()
+
 
     if "wiki" in wiki_val:
         df_use = df_use[df_use["has_wiki_page"]]
@@ -513,7 +543,8 @@ def update_species_options(genus, wiki_val, pop_val, current):
     if not genus:
         return [], None
 
-    df_use = df[df["Genus"] == genus]
+    df_use = df_light.copy()
+    df_use = df_use[df_use["Genus"] == genus]
 
     if "wiki" in wiki_val:
         df_use = df_use[df_use["has_wiki_page"]]
@@ -598,22 +629,15 @@ def toggle_settings(n, settings_open):
 # --- CITATIONS panel toggle -----------------------------------
 @app.callback(
     Output("citations-canvas", "is_open"),
-    Output("info-card",        "style", allow_duplicate=True),
-    Output("info-handle",      "style", allow_duplicate=True),
     Input("citations-tab",     "n_clicks"),
     State("citations-canvas",  "is_open"),
     prevent_initial_call=True
 )
-def toggle_citations(n, citations_open):
+def toggle_citations(n, is_open):
     if not n:
         raise PreventUpdate
+    return not is_open
 
-    new_citations = not citations_open
-    return (
-        new_citations,         # open / close citations
-        {"display": "none"},   # hide info card
-        {"display": "block"}   # show little "i" handle
-    )
 
     
 #------ toggle INFO -------
@@ -913,7 +937,7 @@ def update_image(gs_name, units):
 
 
 
-
+    gc.collect() 
     return thumb or "/assets/placeholder_fish.webp", info_lines
 
 
@@ -1095,27 +1119,27 @@ def set_depth_labels(current, depth_val):
 @app.callback(
     Output("common-dd", "options"),
     Output("common-dd", "value"),
-    Input("wiki-toggle",    "value"),
+    Input("wiki-toggle", "value"),
     Input("popular-toggle", "value"),
-    State("common-dd",      "value"),
+    State("common-dd", "value"),
 )
 def filter_common(wiki_val, pop_val, current):
-    df_use = df.copy()
-
+    df_use = df_light
     if "wiki" in wiki_val:
         df_use = df_use[df_use["has_wiki_page"]]
-
     if "pop" in pop_val:
         df_use = df_use[df_use["Genus_Species"].isin(popular_set)]
 
-    # rebuild common-name list
     opts = [
-        {"label": r["dropdown_label"], "value": r["Genus_Species"]}
-        for _, r in df_use.iterrows()
+        {"label": row["dropdown_label"], "value": row["Genus_Species"]}
+        for _, row in df_use.iterrows()
+        if pd.notna(row["dropdown_label"])  # important to avoid label=None
     ]
 
-    valid_vals = {o["value"] for o in opts}
-    return opts, current if current in valid_vals else None
+    valid = {o["value"] for o in opts}
+    return opts, current if current in valid else None
+
+
 
 # toggle the advanced-filters box
 @app.callback(
@@ -1131,19 +1155,38 @@ def toggle_advanced(n, style):
 
 
 @app.callback(
-    Output("search-panel",  "style"),
-    Output("search-handle", "children"),
+    Output("search-panel",  "className"),
     Output("search-handle", "className"),
     Input("search-handle",  "n_clicks"),
-    State("search-panel",   "style"),
+    State("search-panel",   "className"),
     prevent_initial_call=True
 )
-def toggle_search_box(n, panel_style):
-    hidden = panel_style and panel_style.get("display") == "none"
-    if hidden:
-        return {}, "‹", "search-handle"  # Expand panel
-    else:
-        return {"display": "none"}, "›", "search-handle collapsed"  # Collapse
+def toggle_search_box(n, current_class):
+    current_class = current_class or ""
+    is_open = "open" in current_class
+
+    new_class = current_class.replace(" open", "") if is_open else current_class + " open"
+    new_toggle_class = "search-handle collapsed" if is_open else "search-handle"
+
+    return new_class.strip(), new_toggle_class
+
+@app.callback(
+    Output("search-panel",  "className", allow_duplicate=True),
+    Output("search-handle", "className", allow_duplicate=True),
+    Input("mobile-close-btn", "n_clicks"),
+    State("search-panel",   "className"),
+    prevent_initial_call=True
+)
+def close_search_mobile(n, current_class):
+    if not n:
+        raise PreventUpdate
+
+    current_class = current_class or ""
+    if "open" in current_class:
+        new_class = current_class.replace(" open", "")
+        return new_class.strip(), "search-handle collapsed"
+    raise PreventUpdate
+
 
 
 # -----------------------------------------------------------------------
@@ -1207,6 +1250,7 @@ def jump_to_extremes(n_deep, n_shallow,
             raise PreventUpdate
         row = df_use.iloc[-1] if trig == "deepest-btn" else df_use.iloc[0]
 
+    gc.collect() 
     return row["Genus_Species"]
 
 
@@ -1256,6 +1300,8 @@ def step_size(n_next, n_prev,
     idx = species.index(current)
     idx = (idx - 1) % len(species) if ctx.triggered_id == "prev-btn" \
          else (idx + 1) % len(species)
+         
+    gc.collect() 
     return species[idx]
 
 
@@ -1293,6 +1339,8 @@ def step_depth(n_up, n_down,
     idx = species.index(current)
     idx = (idx - 1) % len(species) if ctx.triggered_id == "up-btn" \
          else (idx + 1) % len(species)
+         
+    gc.collect() 
     return species[idx]
 
 
