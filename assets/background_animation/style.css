@@ -1,0 +1,195 @@
+/* Reset + base */
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  background: black;
+}
+
+/* Shared camera window for each layer */
+.layer-view {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  width: 100vw;
+  height: 100vh;
+  transform: translateX(-50%);
+  overflow: hidden;
+}
+
+/* Image stays centered and at natural width */
+.layer-img {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, 0);  /* Center horizontally, move vertically */
+  height: auto;
+  image-rendering: crisp-edges;
+  transition: transform 1.2s ease-out;
+}
+
+/* Z-index stack */
+#back-view     { z-index: 0; }
+#layer3-view   { z-index: 1; }
+#layer4-view   { z-index: 3; }
+#layer5-view   { z-index: 4; }
+#layer6-view   { z-index: 5; }
+#layer7-view   { z-index: 6; }
+#layer8-view   { z-index: 7; }
+#layer9-view   { z-index: 8; }
+#view          { z-index: 9; }
+#ui            { z-index: 100; }
+
+/* UI */
+#ui {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-family: sans-serif;
+}
+
+.parallax-layer {
+  will-change: transform;
+}
+
+#layer3-view {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Layer‑3 needs no transform tween (horizontal scroll is frame‑by‑frame) */
+img[data-layer="layer3"],
+#layer3-clone {
+  transition: none !important;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ────────────────────────────────────────────────────────────────
+   SHIMMER HIGHLIGHTS  ✨   (pure‑CSS “fake caustics”)
+   Works by cloning the same image as a pseudo‑element, cranking up
+   contrast/brightness so only the whites survive, then pulsing opacity.
+   ──────────────────────────────────────────────────────────────── */
+
+/* 
+
+.layer-view.sparkle {              
+  position: relative;
+}
+
+.layer-view.sparkle::after {        
+  content: '';
+  position: absolute; inset: 0;
+  background-image: var(--src);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+
+
+  filter: brightness(2.6) contrast(4.5) saturate(0);
+  mix-blend-mode: screen;           
+  pointer-events: none;
+
+  animation: sparklePulse 3s ease-in-out infinite;
+  opacity: 0;
+}
+
+@keyframes sparklePulse {
+  0%,100% { opacity: 0;            transform: translateX( 0%)   scale(1); }
+  25%     { opacity: 0.5;          transform: translateX(-0.4%) scale(1.003); }
+  50%     { opacity: 0.9;          transform: translateX(-0.8%) scale(1.007); }
+  75%     { opacity: 0.5;          transform: translateX(-0.4%) scale(1.003); }
+}
+*/
+
+
+/* ─── Sparkle overlay ─────────────────────────────────────────── */
+/*  ─── Wave‑glare sparkles ─────────────────────────────────── */
+/*.sparkle {
+  position: absolute;
+  width: 12px;              
+  height: 2px;
+  background: linear-gradient(
+      90deg,
+      rgba(255,255,255,0)   0%,
+      rgba(255,255,255,0.95)50%,
+      rgba(255,255,255,0) 100%
+  );
+  border-radius: 50%;       
+  opacity: 0;
+  transform-origin: center;
+  animation: sparkle-blink 3s linear infinite;
+}
+
+@keyframes sparkle-blink {
+  0%   { transform: scaleX(0) rotate(var(--a)); opacity: 0; }
+  50%  { transform: scaleX(1) rotate(var(--a)); opacity: 1; }
+  100% { transform: scaleX(0) rotate(var(--a)); opacity: 0; }
+}
+
+#sparkle-container {
+  position: fixed;
+  top: 60vh;       
+  left: 0;
+  width: 100vw;
+  height: 50vh;     
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 60;
+}*/
+
+#birds-view { z-index: 2; }
+
+.bird {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: url('bird_up.png') center/contain no-repeat;
+  opacity: 0.7;
+  will-change: transform;
+  transform-origin: center;
+  transform: scale(var(--s, 1)); /* Set scale only once here */
+}
+
+
+@keyframes birdFlight {
+  0%   { transform: translateX(120vw) translateY(0); }
+  40%  { transform: translateX(0vw)     translateY(-40px); }
+  100% { transform: translateX(-120vw)   translateY(0); }
+}
+
+
+/*  🐦  flap = 3× up/down *per* climb, then we switch to glide */
+@keyframes flap {
+  0%, 50%, 100% { background-image: url('bird_up.webp'); }  /* up‑wing  ⇒ 70 % */
+  35%           { background-image: url('bird_down.webp'); }/* down‑wing quick beat */
+}
+
+/*  💤  glide (wings stay up) */
+@keyframes glide { 0%,100% { background-image: url('bird_up.webp'); } }
+
+
+
+
+
+

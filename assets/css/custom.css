@@ -39,7 +39,7 @@ body {
   margin: 0;
   font-family: "Inter", sans-serif;
   color: var(--text-light);
-  background-image: url('/assets/epipelagic.png'); /* adjust path as needed */
+  background-image: url('/assets/background/epipelagic.png'); /* adjust path as needed */
   background-size: cover; /* makes the image fill the screen */
   background-repeat: no-repeat;
   background-position: center;

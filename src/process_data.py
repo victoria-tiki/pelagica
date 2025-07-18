@@ -115,7 +115,7 @@ def load_homo_sapiens():
         "Fresh":               0,
         "Saltwater":           0,
         "Brack":               0,
-        "Dangerous":           "extreme",
+        "Dangerous":           "high",
         "Longevity":         73,
         "Genus_Species":        "Homo sapiens"
 
