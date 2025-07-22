@@ -310,7 +310,7 @@ let underwaterHeightPx = 0;
 
 
 
-/*function updateUnderwater(depth){
+function updateUnderwater(depth){
   if (!underwaterImg) return;
 
   const minH = 0;      // px when overlay is “off”
@@ -324,9 +324,9 @@ let underwaterHeightPx = 0;
   const d = Math.min(depth - START, dMax);   // 0 → dMax once we’ve passed 20 m
   const h = minH + (maxH - minH) * (d / dMax);
   underwaterImg.style.height = `${h}px`;
-}*/
+}
 
-
+/*
 function updateUnderwater(depth){
   if (!underwaterImg) return;
 
@@ -348,11 +348,11 @@ function updateUnderwater(depth){
   }
 
   // Ease underwaterHeightPx toward targetH
-  const speed = 0.15;  // smaller = slower (e.g. 0.05 = very slow)
+  const speed = 0.2;  // smaller = slower (e.g. 0.05 = very slow)
   underwaterHeightPx += (targetH - underwaterHeightPx) * speed;
 
   underwaterImg.style.height = `${underwaterHeightPx}px`;
-}
+}*/
 
 
 
@@ -372,7 +372,7 @@ function goToDepth(){
   startDepth = prev;           // 💡 ensure valid number
   targetDepth = v;
   moveStart = performance.now();
-  moveDur = T * 1000;
+  moveDur = T * 1000/2;
   depthMode = true;
 }
 
