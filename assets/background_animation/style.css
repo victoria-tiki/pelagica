@@ -2,10 +2,19 @@
 html, body {
   margin: 0;
   padding: 0;
-  overflow: hidden;
   height: 100%;
   width: 100%;
-  background: black;
+  background: #6da4c4;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  background-image: url('tiles/back_0.webp'); /* adjust path as needed */
+  background-size: cover; /* makes the image fill the screen */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed; /* keeps it stationary while scrolling */
 }
 
 /* Shared camera window for each layer */
@@ -14,21 +23,32 @@ html, body {
   top: 0;
   left: 50%;
   width: 100vw;
-  height: 100vh;
+  height: 24000px;
   transform: translateX(-50%);
-  overflow: hidden;
 }
 
 /* Image stays centered and at natural width */
-.layer-img {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translate(-50%, 0);  /* Center horizontally, move vertically */
-  height: auto;
-  image-rendering: crisp-edges;
-  transition: transform 1.2s ease-out;
+.layer-img{
+  position:absolute;
+  top:0; left:50%;
+  transform:translate(-50%,0);
+  height:var(--strip-h,1000px);   /* NEW – full strip height once JS sets it */
+  image-rendering:crisp-edges;
+  transition:transform 1.2s ease-out;
 }
+
+
+.layer-img,
+#birds-view { will-change: transform; }
+
+.layer-img {
+  transition: none !important;
+}
+
+
+
+
+
 
 /* Z-index stack */
 #back-view     { z-index: 0; }
@@ -39,7 +59,7 @@ html, body {
 #layer7-view   { z-index: 6; }
 #layer8-view   { z-index: 7; }
 #layer9-view   { z-index: 8; }
-#view          { z-index: 9; }
+#view          { z-index: 10; }
 #ui            { z-index: 100; }
 
 /* UI */
@@ -53,143 +73,125 @@ html, body {
   font-family: sans-serif;
 }
 
-.parallax-layer {
-  will-change: transform;
+
+
+/* after JS flips the flag */
+body.ready .parallax-layer{
+  will-change:transform;
+  transition:transform 1.2s ease-out;
 }
 
-#layer3-view {
-  display: flex;
-  flex-direction: row;
-}
-
-/* Layer‑3 needs no transform tween (horizontal scroll is frame‑by‑frame) */
-img[data-layer="layer3"],
-#layer3-clone {
-  transition: none !important;
-}
+.parallax-layer{ will-change:auto; transition:none; }
+.active          { will-change:transform; }   /* JS toggles this */
+.content-hidden  { visibility:hidden; }       /* optional fade‑in */
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* ────────────────────────────────────────────────────────────────
-   SHIMMER HIGHLIGHTS  ✨   (pure‑CSS “fake caustics”)
-   Works by cloning the same image as a pseudo‑element, cranking up
-   contrast/brightness so only the whites survive, then pulsing opacity.
-   ──────────────────────────────────────────────────────────────── */
-
-/* 
-
-.layer-view.sparkle {              
-  position: relative;
-}
-
-.layer-view.sparkle::after {        
-  content: '';
-  position: absolute; inset: 0;
-  background-image: var(--src);
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-
-
-  filter: brightness(2.6) contrast(4.5) saturate(0);
-  mix-blend-mode: screen;           
-  pointer-events: none;
-
-  animation: sparklePulse 3s ease-in-out infinite;
-  opacity: 0;
-}
-
-@keyframes sparklePulse {
-  0%,100% { opacity: 0;            transform: translateX( 0%)   scale(1); }
-  25%     { opacity: 0.5;          transform: translateX(-0.4%) scale(1.003); }
-  50%     { opacity: 0.9;          transform: translateX(-0.8%) scale(1.007); }
-  75%     { opacity: 0.5;          transform: translateX(-0.4%) scale(1.003); }
-}
-*/
-
-
-/* ─── Sparkle overlay ─────────────────────────────────────────── */
-/*  ─── Wave‑glare sparkles ─────────────────────────────────── */
-/*.sparkle {
-  position: absolute;
-  width: 12px;              
-  height: 2px;
-  background: linear-gradient(
-      90deg,
-      rgba(255,255,255,0)   0%,
-      rgba(255,255,255,0.95)50%,
-      rgba(255,255,255,0) 100%
-  );
-  border-radius: 50%;       
-  opacity: 0;
-  transform-origin: center;
-  animation: sparkle-blink 3s linear infinite;
-}
-
-@keyframes sparkle-blink {
-  0%   { transform: scaleX(0) rotate(var(--a)); opacity: 0; }
-  50%  { transform: scaleX(1) rotate(var(--a)); opacity: 1; }
-  100% { transform: scaleX(0) rotate(var(--a)); opacity: 0; }
-}
-
-#sparkle-container {
+/* generic wrapper – applies to every layer-view/parallax-layer combo */
+.parallax-layer{
   position: fixed;
-  top: 60vh;       
-  left: 0;
+  top: 0;
+  left: 50%;
   width: 100vw;
-  height: 50vh;     
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 60;
-}*/
+  height: 24000px;
+  transform: translateX(-50%);   /* centre horizontally */
+}
+
+
+/* depth‑dependent caustics overlay */
+/* depth‑dependent caustics overlay */
+#underwater-img{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);   /* centre, so left/right crop symmetrically */
+
+  top:1100px;                  /* vertical anchor */
+  width:3400px;                /* ⬅︎ SAME width as your front tile         */
+  max-width:none;              /* prevent it from shrinking on small screens */
+
+  height:100px;                /* stretches from 100 → 500 px in JS */
+  object-fit:fill;             /* vertical squish/expand, no horizontal scaling */
+  object-position:top center;
+
+  pointer-events:none;
+  transition:height .5s ease-out;
+}
+
+
+
 
 #birds-view { z-index: 2; }
 
+
+.bird-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  pointer-events: none;
+  animation: birdFlight var(--dur) linear forwards;
+  transform-origin: center;
+}
+
+
+
 .bird {
   position: absolute;
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   background: url('bird_up.png') center/contain no-repeat;
-  opacity: 0.7;
+  opacity: 0.9;
   will-change: transform;
   transform-origin: center;
-  transform: scale(var(--s, 1)); /* Set scale only once here */
+  transform: scale(var(--s, 1));
 }
 
 
 @keyframes birdFlight {
   0%   { transform: translateX(120vw) translateY(0); }
-  40%  { transform: translateX(0vw)     translateY(-40px); }
-  100% { transform: translateX(-120vw)   translateY(0); }
+  10%  { transform: translateX(100vw) translateY(calc(var(--wave, 8px) * -1)); }
+  20%  { transform: translateX(80vw)  translateY(0); }
+  30%  { transform: translateX(60vw)  translateY(var(--wave, 8px)); }
+  40%  { transform: translateX(40vw)  translateY(0); }
+  50%  { transform: translateX(20vw)  translateY(calc(var(--wave, 8px) * -1)); }
+  60%  { transform: translateX(0vw)   translateY(0); }
+  70%  { transform: translateX(-20vw) translateY(var(--wave, 8px)); }
+  80%  { transform: translateX(-40vw) translateY(0); }
+  90%  { transform: translateX(-60vw) translateY(calc(var(--wave, 8px) * -1)); }
+  100% { transform: translateX(-120vw) translateY(0); }
 }
 
 
-/*  🐦  flap = 3× up/down *per* climb, then we switch to glide */
-@keyframes flap {
-  0%, 50%, 100% { background-image: url('bird_up.webp'); }  /* up‑wing  ⇒ 70 % */
-  35%           { background-image: url('bird_down.webp'); }/* down‑wing quick beat */
+
+
+/* ─── bubble strip: world‑Y 900‑1500 px ───────────────────── */
+/* ─── fixed overlay that we slide up/down with JS ─────────── */
+#bubble-layer{
+  position:fixed; left:0; width:100%;
+  height:600px;                     /* 900 → 1500 world px       */
+  pointer-events:none;
+  overflow:hidden;                  /* hide while popping        */
+  z-index:9999;
 }
 
-/*  💤  glide (wings stay up) */
-@keyframes glide { 0%,100% { background-image: url('bird_up.webp'); } }
+/* one div per bubble; CSS handles the whole life‑cycle */
+.bubble{
+  position:absolute; bottom:-60px; border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,
+              rgba(255,255,255,.9) 0%,
+              rgba(255,255,255,.55) 40%,
+              rgba(255,255,255,.15) 80%, transparent 100%);
+  box-shadow:0 0 12px rgba(255,255,255,.45);
+  opacity:.9;
+  will-change:transform;
+  animation:bubbleRise var(--dur) linear forwards;
+}
 
-
-
-
-
+/* grow ▸ cruise ▸ swell ▸ vanish  */
+@keyframes bubbleRise{
+  0%   {transform:translateY(0)        scale(0);}
+  15%  {transform:translateY(-80px)    scale(1);}
+  80%  {transform:translateY(calc(-100% + 80px)) scale(1);}
+  92%  {transform:translateY(calc(-100% + 40px)) scale(1.5);}  /* pop */
+  100% {transform:translateY(-100%)    scale(0); opacity:0;}
+}
 

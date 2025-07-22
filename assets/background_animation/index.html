@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,44 +7,118 @@
   <title>Deep Sea Viewer</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-
-  <!-- BACKGROUND LAYER -->
-  <div id="back-view" class="layer-view">
-    <img id="back-img" class="layer-img parallax-layer" src="back.webp" data-depth="0.0" data-layer="back" />
-  </div>
+<body id="root">
 
 
 
-  <!-- MID LAYERS -->
-  <div id="layer3-view" class="layer-view"><img id="layer3" class="layer-img parallax-layer" src="layer3.webp" data-depth="0.0" data-layer="layer3" /></div>
-  
-  <div id="birds-view" class="layer-view"></div>
-  
-  <div id="layer4-view" class="layer-view"><img id="layer4" class="layer-img parallax-layer" src="layer4.webp" data-depth="0.1" data-layer="layer4" /></div>
-  <div id="layer5-view" class="layer-view"><img id="layer5" class="layer-img parallax-layer" src="layer5.webp" data-depth="0.2" data-layer="layer5" /></div>
-  <div id="layer6-view" class="layer-view"><img id="layer6" class="layer-img parallax-layer" src="layer6.webp" data-depth="0.4" data-layer="layer6" /></div>
-  <div id="layer7-view" class="layer-view"><img id="layer7" class="layer-img parallax-layer" src="layer7.png" data-depth="0.6" data-layer="layer7" /></div>
-  <div id="layer8-view" class="layer-view"><img id="layer8" class="layer-img parallax-layer" src="layer8.png" data-depth="0.8" data-layer="layer8" /></div>
-  <div id="layer9-view" class="layer-view"><img id="layer9" class="layer-img parallax-layer" src="layer9.png" data-depth="0.9" data-layer="layer9" /></div>
-
-  <!-- FRONT LAYER -->
-  <div id="view" class="layer-view">
-    <img id="front-img" class="layer-img parallax-layer" src="front.png" data-depth="1.0" data-layer="front" />
-  </div>
-  
-  <!-- Sparkles appear only on the default screen -->
-<div id="sparkle-container"></div>
 
 
-  <!-- UI -->
+<!-- 🌅 0 m – sky / sea surface -->
+<div id="back-view" class="layer-view parallax-layer"
+     data-layer="back"  data-depth="0.00" style="z-index:0">
+  <img id="back-img" class="layer-img"
+       src="tiles/back_0.webp"
+       data-prefix="tiles/back"   data-tiles="2"   alt="">
+</div>
+
+<!-- 🐟 4 m -->
+<div id="layer3-view" class="layer-view parallax-layer"
+     data-layer="layer3" data-depth="0.04" style="z-index:1">
+  <img id="layer3-img" class="layer-img"
+       src="tiles/layer3_0.webp"
+       data-prefix="tiles/layer3" data-tiles="2"   alt="">
+</div>
+
+<div id="birds-view" class="layer-view parallax-layer" data-layer="layer3" data-depth="0.05"></div>
+
+
+<!-- 🐟 10 m -->
+<div id="layer4-view" class="layer-view parallax-layer"
+     data-layer="layer4" data-depth="0.10" style="z-index:3">
+  <img id="layer4-img" class="layer-img"
+       src="tiles/layer4_0.webp"
+       data-prefix="tiles/layer4" data-tiles="5"   alt="">
+</div>
+
+<!-- 🛥 16 m -->
+<div id="layer5-view" class="layer-view parallax-layer"
+     data-layer="layer5" data-depth="0.16" style="z-index:4">
+  <img id="layer5-img" class="layer-img"
+       src="tiles/layer5_0.webp"
+       data-prefix="tiles/layer5" data-tiles="8"   alt="">
+</div>
+
+<!-- 🐙 28 m -->
+<div id="layer6-view" class="layer-view parallax-layer"
+     data-layer="layer6" data-depth="0.28" style="z-index:5">
+  <img id="layer6-img" class="layer-img"
+       src="tiles/layer6_0.webp"
+       data-prefix="tiles/layer6" data-tiles="14"  alt="">
+</div>
+
+<!-- 🦑 40 m -->
+<div id="layer7-view" class="layer-view parallax-layer"
+     data-layer="layer7" data-depth="0.40" style="z-index:6">
+  <img id="layer7-img" class="layer-img"
+       src="tiles/layer7_0.webp"
+       data-prefix="tiles/layer7" data-tiles="20"  alt="">
+</div>
+
+<!-- 🐡 55 m -->
+<div id="layer8-view" class="layer-view parallax-layer"
+     data-layer="layer8" data-depth="0.55" style="z-index:7">
+  <img id="layer8-img" class="layer-img"
+       src="tiles/layer8_0.webp"
+       data-prefix="tiles/layer8" data-tiles="27"  alt="">
+</div>
+
+<!-- 🐠 72 m -->
+<div id="layer9-view" class="layer-view parallax-layer"
+     data-layer="layer9" data-depth="0.72" style="z-index:8">
+  <img id="layer9-img" class="layer-img"
+       src="tiles/layer9_0.webp"
+       data-prefix="tiles/layer9" data-tiles="30"  alt="">
+</div>
+
+<!-- 🌊 under‑surface caustics (depth‑sensitive) -->
+<div id="underwater-view" class="layer-view parallax-layer"
+     data-layer="underwater" data-depth="1.00" style="z-index:9">
+  <img id="underwater-img" class="layer-img underwater-img"
+     src="underwater.png"
+     data-prefix="underwater/underwater"
+     data-tiles="1"
+     alt="caustics overlay">
+</div>
+
+
+
+<!-- 🪸 100 m – foreground coral -->
+<div id="front-view" class="layer-view parallax-layer"
+     data-layer="front" data-depth="1.00" style="z-index:10">
+  <img id="front-img" class="layer-img"
+       src="tiles/front_0.webp"
+       data-prefix="tiles/front" data-tiles="33"  alt="">
+</div>
+
+
+
+
+     
+     
+     
+     
+     
+     
   <div id="ui">
     <label for="depth-input">Go to depth (m):</label>
     <input type="number" id="depth-input" min="-20" max="11000" step="10" value="0" />
     <button onclick="goToDepth()">Go</button>
+      <button id="anim-toggle">Pause animation</button>
   </div>
 
-  <script src="depthanimation.js"></script>
+  
+
+<script defer src="depthanimation.js"></script>
 </body>
 </html>
 
