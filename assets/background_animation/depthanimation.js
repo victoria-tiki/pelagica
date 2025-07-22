@@ -306,6 +306,8 @@ let layers=[];
 let currentDepth = undefined, targetDepth = 0, depthMode = false;
 let moveStart=0, moveDur=0, startDepth=0;
 let underwaterImg;
+let underwaterHeightPx = 0;
+
 
 
 /*function updateUnderwater(depth){
@@ -324,30 +326,33 @@ let underwaterImg;
   underwaterImg.style.height = `${h}px`;
 }*/
 
+
 function updateUnderwater(depth){
   if (!underwaterImg) return;
 
-  const START_DEPTH = 20;     // don’t grow before this
-  const GROW_DEPTH  = 100;    // full size at START+100 m
-  const MIN_H       = 0;
-  const MAX_H       = 900;
+  const START   = 10;
+  const GROW    = 100;
+  const minH    =   0;
+  const maxH    = 900;
 
-  // compute world-pixel positions
-  const yStart = depthToPixelMemo(START_DEPTH);
-  const yEnd   = depthToPixelMemo(START_DEPTH + GROW_DEPTH);
-  const baseY  = depthToPixelMemo(depth ?? 0);
+  if (depth == null || depth < START) {
+    var targetH = minH;
+  } else {
+    const dClamped = Math.min(depth, START + GROW);
+    const baseY0   = depthToPixelMemo(START);
+    const baseYc   = depthToPixelMemo(dClamped);
+    const moved    = baseYc - baseY0;
+    const fullMove = depthToPixelMemo(START + GROW) - baseY0;
+    const t        = Math.max(0, Math.min(moved / fullMove, 1));
+    var targetH = minH + t * (maxH - minH);
+  }
 
-  // how far we’ve moved downward
-  const moved = baseY - yStart;
-  const full  = yEnd - yStart;
+  // Ease underwaterHeightPx toward targetH
+  const speed = 0.15;  // smaller = slower (e.g. 0.05 = very slow)
+  underwaterHeightPx += (targetH - underwaterHeightPx) * speed;
 
-  // ratio in [0…1]
-  const t = Math.max(0, Math.min(moved / full, 1));
-
-  const h = MIN_H + t * (MAX_H - MIN_H);
-  underwaterImg.style.height = `${h}px`;
+  underwaterImg.style.height = `${underwaterHeightPx}px`;
 }
-
 
 
 
