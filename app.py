@@ -15,11 +15,12 @@ import pandas as pd, random, datetime
 import numpy as np 
 
 from src.process_data import load_species_data, load_homo_sapiens
-from src.wiki import get_blurb, get_commons_thumb         
+from src.wiki import get_blurb, get_commons_thumb      
 from src.utils import assign_random_depth
 import os
 
 import gc
+import re
 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
@@ -415,7 +416,7 @@ footer = html.Div(
     [
         html.Span("created by "),
         html.A("Victoria Tiki",
-               href="https://victoriatiki.com/about",
+               href="https://victoriatiki.com/about/?theme=themed",
                target="_blank",
                rel="noopener",
                style={"color": "#fff"})
@@ -731,6 +732,64 @@ def fill_citation(gs_name):
 
 
 # --- populate image + overlay + titles whenever species or units change ----------
+from html.parser import HTMLParser
+
+class SimpleHTMLStripper(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.result = []
+
+    def handle_data(self, d):
+        self.result.append(d)
+
+    def get_data(self):
+        return ''.join(self.result)
+
+def strip_html_tags(text):
+    parser = SimpleHTMLStripper()
+    parser.feed(text)
+    return parser.get_data()
+
+
+
+def format_references_as_spans(text):
+    # This regex matches both "(something; Ref. 1234)" and plain "Ref. 1234"
+    ref_regex = r'\(?Ref(?:s)?\.\s*\d+(?:\s*,\s*\d+)*\)?'
+
+    result = []
+    last_index = 0
+
+    for match in re.finditer(ref_regex, text):
+        start, end = match.start(), match.end()
+        # Append the plain text before the match
+        if start > last_index:
+            result.append(text[last_index:start])
+        # Append the matched reference wrapped in a grey <Span>
+        result.append(html.Span(match.group(0), style={"color": "#A0A0A0"}))
+        last_index = end
+
+    # Add any remaining text
+    if last_index < len(text):
+        result.append(text[last_index:])
+
+    return result
+
+
+
+
+
+def replace_links(text):
+    # Replace any existing HTML links with 'Link' (preserving the href)
+    return re.sub(
+        r'<a\s+[^>]*href=[\'"]([^\'"]+)[\'"][^>]*>.*?</a>',
+        lambda m: f'<a href="{m.group(1)}" target="_blank" style="text-decoration: none; color: inherit;">Link</a>',
+        text
+    )
+
+
+
+
+
 @app.callback(
     Output("species-img",   "src"),
     Output("info-content",  "children"),
@@ -796,7 +855,8 @@ def update_image(gs_name, units):
         length_tooltip = "Maximum recorded length of species"
         depth_tooltip  = (
             "Pelagica shows you this species at a random depth within this range. "
-            "Max depth in database may be inaccurate for certain species – check citation"
+            "Note that this depth range doesn't always reflect the species' diving behavior — it may instead represent the maximum depth of the body of water it inhabits (see citation)."
+            #//" E.g., the southern elephant seal is listed to 8000 m (the maximum depth of the South Atlantic) but only dives to a maximum of 2,388 m."
         )
         
     # ---------- DEPTH (prefers the …Com* pair) ----------
@@ -897,8 +957,8 @@ def update_image(gs_name, units):
                 str(row.Dangerous),
                 title=(
                     "drives the largest annual biomass loss "
-                    "of any species, causes more human deaths "
-                    "than any other species except mosquitoes"
+                    "of any species"#, causes more human deaths "
+                    #"than any other species except mosquitoes"
                 ),
                 style={"textDecoration": "underline dashed"}
             ))
@@ -914,10 +974,10 @@ def update_image(gs_name, units):
         html.Br(), html.Br()
     ])
 
-    # ---------- DATABASE COMMENTS (only when present) ----------------
+    '''# ---------- DATABASE COMMENTS (only when present) ----------------
     comments = row.get("Comments")
     src      = str(row.get("Database", "")).lower()      # "sealifebase" / "fishbase"
-
+    
     if pd.notna(comments) and comments.strip():
         slug = f"{genus}-{species}".replace(" ", "-")
         src_name = "SeaLifeBase" if src == "sealifebase" else "FishBase"
@@ -931,7 +991,36 @@ def update_image(gs_name, units):
             html.Br(),
             html.Span(" ".join(comments.strip().split()[:100]) + "…"), html.Br(),
             html.A(f"{src_name} ↗", href=cite_url, target="_blank")
+        ])'''
+        
+
+    # ------------------- MAIN LOGIC --------------------
+    comments = row.get("Comments")
+    src      = str(row.get("Database", "")).lower()
+
+    if pd.notna(comments) and comments.strip():
+        slug     = f"{genus}-{species}".replace(" ", "-")
+        src_name = "SeaLifeBase" if src=="sealifebase" else "FishBase"
+        cite_url = (
+          f"https://www.sealifebase.se/summary/{slug}.html"
+          if src=="sealifebase"
+          else f"https://www.fishbase.se/summary/{slug}"
+        )
+
+        raw       = comments.strip()
+        cleaned   = strip_html_tags(raw)
+        truncated = " ".join(cleaned.split()[:100]) + "…"
+        children  = format_references_as_spans(truncated)
+
+        info_lines.extend([
+            html.Br(),
+            html.Span(children),
+            html.Br(),
+            html.A(f"{src_name} ↗", href=cite_url, target="_blank", style={"textDecoration": "none", "color": "inherit"})
         ])
+
+
+
 
 
 

@@ -16,7 +16,7 @@ TILE_H       = 1000          # px height of each slice
 COMPRESSION  = 80            # WebP quality (0‑100, 80≈visually lossless)
 LAYER_FILES = [
     "back.png", "layer3.png", "layer4.png", "layer5.png",
-    "layer6.png", "layer7.png", "layer8.png", "layer9.png", "front.png"
+    "layer6.png", "layer7.png", "layer8.png", "layer9.png", "front.png", "ruler.png"
 ]
 OUT_DIR      = pathlib.Path("tiles")
 PORT         = 8000

@@ -18,7 +18,7 @@
      data-layer="back"  data-depth="0.00" style="z-index:0">
   <img id="back-img" class="layer-img"
        src="tiles/back_0.webp"
-       data-prefix="tiles/back"   data-tiles="2"   alt="">
+       data-prefix="tiles/back"   data-tiles="1"   alt="">
 </div>
 
 <!-- 🐟 4 m -->
@@ -26,7 +26,7 @@
      data-layer="layer3" data-depth="0.04" style="z-index:1">
   <img id="layer3-img" class="layer-img"
        src="tiles/layer3_0.webp"
-       data-prefix="tiles/layer3" data-tiles="2"   alt="">
+       data-prefix="tiles/layer3" data-tiles="1"   alt="">
 </div>
 
 <div id="birds-view" class="layer-view parallax-layer" data-layer="layer3" data-depth="0.05"></div>
@@ -37,7 +37,7 @@
      data-layer="layer4" data-depth="0.10" style="z-index:3">
   <img id="layer4-img" class="layer-img"
        src="tiles/layer4_0.webp"
-       data-prefix="tiles/layer4" data-tiles="5"   alt="">
+       data-prefix="tiles/layer4" data-tiles="4"   alt="">
 </div>
 
 <!-- 🛥 16 m -->
@@ -45,7 +45,7 @@
      data-layer="layer5" data-depth="0.16" style="z-index:4">
   <img id="layer5-img" class="layer-img"
        src="tiles/layer5_0.webp"
-       data-prefix="tiles/layer5" data-tiles="8"   alt="">
+       data-prefix="tiles/layer5" data-tiles="7"   alt="">
 </div>
 
 <!-- 🐙 28 m -->
@@ -53,7 +53,7 @@
      data-layer="layer6" data-depth="0.28" style="z-index:5">
   <img id="layer6-img" class="layer-img"
        src="tiles/layer6_0.webp"
-       data-prefix="tiles/layer6" data-tiles="14"  alt="">
+       data-prefix="tiles/layer6" data-tiles="13"  alt="">
 </div>
 
 <!-- 🦑 40 m -->
@@ -61,7 +61,7 @@
      data-layer="layer7" data-depth="0.40" style="z-index:6">
   <img id="layer7-img" class="layer-img"
        src="tiles/layer7_0.webp"
-       data-prefix="tiles/layer7" data-tiles="20"  alt="">
+       data-prefix="tiles/layer7" data-tiles="19"  alt="">
 </div>
 
 <!-- 🐡 55 m -->
@@ -69,7 +69,7 @@
      data-layer="layer8" data-depth="0.55" style="z-index:7">
   <img id="layer8-img" class="layer-img"
        src="tiles/layer8_0.webp"
-       data-prefix="tiles/layer8" data-tiles="27"  alt="">
+       data-prefix="tiles/layer8" data-tiles="26"  alt="">
 </div>
 
 <!-- 🐠 72 m -->
@@ -77,14 +77,14 @@
      data-layer="layer9" data-depth="0.72" style="z-index:8">
   <img id="layer9-img" class="layer-img"
        src="tiles/layer9_0.webp"
-       data-prefix="tiles/layer9" data-tiles="30"  alt="">
+       data-prefix="tiles/layer9" data-tiles="29"  alt="">
 </div>
 
 <!-- 🌊 under‑surface caustics (depth‑sensitive) -->
 <div id="underwater-view" class="layer-view parallax-layer"
      data-layer="underwater" data-depth="1.00" style="z-index:9">
   <img id="underwater-img" class="layer-img underwater-img"
-     src="underwater.png"
+     src="underwater_0.webp"
      data-prefix="underwater/underwater"
      data-tiles="1"
      alt="caustics overlay">
@@ -97,8 +97,20 @@
      data-layer="front" data-depth="1.00" style="z-index:10">
   <img id="front-img" class="layer-img"
        src="tiles/front_0.webp"
-       data-prefix="tiles/front" data-tiles="33"  alt="">
+       data-prefix="tiles/front" data-tiles="32"  alt="">
 </div>
+
+<!-- 📏 Right-side ruler (follows scroll like 'front' but anchored right) -->
+<div id="ruler-view"
+     class="layer-view parallax-layer"
+     data-layer="ruler" data-depth="1.00" style="z-index:11; pointer-events:none">
+  <img id="ruler-img" class="layer-img layer-ruler"
+       src="tiles/ruler_0.webp"
+       data-prefix="tiles/ruler"
+       data-tiles="32"          
+       alt="depth ruler overlay">
+</div>
+
 
 
 

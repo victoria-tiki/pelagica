@@ -11,7 +11,6 @@ import requests, html
 from urllib.parse import quote_plus
 import re, datetime
 from functools import lru_cache
-
 from rembg import remove
 from PIL import Image
 import io, base64
@@ -349,4 +348,8 @@ def remove_background_base64(image_url: str, headers: dict = None) -> str | None
     except Exception as e:
         print(f"[rembg] Failed to process image: {e}")
         return None
+
+
+
+
 
