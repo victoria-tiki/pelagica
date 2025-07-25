@@ -210,3 +210,10 @@ body.ready .parallax-layer{
   100% {transform:translateY(-100%)    scale(0); opacity:0;}
 }
 
+
+/* ─── global freeze state ─────────────────────── */
+body.paused *{
+  animation-play-state: paused !important; /* stop key‑frame CSS */
+  transition-duration: 0s   !important;   /* stop any swaying */
+}
+

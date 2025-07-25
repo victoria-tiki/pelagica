@@ -44,6 +44,8 @@ let lastRenderedDepth = null;
 /* put near your other globals */
 let introTween   = null;   // {baseFrom, baseTo, start, dur}
 let pendingDepth = null;   // the depth the user really asked for
+let frozenTime = null;   // null while live, a Number while paused
+
 
 
 
@@ -134,49 +136,63 @@ const behaviorHooksOverlay = name=>{
   return null;
 };
 
-/* Pause / resume stubs (birds removed) */
-let animPausedByUser=false;
+/* ───── user‑controlled pause / resume ───── */
 
-function pauseAllMotion(){
+function applyGlobalFreeze(freeze){
+  document.body.classList.toggle('paused', freeze);     // toggles the CSS rule above
+  // also pause / resume any element that was animated purely via JS timers
+  if (freeze){
+    clearInterval(birdInterval);            // stop new birds
+    activeBirds.forEach(({interval, flapTimer, destroyTimer, el})=>{
+      clearInterval(interval);
+      clearInterval(flapTimer);
+      clearTimeout (destroyTimer);
+      el.style.animationPlayState = 'paused';
+    });
+  }else{
+    spawnBirdFlock();                       // restart flock
+    birdInterval = setInterval(spawnBirdFlock, 25000 + Math.random()*5000);
+    activeBirds.forEach(({el})=> el.style.animationPlayState='running');
+  }
+}
+
+/* ——— user‑controlled pause / resume ——— */
+let animPausedByUser = false;
+
+function pauseAllMotion () {
+  if (animPausedByUser) return;
   animPausedByUser = true;
 
-  // Stop birds
-  clearInterval(birdInterval);
-  birdInterval = null;
-  for (const { interval } of activeBirds) {
-    clearInterval(interval);
+  /* ── if a depth tween is running, finish one eased step and stop it ── */
+  if (depthMode) {
+    const now   = performance.now();
+    const frac  = Math.min(1, (now - moveStart) / moveDur);
+    const eased = easeTriPhase(frac);
+
+    const y0    = depthToBaseY(startDepth);
+    const y1    = depthToBaseY(targetDepth);
+    const baseY = y0 + (y1 - y0) * eased;
+
+    currentDepth = baseYToDepth(baseY);   // lock camera here
+    depthMode    = false;                 // cancel tween
   }
-  activeBirds.clear();
-  document.querySelectorAll('.bird-wrapper').forEach(b => b.remove());
+
+  frozenTime = performance.now();         // remember this moment
+  applyGlobalFreeze(true);                // stop CSS keyframes + JS timers
 }
 
-function resumeAllMotion(){
+function resumeAllMotion () {
+  if (!animPausedByUser) return;
   animPausedByUser = false;
-  spawnBirdFlock();
-  birdInterval = setInterval(spawnBirdFlock, 25000 + Math.random() * 5000);
 
-  activeBirds.forEach(meta => {
-    const { el } = meta;
-    el.style.animationPlayState = 'running';
-
-    const flapEvery = 3000 + Math.random() * 3000;
-    const flapDuration = 150;
-
-    meta.flapTimer = setInterval(() => {
-      el.style.backgroundImage = "url('bird_down.webp')";
-      setTimeout(() => {
-        el.style.backgroundImage = "url('bird_up.webp')";
-      }, flapDuration);
-    }, flapEvery);
-
-    const remainingTime = 5000 + Math.random() * 2000;
-    meta.destroyTimer = setTimeout(() => {
-      clearInterval(meta.flapTimer);
-      activeBirds.delete(meta);
-      el.remove();
-    }, remainingTime);
-  });
+  frozenTime = null;                      // hooks get live time again
+  applyGlobalFreeze(false);
 }
+
+
+
+
+
 
 
 let birdInterval = null;
@@ -513,10 +529,17 @@ function updateUnderwater(depthMeters) {
 
 /* Go button */
 function goToDepth(){
-  const inp = document.getElementById('depth-input');
-  if (!inp) return;
-  const v = parseFloat(inp.value);
+  const v = parseFloat(document.getElementById('depth-input').value);
   if (Number.isNaN(v)) return;
+
+  
+
+  if (animPausedByUser){
+    /* no tween – just teleport */
+    depthMode   = false;
+    currentDepth = v;          // raf() will repaint once with the new depth
+    return;
+  }
 
   /* ——— first ever jump (currentDepth is still undefined) ——— */
   if (typeof currentDepth !== 'number'){
@@ -687,51 +710,50 @@ function raf(ts){
       requestAnimationFrame(raf);
       return;                      // skip the rest of RAF while intro runs
     }
+    
+    const hasDepth = typeof currentDepth === 'number';
+
 
 
   const doingDepthAnimation = depthMode || typeof currentDepth === 'number';
 
-    if (depthMode) {
-       const e = ts - moveStart;
-       const t = e / moveDur;
+if (!animPausedByUser && depthMode) {
+  const e = ts - moveStart;
+  const t = e / moveDur;
 
-      if (t >= 1) {
-        currentDepth = targetDepth;
-        depthMode = false;
-      } else {
-        /* pixel‑space tween */
-        const y0 = depthToBaseY(startDepth);
-        const y1 = depthToBaseY(targetDepth);
-        const baseY = y0 + (y1 - y0) * easeTriPhase(t);
-    
-        /* move every layer right now */
-        layers.forEach(layer=>{
-          const yLayer  = baseY * layer.depthFactor;
-          const slice   = Math.floor(yLayer / TILE_H);
-          const offset  = -(yLayer % TILE_H);
-          if (layer.total > 1){
-            for (let s = slice - 1; s <= slice + 2; s++) ensureSlice(layer, s);
-            layer.el.style.transform = `translate(-50%, ${offset}px)`;
-          }
-          const h1 = behaviorHooks[layer.id];
-          const h2 = behaviorHooksOverlay(layer.id);
-          if (!animPausedByUser){
-            if (h1) h1(layer.el, undefined, yLayer, ts);
-            if (h2) h2(layer.el, undefined, yLayer, ts);
-          }
-        });
-    
-        /* derive the depth so overlays still work */
-        currentDepth = baseYToDepth(baseY);
+  if (t >= 1) {
+    currentDepth = targetDepth;
+    depthMode = false;
+  } else {
+    const y0 = depthToBaseY(startDepth);
+    const y1 = depthToBaseY(targetDepth);
+    const baseY = y0 + (y1 - y0) * easeTriPhase(t);
+
+    layers.forEach(layer => {
+      const yLayer = baseY * layer.depthFactor;
+      const slice  = Math.floor(yLayer / TILE_H);
+      const offset = -(yLayer % TILE_H);
+
+      if (layer.total > 1){
+        for (let s = slice - 1; s <= slice + 2; s++) ensureSlice(layer, s);
+        layer.el.style.transform = `translate(-50%, ${offset}px)`;
       }
-     }
+
+      const h1 = behaviorHooks[layer.id];
+      const h2 = behaviorHooksOverlay(layer.id);
+      if (!animPausedByUser){
+        if (h1) h1(layer.el, undefined, yLayer, ts);
+        if (h2) h2(layer.el, undefined, yLayer, ts);
+      }
+    });
+
+    currentDepth = baseYToDepth(baseY);
+  }
+}
 
 
 
 
-
-
-  const hasDepth = typeof currentDepth === 'number';
   if (hasDepth) updateDepthDependentAssets(currentDepth);
   if (hasDepth) updateBackOverlay(currentDepth);
   const baseY = hasDepth ? depthToPixelMemo(currentDepth) - innerHeight / 2 : 0;
@@ -763,13 +785,15 @@ function raf(ts){
     }
 
     // Animation hooks still run even when idle
-    const h1 = behaviorHooks[layer.id];
-    const h2 = behaviorHooksOverlay(layer.id);
-    if (!animPausedByUser){
-      if (h1) h1(el, hasDepth ? currentDepth : undefined, yLayer, ts);
-      if (h2) h2(el, hasDepth ? currentDepth : undefined, yLayer, ts);
+    const h1   = behaviorHooks[layer.id];
+    const h2   = behaviorHooksOverlay(layer.id);
+    const tNow = frozenTime ?? ts;           // ← new line
+
+    if (h1) h1(layer.el, hasDepth ? currentDepth : undefined, yLayer, tNow);
+    if (h2) h2(layer.el, hasDepth ? currentDepth : undefined, yLayer, tNow);
+
     }
-  }
+ 
 
 
   /* FPS overlay */
