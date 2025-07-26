@@ -30,7 +30,8 @@ window.addEventListener('error', e => {
 /* ── depth → pixel mapping (your original) ── */
 const depthCache = new Map();
 function depthToPixelMemo(d){ if(!depthCache.has(d)) depthCache.set(d, depthToPixel(d)); return depthCache.get(d);}
-function depthToPixel(m){
+
+/*function depthToPixel(m){
   if(m < 0)      return 2000 - m * (1000 / 20);  
   if(m <= 200)   return 1000 + m * (2500 / 200);
   if(m <= 1000)  return 3500 + (m - 200) * (4000 / 800);
@@ -38,7 +39,27 @@ function depthToPixel(m){
   if(m <= 6000)  return 15500 + (m - 4000) * (5000 / 2000);
   if(m <= 11000) return 20500 + (m - 6000) * (5000 / 5000);
   return 25500 + (m - 11000) * 1;  // arbitrary extension
+}*/
+
+function depthToPixel(m) {
+  if (m < 0) {
+    return 2000 - m * (1000 / 20);
+  } else if (m <= 200) {
+    return 1000 + m * (2500 / 200);
+  } else if (m <= 1000) {
+    return 3500 + (m - 200) * (4000 / 800);
+  } else if (m <= 4000) {
+    return 7500 + (m - 1000) * (8000 / 3000);
+  } else if (m <= 6000) {
+    return 15500 + (m - 4000) * (6000 / 2000);  
+  } else if (m <= 11000) {
+    return 21500 + (m - 6000) * (10000 / 5000); 
+  } else {
+    return 31500 + (m - 11000) * 1; 
+  }
 }
+
+
 
 let lastRenderedDepth = null;
 /* put near your other globals */
@@ -529,10 +550,12 @@ function updateUnderwater(depthMeters) {
 
 /* Go button */
 function goToDepth(){
-  const v = parseFloat(document.getElementById('depth-input').value);
+  let v = parseFloat(document.getElementById('depth-input').value);
   if (Number.isNaN(v)) return;
 
-  
+  // 🔒 Clamp the value to within acceptable bounds
+  if (v > 11000) v = 11000;
+  if (v < -20)   v = -20;
 
   if (animPausedByUser){
     /* no tween – just teleport */
@@ -561,9 +584,10 @@ function goToDepth(){
   startDepth = prev;
   targetDepth = v;
   moveStart = performance.now();
-  moveDur   = T * 1000 * 2;
+  moveDur   = T * 1000 * 2.5;
   depthMode = true;
 }
+
 
 
 
@@ -578,17 +602,30 @@ function depthToBaseY(d){
 
 /* inverse helper – returns metres for a given baseY */
 function baseYToDepth(y){
-  /* reverse of depthToPixel(); piece‑wise because the original is */
-  const p = y + innerHeight / 2;
+  const p = y + innerHeight/2;
+
+  /* surface & air */
   if (p < 1000)                    return -(p - 2000) * (20 / 1000);
-  if (p < 3500)                    return (p - 1000) * (200 / 2500);
-  if (p < 7500)                    return 200 + (p - 3500) * (800 / 4000);
+
+  /* 0‑200 m  (12.5 px / m) */
+  if (p < 3500)                    return (p - 1000) * (200  / 2500);
+
+  /* 200‑1000 m ( 5   px / m) */
+  if (p < 7500)                    return 200  + (p - 3500) * (800  / 4000);
+
+  /* 1‑4 km    ( 8/3 px / m) */
   if (p < 15500)                   return 1000 + (p - 7500) * (3000 / 8000);
-  if (p < 20500)                   return 4000 + (p - 15500) * (2000 / 5000);
-  if (p < 25500)                   return 6000 + (p - 20500) * (5000 / 5000);
-  /* tail */
-  return 11000 + (p - 25500);
+
+  /* 4‑6 km    ( 3   px / m) */
+  if (p < 21500)                   return 4000 + (p - 15500) * (2000 / 6000);
+
+  /* 6‑11 km   ( 2   px / m) */
+  if (p < 31500)                   return 6000 + (p - 21500) * (5000 / 10000);
+
+  /* tail      ( 1   px / m) */
+  return 11000 + (p - 31500);
 }
+
 
 /* three‑phase ease used *only* for pixels */
 function easeTriPhase(t){
@@ -627,33 +664,69 @@ let pausedDoc=false, frameCount=0, lastFPSStamp=0;
 document.addEventListener('visibilitychange',()=>pausedDoc=document.hidden);
 
 
-/* ───── helper to create / reuse slice img ───── */
-function ensureSlice(layer, slice){
+/* -----------------------------------------------
+   Decide once: do we need a 1-px vertical overlap?
+   true  = Blink (Chrome / Edge / Chromium / Opera / Brave)  OR  old WebKit
+   false = Firefox OR modern Safari (WebKit 615+)
+------------------------------------------------ */
+const ua = navigator.userAgent;
 
+const isBlink   = !!window.chrome || /\bEdg\//.test(ua) || /\bOPR\//.test(ua);
+const isFirefox = /\bFirefox\//.test(ua);
+
+let needsOverlap = false;
+
+if (isBlink) {
+  needsOverlap = true;                         // all Blink builds, incl. bare Chromium
+} else if (isFirefox) {
+  needsOverlap = false;                        // Gecko never shows the seam
+} else {
+  /* WebKit – decide by version */
+  const m = ua.match(/AppleWebKit\/(\d+)/);
+  const wk = m ? parseInt(m[1], 10) : 0;
+  needsOverlap = wk && wk < 615;               // only very old Safari need patch
+}
+
+
+
+
+/* ───── helper to create / reuse slice img ───── */
+function ensureSlice(layer, slice) {
   if (slice < 0 || slice >= layer.total) return;
   if (layer.imgNodes[slice]) return;                 // already there
 
-  // <img> for this slice
+  /* ---- create <img> ---- */
   const img = new Image();
-  img.src   = `${layer.prefix}_${slice}.webp`;
+  img.src      = `${layer.prefix}_${slice}.webp`;
+  img.loading  = 'lazy';
+  img.decoding = 'async';
   img.className = 'layer-img';
-  img.style.top  = `${slice * TILE_H}px`;
-     if (layer.id === 'ruler'){      // 👉 our slim depth ruler
-       img.style.left      = 'auto';
-       img.style.right     = '0';
-       img.style.transform = 'translateX(0)';
-     } else {
-       img.style.left      = '50%';
-       img.style.transform = 'translateX(-50%)';
-     }
+  
+ 
+
+  if (needsOverlap) {
+    img.style.top    = `${slice * TILE_H - 1}px`;   // –1 px up
+    img.style.height = `${TILE_H + 1}px`;           // +1 px tall
+  } else {
+    img.style.top    = `${slice * TILE_H}px`;
+    img.style.height = `${TILE_H}px`;
+  }
+
+
+  if (layer.id === 'ruler') {
+    img.style.left      = 'auto';
+    img.style.right     = '0';
+    img.style.transform = 'translateX(0)';
+  } else {
+    img.style.left      = '50%';
+    img.style.transform = 'translateX(-50%)';
+  }
+
   layer.el.appendChild(img);
-
-  // keep reference so we don't duplicate later
   layer.imgNodes[slice] = img;
-
-  // optional: invisible preload to guarantee decode
   preloadTile(layer.prefix, slice, layer.cache);
 }
+
 
 /* ───── helper to prune slices far above viewport ───── */
 function pruneAbove(layer, keepFrom){
@@ -666,155 +739,127 @@ function pruneAbove(layer, keepFrom){
 }
 
 let lastFrameDepth = null;
+/* one shared handle; resolved the first time we enter raf() */
+let fpsBox = null;
+
+/* helper – applies translate3d only when the offset changes */
+function applyParallax(layer, offsetCssPx) {
+  const dpr    = window.devicePixelRatio || 1;
+  const ySnap  = Math.round(offsetCssPx * dpr) / dpr;   // ← physical‑pixel snap
+
+  if (layer.prevOffset !== ySnap) {
+    layer.el.style.transform = `translate3d(-50%, ${ySnap}px, 0)`;
+    layer.prevOffset = ySnap;
+  }
+}
 
 
 
-function raf(ts){
-    /* ——— intro tween branch runs once, before depth logic exists ——— */
-    if (introTween){
-      const { baseFrom, baseTo, start, dur } = introTween;
-      const t      = Math.min(1, (ts - start) / dur);
-      const eased  = 0.5 * (1 - Math.cos(Math.PI * t));   // same cosine ease
-      const baseY  = baseFrom + (baseTo - baseFrom) * eased;
+function raf(ts) {
 
-      /* paint every layer based on this interim baseY */
-      layers.forEach(layer=>{
-        const yLayer = baseY * layer.depthFactor;
-        const slice  = Math.floor(yLayer / TILE_H);
-        const offset = -(yLayer % TILE_H);
+  /* lazy‑cache the overlay node (debugBox is appended at DOMContentLoaded) */
+  if (!fpsBox) fpsBox = document.getElementById('debugBox');
 
-        if (layer.total > 1){
-          for (let s = slice - 1; s <= slice + 2; s++) ensureSlice(layer, s);
-          layer.el.style.transform = `translate(-50%, ${offset}px)`;
-        }
-
-        const h1 = behaviorHooks[layer.id];
-        const h2 = behaviorHooksOverlay(layer.id);
-        if (!animPausedByUser){
-          if (h1) h1(layer.el, undefined, yLayer, ts);   // depth = undefined
-          if (h2) h2(layer.el, undefined, yLayer, ts);
-        }
-      });
-
-      /* when the slide reaches the surface, kick off the real depth tween */
-      if (t >= 1){
-        currentDepth = 0;          // we’re now “at” the surface
-        introTween   = null;
-
-        if (pendingDepth !== null){
-          goToDepth(pendingDepth); // reuse your button logic
-          pendingDepth = null;
-        }
-      }
-
-      requestAnimationFrame(raf);
-      return;                      // skip the rest of RAF while intro runs
-    }
-    
-    const hasDepth = typeof currentDepth === 'number';
-
-
-
-  const doingDepthAnimation = depthMode || typeof currentDepth === 'number';
-
-if (!animPausedByUser && depthMode) {
-  const e = ts - moveStart;
-  const t = e / moveDur;
-
-  if (t >= 1) {
-    currentDepth = targetDepth;
-    depthMode = false;
-  } else {
-    const y0 = depthToBaseY(startDepth);
-    const y1 = depthToBaseY(targetDepth);
-    const baseY = y0 + (y1 - y0) * easeTriPhase(t);
+  /* -------- intro slide‑in (runs only once) -------- */
+  if (introTween) {
+    const { baseFrom, baseTo, start, dur } = introTween;
+    const t      = Math.min(1, (ts - start) / dur);
+    const eased  = 0.5 * (1 - Math.cos(Math.PI * t));
+    const baseY  = baseFrom + (baseTo - baseFrom) * eased;
 
     layers.forEach(layer => {
       const yLayer = baseY * layer.depthFactor;
       const slice  = Math.floor(yLayer / TILE_H);
       const offset = -(yLayer % TILE_H);
 
-      if (layer.total > 1){
+      if (layer.total > 1) {
         for (let s = slice - 1; s <= slice + 2; s++) ensureSlice(layer, s);
-        layer.el.style.transform = `translate(-50%, ${offset}px)`;
+        applyParallax(layer, offset);
       }
 
       const h1 = behaviorHooks[layer.id];
       const h2 = behaviorHooksOverlay(layer.id);
-      if (!animPausedByUser){
+      if (!animPausedByUser) {
         if (h1) h1(layer.el, undefined, yLayer, ts);
         if (h2) h2(layer.el, undefined, yLayer, ts);
       }
     });
 
-    currentDepth = baseYToDepth(baseY);
+    if (t >= 1) {                      // intro finished – hand off to depth tween
+      currentDepth = 0;
+      introTween   = null;
+      if (pendingDepth !== null) { goToDepth(pendingDepth); pendingDepth = null; }
+    }
+
+    requestAnimationFrame(raf);
+    return;
   }
-}
 
+  /* -------- regular depth tween -------- */
+  if (!animPausedByUser && depthMode) {
+    const frac = (ts - moveStart) / moveDur;
+    if (frac >= 1) {
+      currentDepth = targetDepth;
+      depthMode = false;
+    } else {
+      const y0 = depthToBaseY(startDepth);
+      const y1 = depthToBaseY(targetDepth);
+      const baseY = y0 + (y1 - y0) * easeTriPhase(frac);
+      currentDepth = baseYToDepth(baseY);
+    }
+  }
 
-
-
-  if (hasDepth) updateDepthDependentAssets(currentDepth);
-  if (hasDepth) updateBackOverlay(currentDepth);
+  /* -------- steady‑state paint -------- */
+  const hasDepth = typeof currentDepth === 'number';
+  if (hasDepth) {
+    updateDepthDependentAssets(currentDepth);
+    updateBackOverlay(currentDepth);
+  }
   const baseY = hasDepth ? depthToPixelMemo(currentDepth) - innerHeight / 2 : 0;
 
-  for (const layer of layers){
-    const {el, depthFactor} = layer;
-    const yLayer = baseY * depthFactor;
-
-    // Only apply translate if we have a defined depth
+  for (const layer of layers) {
+    const yLayer = baseY * layer.depthFactor;
     const slice  = Math.floor(yLayer / TILE_H);
     const offset = -(yLayer % TILE_H);
 
-    // Only load and move tiles if user entered a depth
-    if (hasDepth && layer.total > 1){
-      for (let s = slice - 1; s <= slice + 2; s++) {
-        ensureSlice(layer, s);
-      }
+    if (hasDepth && layer.total > 1) {
+      for (let s = slice - 1; s <= slice + 2; s++) ensureSlice(layer, s);
 
-      // Prune unused tiles
-      const buffer = 5;
+      /* prune off‑screen tiles (buffer ±5) */
       for (const s in layer.imgNodes) {
-        if (s < slice - buffer || s > slice + buffer) {
+        if (s < slice - 5 || s > slice + 5) {
           layer.el.removeChild(layer.imgNodes[s]);
           delete layer.imgNodes[s];
         }
       }
-
-      el.style.transform = `translate(-50%, ${offset}px)`;
+      applyParallax(layer, offset);
     }
 
-    // Animation hooks still run even when idle
-    const h1   = behaviorHooks[layer.id];
-    const h2   = behaviorHooksOverlay(layer.id);
-    const tNow = frozenTime ?? ts;           // ← new line
-
+    const tNow = frozenTime ?? ts;
+    const h1 = behaviorHooks[layer.id];
+    const h2 = behaviorHooksOverlay(layer.id);
     if (h1) h1(layer.el, hasDepth ? currentDepth : undefined, yLayer, tNow);
     if (h2) h2(layer.el, hasDepth ? currentDepth : undefined, yLayer, tNow);
+  }
 
-    }
- 
+  if (hasDepth) updateUnderwater(currentDepth);
 
-
-  /* FPS overlay */
+  /* FPS overlay – only if the node exists */
   frameCount++;
-  if (ts - lastFPSStamp > 250){
+  if (fpsBox && ts - lastFPSStamp > 250) {
     const fps = frameCount * 1000 / (ts - lastFPSStamp);
-    const box = document.getElementById('debugBox');
-    if (box) box.textContent =
+    fpsBox.textContent =
       `fps:${fps.toFixed(1)}  depth:${hasDepth ? currentDepth.toFixed(1) : '—'}`;
-    lastFPSStamp = ts; frameCount = 0;
+    lastFPSStamp = ts;
+    frameCount   = 0;
   }
-  
-  if (hasDepth) {
-    updateUnderwater(currentDepth);   // ← was lastFrameDepth
-  }
-  
-  requestAnimationFrame(raf);
-  lastFrameDepth = currentDepth;
 
-  
+  requestAnimationFrame(raf);
 }
+
+/* initialise memoised offset once, right after you build `layers` */
+layers.forEach(l => { l.prevOffset = NaN; });
+
 
 
 

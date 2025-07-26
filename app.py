@@ -13,6 +13,8 @@ from flask import send_from_directory
 
 import pandas as pd, random, datetime
 import numpy as np 
+import json, base64   
+
 
 from src.process_data import load_species_data, load_homo_sapiens
 from src.wiki import get_blurb, get_commons_thumb      
@@ -56,55 +58,49 @@ def serve_cached_images(filename):
     return send_from_directory('image_cache', filename)
 
 # ─── TOP BAR ───────────────────────────────────────────────
+
+units_toggle = html.Div(
+    [
+        html.Span("m"),
+        dbc.Switch(id="units-toggle", value=True, className="mx-1", label=""),
+        html.Span("ft"),
+    ],
+    style={"display":"flex","alignItems":"center","fontSize":".8rem"}
+)
+
+
 top_bar = html.Div(
     [
-        # logo + tagline container
+        # 1. logo & tagline (unchanged)
         html.Div(
             [
-                html.Img(
-                    src="/assets/logo_pelagica_colour.webp",
-                    id="logo",
-                    style={"height": "50px", "display": "block"}
-                ),
-                html.Span(
-                    "The Aquatic Life Atlas",
-                    id="tagline",
-                    className="tagline",
-                    style={
-                        "marginLeft": "0.5rem",
-                        "fontSize": "0.9rem",
-                        "fontWeight": "500",
-                        "lineHeight": "60px",
-                        "color": "#f5f5f5"
-                    }
-                ),
-            ],
-            style={
-                "display": "flex",
-                "alignItems": "center"
-            },
+                html.Img(src="/assets/logo_pelagica_colour.webp",
+                         style={"height":"50px"}),
+                html.Span("The Aquatic Life Atlas",
+                          className="tagline",
+                          style={"marginLeft":".5rem","fontSize":".9rem",
+                                 "fontWeight":500,"color":"#f5f5f5"})
+            ], style={"display":"flex","alignItems":"center"}
         ),
 
-        # push the units toggle to the far right
-        dbc.RadioItems(
-            id="units-toggle",
-            value="metric",
-            inline=True,
-            options=[
-                {"label": "Metric",   "value": "metric"},
-                {"label": "Imperial", "value": "imperial"},
-            ],
-            style={"marginLeft": "auto", "font-size": "0.8rem"}
+        # spacer
+        html.Div(style={"flex":"1"}),
+
+        # 2. favourites button (text + heart = one hit‑area)
+        # in top_bar, replace the two separate children with this:
+        html.Div(
+            [html.Div("♡ Favourites", id="fav-menu-btn",
+                         className="top-heart",
+                         style={"cursor":"pointer", "marginRight":"1rem"}),
+                units_toggle],
+            style={"display":"flex","alignItems":"center"}
         ),
     ],
-    id="top-bar",
-    className="glass-panel",
-    style={
-        "display": "flex",
-        "alignItems": "center",
-        "padding": "0.5rem 1rem"
-    }
+    id="top-bar", className="glass-panel",
+    style={"display":"flex","alignItems":"center",
+           "padding":"0.5rem 1rem"}
 )
+
 
 
 # ─── SEARCH STACK ───────────────────────────────────────────────
@@ -172,6 +168,13 @@ advanced_filters = html.Div(                # collapsible area
         ),
         html.Div("Limits to ~1000 curated species. Longer loading times if toggled off.", className="settings-note")
     ], className="settings-group"),
+    
+    dbc.Checklist(
+    id="favs-toggle",
+    options=[{"label":"Only favourites","value":"fav"}],
+    value=[], switch=True
+    ),
+
 
     html.H6("Depth Comparison", className="settings-header"),
 
@@ -376,7 +379,8 @@ centre_flex = html.Div(id="page-centre-flex", children=[
         # this div now contains the image AND the up/down buttons
         html.Div(id="image-inner", children=[
             html.Img(id="species-img"),
-            html.Div("i", id="info-handle", style={"display": "none"})
+            html.Div("i", id="info-handle", style={"display": "none"}),
+            html.Div("♡", id="fav-handle", className="heart-icon"),
         ]),
 
         # info card remains outside image-inner
@@ -431,6 +435,33 @@ footer = html.Div(
 )
   
 
+# replace the whole fav_modal block
+fav_modal = dbc.Modal(
+    [
+        dbc.ModalHeader("Liked species", close_button=True),
+        dbc.ModalBody(
+            [
+                html.Button("⬇ Export (.txt)", id="fav-export",
+                            className="btn btn-outline-primary btn-sm w-100"),
+                dcc.Download(id="fav-dl"),
+                html.Br(),
+                dcc.Upload("⬆ Load (.txt)", id="fav-upload",
+                           className="btn btn-outline-primary btn-sm w-100",
+                           style={"display":"block"},  # fills full width
+                           multiple=False),
+            ],
+            className="p-2",            # minimal padding
+            style={"maxWidth":"280px"}  # hugs the content
+        ),
+    ],
+    id="fav-modal",
+    is_open=False,
+    centered=True,
+    backdrop=True,
+    size="sm",
+)
+
+
 
 
 # ─── NAVIGATION PANEL w/ DIAL ─────────────────────────────────────────
@@ -482,6 +513,8 @@ nav_panel = html.Div([
 
 
 search_handle = html.Div(["🔍 Search"], id="search-handle", className="search-handle", **{"data-mobile-x": "true"})
+
+
     
 #  Assemble Layout
 app.layout = dbc.Container([
@@ -489,6 +522,9 @@ app.layout = dbc.Container([
     search_handle,
     dcc.Store(id="rand-seed", storage_type="session"),
     top_bar,
+    
+    fav_modal,
+
     #settings_panel,
 
     # -- side tabs, rendered once and slid by callbacks --
@@ -502,6 +538,8 @@ app.layout = dbc.Container([
 
     footer,
     dcc.Store(id="selected-species", data=None),
+    dcc.Store(id="favs-store",storage_type="local"),      # persists in localStorage
+
     citations_panel,
 ], fluid=True)
 
@@ -511,22 +549,19 @@ app.layout = dbc.Container([
     Output("genus-dd", "value"),
     Input("wiki-toggle",    "value"),
     Input("popular-toggle", "value"),
+    Input("favs-toggle",    "value"),      # NEW
+    State("favs-store",     "data"),       # NEW
     State("genus-dd", "value"),
 )
-def filter_genus(wiki_val, pop_val, current):
-    df_use = df_light.copy()
+def filter_genus(wiki_val, pop_val, fav_val, favs_data, current):
+    df_use = _apply_shared_filters(df_light, wiki_val, pop_val,
+                                   fav_val, favs_data)
 
-
-    if "wiki" in wiki_val:
-        df_use = df_use[df_use["has_wiki_page"]]
-
-    if "pop" in pop_val:
-        df_use = df_use[df_use["Genus_Species"].isin(popular_set)]
-
-
-    opts = [{"label": g, "value": g} for g in sorted(df_use["Genus"].unique())]
-    valid = {o["value"] for o in opts}
+    opts   = [{"label": g, "value": g}
+              for g in sorted(df_use["Genus"].unique())]
+    valid  = {o["value"] for o in opts}
     return opts, current if current in valid else None
+
 
 
 # -------------------------------------------------------------------
@@ -538,21 +573,18 @@ def filter_genus(wiki_val, pop_val, current):
     Input("genus-dd",      "value"),
     Input("wiki-toggle",   "value"),
     Input("popular-toggle","value"),
+    Input("favs-toggle",   "value"),       # NEW
+    State("favs-store",    "data"),        # NEW
     State("species-dd", "value"),
 )
-def update_species_options(genus, wiki_val, pop_val, current):
+def update_species_options(genus, wiki_val, pop_val,
+                           fav_val, favs_data, current):
     if not genus:
         return [], None
 
-    df_use = df_light.copy()
+    df_use = _apply_shared_filters(df_light, wiki_val, pop_val,
+                                   fav_val, favs_data)
     df_use = df_use[df_use["Genus"] == genus]
-
-    if "wiki" in wiki_val:
-        df_use = df_use[df_use["has_wiki_page"]]
-
-    if "pop" in pop_val:
-        df_use = df_use[df_use["Genus_Species"].isin(popular_set)]
-
 
     species_list = sorted(df_use["Species"].unique())
     opts = [{"label": s, "value": s} for s in species_list]
@@ -562,29 +594,29 @@ def update_species_options(genus, wiki_val, pop_val, current):
 
 
 
+
 # -------------------------------------------------------------------
 # Callback 2 – whenever any chooser fires, update selected-species
 # -------------------------------------------------------------------
 @app.callback(
-    Output("selected-species", "data",allow_duplicate=True),
+    Output("selected-species", "data", allow_duplicate=True),
     Input("species-dd", "value"),
     Input("genus-dd",   "value"),
     Input("common-dd",  "value"),
     Input("random-btn", "n_clicks"),
-    State("wiki-toggle",    "value"),   #  ← new
-    State("popular-toggle", "value"),   #  ← new
+    State("wiki-toggle",    "value"),
+    State("popular-toggle", "value"),
+    State("favs-toggle",    "value"),      # NEW
+    State("favs-store",     "data"),       # NEW
     prevent_initial_call=True
 )
 def choose_species(species_val, genus_val, common_val, rnd,
-                   wiki_val, pop_val):
+                   wiki_val, pop_val, fav_val, favs_data):
     trig = ctx.triggered_id
 
     # ---------- build the filtered frame -----------------
-    df_use = df.copy()
-    if "wiki" in wiki_val:
-        df_use = df_use[df_use["has_wiki_page"]]
-    if "pop" in pop_val:
-        df_use = df_use[df_use["Genus_Species"].isin(popular_set)]
+    df_use = _apply_shared_filters(df, wiki_val, pop_val,
+                                   fav_val, favs_data)
 
     # ---------- Random button ----------------------------
     if trig == "random-btn":
@@ -602,6 +634,7 @@ def choose_species(species_val, genus_val, common_val, rnd,
         return f"{genus_val} {species_val}"
 
     raise PreventUpdate
+
 
 
 
@@ -787,17 +820,19 @@ def replace_links(text):
     )
 
 
+def _units(value_bool):
+    return "metric" if value_bool else "imperial"
 
 
 
 @app.callback(
-    Output("species-img",   "src"),
-    Output("info-content",  "children"),
-    #Output("species-titles","children"),
+    Output("species-img",  "src"),
+    Output("info-content", "children"),
     Input("selected-species", "data"),
-    Input("units-toggle",     "value")        # <-- NEW
+    Input("units-toggle",     "value")     # value is True/False
 )
-def update_image(gs_name, units):
+def update_image(gs_name, units_bool):
+    units = _units(units_bool)             # ← translate once
     habitat_defs = {
         "benthopelagic":     "swims near the sea floor and in open water",
         "pelagic-oceanic":   "lives in the open ocean, away from land or sea floor",
@@ -1086,6 +1121,27 @@ def sync_dropdowns(gs_name):
     return common, genus, species
 
 
+
+
+
+# export
+@app.callback(Output("fav-dl","data"),
+              Input("fav-export","n_clicks"),
+              State("favs-store","data"), prevent_initial_call=True)
+def do_export(n,favs):
+    if not n or not favs: raise PreventUpdate
+    txt = base64.b64encode(favs.encode()).decode()
+    return dict(content=txt, filename="pelagica_favs.txt", base64=True)
+
+# import
+@app.callback(Output("favs-store","data",allow_duplicate=True),
+              Input("fav-upload","contents"), prevent_initial_call=True)
+def do_import(contents):
+    if not contents: raise PreventUpdate
+    txt = base64.b64decode(contents.split(",")[1]).decode()
+    return txt
+
+
 # ──────────────────────────────────────────────────────────────
 # Helper: build one consistent dataframe for the current filters
 # ──────────────────────────────────────────────────────────────
@@ -1208,25 +1264,24 @@ def set_depth_labels(current, depth_val):
 @app.callback(
     Output("common-dd", "options"),
     Output("common-dd", "value"),
-    Input("wiki-toggle", "value"),
-    Input("popular-toggle", "value"),
+    Input("wiki-toggle",   "value"),
+    Input("popular-toggle","value"),
+    Input("favs-toggle",   "value"),       # NEW
+    State("favs-store",    "data"),        # NEW
     State("common-dd", "value"),
 )
-def filter_common(wiki_val, pop_val, current):
-    df_use = df_light
-    if "wiki" in wiki_val:
-        df_use = df_use[df_use["has_wiki_page"]]
-    if "pop" in pop_val:
-        df_use = df_use[df_use["Genus_Species"].isin(popular_set)]
+def filter_common(wiki_val, pop_val, fav_val, favs_data, current):
+    df_use = _apply_shared_filters(df_light, wiki_val, pop_val,
+                                   fav_val, favs_data)
 
     opts = [
         {"label": row["dropdown_label"], "value": row["Genus_Species"]}
         for _, row in df_use.iterrows()
-        if pd.notna(row["dropdown_label"])  # important to avoid label=None
+        if pd.notna(row["dropdown_label"])
     ]
-
     valid = {o["value"] for o in opts}
     return opts, current if current in valid else None
+
 
 
 
@@ -1240,6 +1295,19 @@ def filter_common(wiki_val, pop_val, current):
 def toggle_advanced(n, style):
     hidden = style and style.get("display") == "none"
     return {} if hidden else {"display": "none"}
+
+@app.callback(
+    Output("fav-modal", "is_open"),
+    Input("fav-menu-btn", "n_clicks"),
+    Input("fav-modal",    "is_open"),   # ← state turns into an Input
+    prevent_initial_call=True
+)
+def toggle_fav_modal(btn_clicks, modal_open):
+    # if the heart was clicked, open; otherwise pass the current state through
+    if ctx.triggered_id == "fav-menu-btn":
+        return True
+    return modal_open      # keeps whatever the X sets (False when dismissed)
+
 
 
 
@@ -1277,70 +1345,53 @@ def close_search_mobile(n, current_class):
     raise PreventUpdate
 
 
+app.clientside_callback(
+"""
+function(n, currentGS, favsJSON){
+    const nu = dash_clientside.no_update;
+    if(!currentGS){ return [nu, nu, nu]; }
 
-# -----------------------------------------------------------------------
-#  Quick-jump: extremes in the *current* filtered dataset
-# -----------------------------------------------------------------------
-@app.callback(
-    Output("selected-species", "data", allow_duplicate=True),
-    Input("deepest-btn",    "n_clicks"),
-    Input("shallowest-btn", "n_clicks"),
-    Input("largest-btn",    "n_clicks"),
-    Input("smallest-btn",   "n_clicks"),
-    State("wiki-toggle",    "value"),
-    State("popular-toggle", "value"),
-    State("rand-seed",      "data"),    
-    prevent_initial_call=True
+    const favs = favsJSON ? JSON.parse(favsJSON) : [];
+    const hit  = favs.includes(currentGS);
+
+    // toggle if the click came from the heart itself
+    if(dash_clientside.callback_context.triggered[0].prop_id === "fav-handle.n_clicks"){
+        if(hit){ favs.splice(favs.indexOf(currentGS),1); }
+        else    { favs.push(currentGS); }
+        document.cookie = "pelagica_favs="+btoa(JSON.stringify(favs))+";path=/;max-age=31536000";
+    }
+
+    const glyph = favs.includes(currentGS) ? "♥" : "♡";
+    const cls   = favs.includes(currentGS) ? "heart-icon filled" : "heart-icon";
+    return [glyph, cls, JSON.stringify(favs)];
+}
+""",
+    Output("fav-handle", "children"),
+    Output("fav-handle", "className"),
+    Output("favs-store", "data"),
+    Input("fav-handle", "n_clicks"),
+    Input("selected-species", "data"),
+    State("favs-store", "data"),
 )
-def jump_to_extremes(n_deep, n_shallow,
-                     n_largest, n_smallest,
-                     wiki_val, pop_val,
-                     seed):
-             
-    trig = ctx.triggered_id
-    if not trig:
-        raise PreventUpdate
 
 
-    # ---------- build filtered frames ----------
-    if trig in ("largest-btn", "smallest-btn"):
-        # need rows that *have* a length
+# -------------------------------------------------------------------
+# 0 · helpers
+# -------------------------------------------------------------------
+def _apply_shared_filters(frame, wiki_val, pop_val,
+                          fav_val=None, favs_data=None):
+    """Return a copy of *frame* after wiki/pop/fav filters."""
+    df_use = frame.copy()
+    if "wiki" in wiki_val:
+        df_use = df_use[df_use["has_wiki_page"]]
+    if "pop" in pop_val:
+        df_use = df_use[df_use["Genus_Species"].isin(popular_set)]
+    if fav_val and "fav" in fav_val:
+        fav_set = set(json.loads(favs_data or "[]"))
+        df_use = df_use[df_use["Genus_Species"].isin(fav_set)]
+    return df_use
 
-        size_on  = trig in ("largest-btn", "smallest-btn")
-        depth_on = False                     # quick-jump is size-only now
-        df_use   = get_filtered_df(size_on, depth_on,
-                                   wiki_val, pop_val, seed=None)
 
-        df_use = df_use.sort_values(["Length_cm", "Length_in"])
-        if df_use.empty:
-            raise PreventUpdate
-        row = df_use.iloc[-1] if trig == "largest-btn" else df_use.iloc[0]
-
-    if trig in ("largest-btn", "smallest-btn"):
-        # … exactly as you have it for size …
-        size_on  = True
-        depth_on = False
-        df_use   = get_filtered_df(size_on, depth_on,
-                                   wiki_val, pop_val, seed=None)
-        df_use = df_use.sort_values(["Length_cm", "Length_in"])
-        if df_use.empty:
-            raise PreventUpdate
-        row = df_use.iloc[-1] if trig == "largest-btn" else df_use.iloc[0]
-
-    else:  # deepest / shallowest
-        size_on  = False         # size-axis off
-        depth_on = True          # ← turn depth-axis on
-        df_use   = get_filtered_df(size_on, depth_on,
-                                   wiki_val, pop_val, seed)
-
-        # now sort by the random depth (smallest: index 0; deepest: last)
-        df_use = df_use.sort_values("RandDepth")
-        if df_use.empty:
-            raise PreventUpdate
-        row = df_use.iloc[-1] if trig == "deepest-btn" else df_use.iloc[0]
-
-    gc.collect() 
-    return row["Genus_Species"]
 
 
 
@@ -1356,6 +1407,9 @@ def _init_seed(cur):
     raise PreventUpdate
 
 
+# -------------------------------------------------------------------
+# Size‑axis navigation (left / right)
+# -------------------------------------------------------------------
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
     Input("next-btn",  "n_clicks"),
@@ -1364,24 +1418,39 @@ def _init_seed(cur):
     State("depth-toggle",     "value"),
     State("wiki-toggle",      "value"),
     State("popular-toggle",   "value"),
+    State("favs-toggle",      "value"),     # ← NEW
+    State("favs-store",       "data"),      # ← NEW
     State("selected-species", "data"),
     State("rand-seed",        "data"),
     prevent_initial_call=True
 )
 def step_size(n_next, n_prev,
               size_val, depth_val, wiki_val, pop_val,
+              fav_val, favs_data,
               current, seed):
-    trig = ctx.triggered_id
-    if trig not in ("prev-btn", "next-btn"):
+
+    if ctx.triggered_id not in ("prev-btn", "next-btn"):
         raise PreventUpdate
-    size_on  = "size"  in size_val
+    if "size" not in size_val:              # size axis is off
+        raise PreventUpdate
+
+    # ---- build dataframe respecting ALL filters -------------------
+    size_on  = True
     depth_on = "depth" in depth_val
-    df_use   = get_filtered_df(size_on, depth_on,
-                               wiki_val, pop_val, seed)
+
+    df_use = get_filtered_df(size_on, depth_on,
+                             wiki_val, pop_val, seed)
+
+    # favourites post‑filter
+    if fav_val and "fav" in fav_val:
+        fav_set = set(json.loads(favs_data or "[]"))
+        df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
+
     if df_use.empty:
         raise PreventUpdate
 
-    df_use = df_use.sort_values(["Length_cm", "Length_in"])
+    # ---- rank by length and step ±1 --------------------------------
+    df_use  = df_use.sort_values(["Length_cm", "Length_in"])
     species = df_use["Genus_Species"].tolist()
     if current not in species:
         current = species[0]
@@ -1389,11 +1458,11 @@ def step_size(n_next, n_prev,
     idx = species.index(current)
     idx = (idx - 1) % len(species) if ctx.triggered_id == "prev-btn" \
          else (idx + 1) % len(species)
-         
-    gc.collect() 
     return species[idx]
 
-
+# -------------------------------------------------------------------
+# Depth‑axis navigation (up / down)
+# -------------------------------------------------------------------
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
     Input("up-btn",   "n_clicks"),
@@ -1402,25 +1471,37 @@ def step_size(n_next, n_prev,
     State("depth-toggle",     "value"),
     State("wiki-toggle",      "value"),
     State("popular-toggle",   "value"),
-    State("selected-species","data"),
-    State("rand-seed",       "data"),
+    State("favs-toggle",      "value"),     # ← NEW
+    State("favs-store",       "data"),      # ← NEW
+    State("selected-species", "data"),
+    State("rand-seed",        "data"),
     prevent_initial_call=True
 )
 def step_depth(n_up, n_down,
                size_val, depth_val, wiki_val, pop_val,
+               fav_val, favs_data,
                current, seed):
-    trig = ctx.triggered_id
-    if trig not in ("up-btn", "down-btn"):
+
+    if ctx.triggered_id not in ("up-btn", "down-btn"):
+        raise PreventUpdate
+    if "depth" not in depth_val:            # depth axis is off
         raise PreventUpdate
 
     size_on  = "size"  in size_val
-    depth_on = "depth" in depth_val
-    df_use   = get_filtered_df(size_on, depth_on,
-                               wiki_val, pop_val, seed)
+    depth_on = True
+
+    df_use = get_filtered_df(size_on, depth_on,
+                             wiki_val, pop_val, seed)
+
+    # favourites filter
+    if fav_val and "fav" in fav_val:
+        fav_set = set(json.loads(favs_data or "[]"))
+        df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
+
     if df_use.empty:
         raise PreventUpdate
 
-    df_use = df_use.sort_values("RandDepth")
+    df_use  = df_use.sort_values("RandDepth")
     species = df_use["Genus_Species"].tolist()
     if current not in species:
         current = species[0]
@@ -1428,9 +1509,59 @@ def step_depth(n_up, n_down,
     idx = species.index(current)
     idx = (idx - 1) % len(species) if ctx.triggered_id == "up-btn" \
          else (idx + 1) % len(species)
-         
-    gc.collect() 
     return species[idx]
+
+# -------------------------------------------------------------------
+# Quick‑jump buttons (deepest / shallowest / largest / smallest)
+# -------------------------------------------------------------------
+@app.callback(
+    Output("selected-species", "data", allow_duplicate=True),
+    Input("deepest-btn",    "n_clicks"),
+    Input("shallowest-btn", "n_clicks"),
+    Input("largest-btn",    "n_clicks"),
+    Input("smallest-btn",   "n_clicks"),
+    State("wiki-toggle",    "value"),
+    State("popular-toggle", "value"),
+    State("favs-toggle",    "value"),     # ← NEW
+    State("favs-store",     "data"),      # ← NEW
+    State("rand-seed",      "data"),
+    prevent_initial_call=True
+)
+def jump_to_extremes(n_deep, n_shallow,
+                     n_large, n_small,
+                     wiki_val, pop_val,
+                     fav_val, favs_data,
+                     seed):
+
+    trig = ctx.triggered_id
+    if trig is None:
+        raise PreventUpdate
+
+    # ---------------- Base dataframe -------------------------------
+    size_on  = trig in ("largest-btn", "smallest-btn")
+    depth_on = trig in ("deepest-btn", "shallowest-btn")
+
+    df_use = get_filtered_df(size_on, depth_on,
+                             wiki_val, pop_val, seed)
+
+    # favourites filter
+    if fav_val and "fav" in fav_val:
+        fav_set = set(json.loads(favs_data or "[]"))
+        df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
+
+    if df_use.empty:
+        raise PreventUpdate
+
+    # ---------------- Pick extreme -------------------------------
+    if trig in ("largest-btn", "smallest-btn"):
+        df_use = df_use.sort_values(["Length_cm", "Length_in"])
+        row    = df_use.iloc[-1] if trig == "largest-btn" else df_use.iloc[0]
+    else:
+        df_use = df_use.sort_values("RandDepth")
+        row    = df_use.iloc[-1] if trig == "deepest-btn" else df_use.iloc[0]
+
+    return row["Genus_Species"]
+
 
 
 # ─── left / right buttons — show only when size-comp is ON and a species picked

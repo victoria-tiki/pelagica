@@ -25,6 +25,7 @@ body {
   width: 100vw;
   height: 24000px;
   transform: translateX(-50%);
+
 }
 
 /* Image stays centered and at natural width */
@@ -38,8 +39,7 @@ body {
 }
 
 
-.layer-img,
-#birds-view { will-change: transform; }
+
 
 .layer-img {
   transition: none !important;
