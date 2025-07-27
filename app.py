@@ -59,47 +59,61 @@ def serve_cached_images(filename):
 
 # ─── TOP BAR ───────────────────────────────────────────────
 
-units_toggle = html.Div(
-    [
-        html.Span("m"),
-        dbc.Switch(id="units-toggle", value=True, className="mx-1", label=""),
-        html.Span("ft"),
-    ],
-    style={"display":"flex","alignItems":"center","fontSize":".8rem"}
+units_toggle = dbc.Switch(
+    id="units-toggle",
+    value=False,              # False → pill left  →  metric  (m)
+    className="units-switch", # we skin it in CSS
 )
+
+units_block = html.Div(
+    [
+        html.Span("m",  style={"marginRight": ".35rem"}),
+        units_toggle,
+        html.Span("ft", style={"marginLeft":  "-0.5rem"}),
+    ],
+    style={"display": "flex",
+           "alignItems": "center",
+           "fontSize": ".8rem"}
+)
+
 
 
 top_bar = html.Div(
     [
-        # 1. logo & tagline (unchanged)
+        # 1. logo & tagline
         html.Div(
             [
                 html.Img(src="/assets/logo_pelagica_colour.webp",
-                         style={"height":"50px"}),
+                         style={"height": "50px"}),
                 html.Span("The Aquatic Life Atlas",
                           className="tagline",
-                          style={"marginLeft":".5rem","fontSize":".9rem",
-                                 "fontWeight":500,"color":"#f5f5f5"})
-            ], style={"display":"flex","alignItems":"center"}
+                          style={"marginLeft": ".5rem", "fontSize": ".9rem",
+                                 "fontWeight": 500, "color": "#f5f5f5"})
+            ],
+            style={"display": "flex", "alignItems": "center"}
         ),
 
-        # spacer
-        html.Div(style={"flex":"1"}),
+        # 2. spacer
+        html.Div(style={"flex": "1"}),
 
-        # 2. favourites button (text + heart = one hit‑area)
-        # in top_bar, replace the two separate children with this:
-        html.Div(
-            [html.Div("♡ Favourites", id="fav-menu-btn",
-                         className="top-heart",
-                         style={"cursor":"pointer", "marginRight":"1rem"}),
-                units_toggle],
-            style={"display":"flex","alignItems":"center"}
+        html.Div([
+        html.Span("♡",  className="fav-icon"),
+        html.Span(" Favourites", className="fav-label")   ],
+            id="fav-menu-btn",
+            className="top-heart",
+            style={"cursor": "pointer", "fontSize": ".9rem"}
         ),
+
+        html.Div("|", style={"opacity": .4, "margin": "0 1rem"}),
+
+        units_block,
     ],
-    id="top-bar", className="glass-panel",
-    style={"display":"flex","alignItems":"center",
-           "padding":"0.5rem 1rem"}
+    id="top-bar",
+    className="glass-panel",
+    style={"display": "flex", "alignItems": "center",
+           "padding": "0.5rem 1rem"}
 )
+
 
 
 
@@ -162,39 +176,44 @@ advanced_filters = html.Div(                # collapsible area
     html.Div([
         dbc.Checklist(
             id="popular-toggle",
-            options=[{"label": "Only popular species", "value": "pop"}],
+            options=[{"label": "Only 1000 curated species", "value": "pop"}],
             value=["pop"],
             switch=True
         ),
-        html.Div("Limits to ~1000 curated species. Longer loading times if toggled off.", className="settings-note")
+        html.Div("Longer loading times if toggled off.", className="settings-note")
     ], className="settings-group"),
     
     dbc.Checklist(
     id="favs-toggle",
-    options=[{"label":"Only favourites","value":"fav"}],
+    options=[{"label": "Only favourites", "value": "fav"}],
     value=[], switch=True
+    ),
+    html.Div(                      
+        "Search only among species favourited by you.",
+        className="settings-note"
     ),
 
 
-    html.H6("Depth Comparison", className="settings-header"),
+
+    html.H6("Depth Menu Options", className="settings-header"),
 
     html.Div([
         dbc.Checklist(
             id="depth-toggle",
-            options=[{"label": "Show depth comparison", "value": "depth"}],
+            options=[{"label": "Show depth navigation", "value": "depth"}],
             value=["depth"],
             switch=True
         ),
-        html.Div("For navigation, we use a random depth within the species' depth range.",
+        html.Div("Uses a random depth within the species' depth range.",
                  className="settings-note"),
     ], className="settings-group"),
 
-    html.H6("Size Comparison", className="settings-header"),
+    html.H6("Size Menu Options", className="settings-header"),
 
     html.Div([
         dbc.Checklist(
             id="size-toggle",
-            options=[{"label": "Show size comparison", "value": "size"}],
+            options=[{"label": "Show size navigation", "value": "size"}],
             value=["size"],
             switch=True
         ),
@@ -447,19 +466,18 @@ fav_modal = dbc.Modal(
                 html.Br(),
                 dcc.Upload("⬆ Load (.txt)", id="fav-upload",
                            className="btn btn-outline-primary btn-sm w-100",
-                           style={"display":"block"},  # fills full width
-                           multiple=False),
+                           multiple=False)
             ],
-            className="p-2",            # minimal padding
-            style={"maxWidth":"280px"}  # hugs the content
+            className="p-2"
         ),
     ],
     id="fav-modal",
     is_open=False,
     centered=True,
     backdrop=True,
-    size="sm",
+    className="fav-modal",          # <─ NEW
 )
+
 
 
 
@@ -821,7 +839,9 @@ def replace_links(text):
 
 
 def _units(value_bool):
-    return "metric" if value_bool else "imperial"
+    """False = metric,  True = imperial (because pill right = ft)."""
+    return "imperial" if value_bool else "metric"
+
 
 
 

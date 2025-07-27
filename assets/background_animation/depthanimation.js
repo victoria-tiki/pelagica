@@ -691,41 +691,26 @@ if (isBlink) {
 
 
 /* ───── helper to create / reuse slice img ───── */
-function ensureSlice(layer, slice) {
+async function ensureSlice(layer, slice){
   if (slice < 0 || slice >= layer.total) return;
-  if (layer.imgNodes[slice]) return;                 // already there
+  if (layer.imgNodes[slice])             return;
 
-  /* ---- create <img> ---- */
-  const img = new Image();
-  img.src      = `${layer.prefix}_${slice}.webp`;
-  img.loading  = 'lazy';
-  img.decoding = 'async';
+  const img = await preloadTile(layer.prefix, slice, layer.cache);
+
+  /* (styling block unchanged) */
   img.className = 'layer-img';
-  
- 
-
-  if (needsOverlap) {
-    img.style.top    = `${slice * TILE_H - 1}px`;   // –1 px up
-    img.style.height = `${TILE_H + 1}px`;           // +1 px tall
-  } else {
-    img.style.top    = `${slice * TILE_H}px`;
-    img.style.height = `${TILE_H}px`;
-  }
-
-
-  if (layer.id === 'ruler') {
-    img.style.left      = 'auto';
-    img.style.right     = '0';
-    img.style.transform = 'translateX(0)';
-  } else {
-    img.style.left      = '50%';
-    img.style.transform = 'translateX(-50%)';
+  img.style.top    = `${slice * TILE_H - (needsOverlap?1:0)}px`;
+  img.style.height = `${TILE_H + (needsOverlap?1:0)}px`;
+  if (layer.id === 'ruler'){
+    img.style.left='auto'; img.style.right='0'; img.style.transform='translateX(0)';
+  }else{
+    img.style.left='50%';  img.style.transform='translateX(-50%)';
   }
 
   layer.el.appendChild(img);
   layer.imgNodes[slice] = img;
-  preloadTile(layer.prefix, slice, layer.cache);
 }
+
 
 
 /* ───── helper to prune slices far above viewport ───── */
@@ -773,7 +758,12 @@ function raf(ts) {
       const offset = -(yLayer % TILE_H);
 
       if (layer.total > 1) {
-        for (let s = slice - 1; s <= slice + 2; s++) ensureSlice(layer, s);
+        /* ➜ draw slices that can actually enter the viewport within ~2 screens */
+        for (let s = slice - 1; s <= slice + 4; s++) ensureSlice(layer, s);
+
+        /* ➜ silently decode another five; they’ll be ready when we scroll down */
+        //for (let s = slice + 5; s <= slice + 10; s++) preloadTile(layer.prefix, s, layer.cache);
+
         applyParallax(layer, offset);
       }
 
@@ -899,22 +889,25 @@ document.querySelectorAll('.layer-view').forEach(view=>{
 });
 }*/
 
-function preloadTile(prefix, n, cache){
-  if (n in cache) return;  // already cached
+/* keeps one promise per URL so we don’t start the same fetch twice */
+const decodeCache = new Map();
 
+function preloadTile(prefix, n, cache){
   const url = `${prefix}_${n}.webp`;
+  if (decodeCache.has(url)) return decodeCache.get(url);   // reuse
+
   const img = new Image();
   img.src = url;
 
-  // Force it into memory: append it to the invisible preload zone
-  img.style.width = '1px';
-  img.style.height = '1px';
-  img.style.opacity = '0';
-  img.style.pointerEvents = 'none';
+  const p = ('decode' in img)
+      ? img.decode().then(()=>img)         // modern browsers
+      : new Promise(res => img.onload = () => res(img));
 
-  document.getElementById('preload-zone').appendChild(img);
-  cache[n] = img;
+  decodeCache.set(url, p);
+  cache[n] = p;                            // your per‑layer cache still works
+  return p;
 }
+
 
 
 

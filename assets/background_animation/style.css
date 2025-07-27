@@ -4,8 +4,10 @@ html, body {
   padding: 0;
   height: 100%;
   width: 100%;
-  background: #6da4c4;
+  background: #001427;
 }
+
+
 
 body {
   margin: 0;
@@ -16,6 +18,8 @@ body {
   background-position: center;
   background-attachment: fixed; /* keeps it stationary while scrolling */
 }
+
+
 
 /* Shared camera window for each layer */
 .layer-view {
@@ -216,4 +220,7 @@ body.paused *{
   animation-play-state: paused !important; /* stop key‑frame CSS */
   transition-duration: 0s   !important;   /* stop any swaying */
 }
+
+
+
 

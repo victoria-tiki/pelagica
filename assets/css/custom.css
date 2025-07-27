@@ -33,7 +33,7 @@
 
 
 /* ==========  1. GLOBAL ELEMENTS  ============================== */
-html,body{ height:100%; }
+html,body{ height:100%; overflow-x:hidden; }
 
 body {
   margin: 0;
@@ -102,7 +102,7 @@ h5,
 
 
 /* Hide tagline on screens smaller than 600px (adjust as needed) */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .tagline {
     display: none;
   }
@@ -174,7 +174,7 @@ h5,
   font-size: 0.75rem;
   cursor: pointer;
   z-index: 1041;
-  transition: left 0.3s ease;
+  transition: left 0.1s ease;
   line-height: 1.1;
   padding: 0.3rem 0;
   transform: rotate(-90deg);
@@ -236,7 +236,7 @@ body.search-open .search-handle {
     z-index: 2100;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     font-weight: bold;
-    transition: all 0.3s ease;
+    transition: all 0.1s ease;
   }
 
   body.search-open #search-handle::before {
@@ -248,6 +248,10 @@ body.search-open .search-handle {
   body.search-open #search-handle > * {
     visibility: hidden;
   }
+}
+
+.search-handle{
+    top: calc(4rem + 64px);     /* 4 rem bar + a little breathing room */
 }
 
 /* Mobile-only close button INSIDE the search panel */
@@ -281,7 +285,13 @@ body.search-open .search-handle {
 }
 
 
+#search-panel{
+    top: 104px !important;            
+  }
 
+.search-handle{
+    top: 134px !important;           
+  }
 
 
 /* ==========  4. SIDE TABS  ==================================== */
@@ -528,6 +538,9 @@ body.search-open .search-handle {
   scrollbar-color: var(--scroll-thumb) transparent;
 }
 
+#info-card{
+    overscroll-behavior: contain;   /* stops wheel‑scroll bubbling */
+}
 
 /* Handle remains bottom-left of image */
 #info-handle {
@@ -768,7 +781,7 @@ helper text size matches the sideways labels
   font-size: 0.85em;
   line-height: 1.4;
   opacity: 0.7;
-  max-width: 280px;
+  max-width: 380px;
 }
 
 
@@ -933,3 +946,80 @@ helper text size matches the sideways labels
 }
 
 
+
+
+/*───────────────────────────────────────────────────────────────
+  UNITS TOGGLE  & FAV MENU
+────────────────────────────────────────────────────────────────*/
+.units-switch .form-check-input{
+  width: 34px;                 /* slim pill */
+  top: 8px;
+  height: 14px;
+  border-radius: 14px;
+  background: #9a9a9a;         /* mid‑grey both states */
+  border: none;
+  box-shadow: none;
+  margin: 0;                   /* removes bootstrap offset */
+  vertical-align: middle;
+  position: relative;
+  cursor: pointer;
+}
+/* little white knob */
+.units-switch .form-check-input::after{
+  content:"";
+  position:absolute;
+  top: 1px; left: 1px;         /* start far left */
+  width: 12px; height: 12px;
+  background:#fff;
+  border-radius:50%;
+  transition:left .18s ease;
+}
+/* when checked, slide knob to the right */
+.units-switch .form-check-input:checked::after{
+  left: 21px;
+}
+/* keep background the same when checked (no green!) */
+.units-switch .form-check-input:checked{
+  background:#9a9a9a;
+}
+
+/* hide the word “Favourites” on narrow screens */
+@media (max-width: 768px){          /* tweak breakpoint as you like */
+  .fav-label { display:none; }
+}
+
+/* always‑narrow favourites modal */
+.fav-modal .modal-dialog{
+  max-width: 320px;      /* desktop & tablet */
+  width:100%;
+}
+
+@media (max-width: 768px){
+  .fav-modal .modal-dialog{
+    max-width: 260px;    /* phones */
+  }
+}
+
+
+.fav-modal .modal-dialog{
+    max-width: 320px;          /
+    margin: 1.25rem auto;      /* auto keeps it centred */
+}
+@media (max-width: 576px){     /* very small screens */
+    .fav-modal .modal-dialog{
+        width: 90vw;           /* stretchy but still centred */
+        max-width: 90vw;
+    }
+}
+
+.fav-modal .modal-dialog{
+  width: 320px;
+  max-width: 320px;
+  margin: 1.25rem auto;        /* auto keeps it centred */
+}
+@media (max-width: 360px){     /* very narrow phones */
+  .fav-modal .modal-dialog{
+    width: 92vw;               /* still centred, fills most of screen */
+    max-width: 92vw;
+  }
+}
