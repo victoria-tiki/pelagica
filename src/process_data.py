@@ -1,4 +1,5 @@
 import pandas as pd, requests
+from functools import lru_cache
 
 def cm_to_in(cm):
     return round(cm / 2.54, 1) if pd.notna(cm) else None
@@ -6,7 +7,16 @@ def cm_to_in(cm):
 def m_to_ft(m):
     return round(m * 3.28084, 1) if pd.notna(m) else None
 
-
+@lru_cache(maxsize=1)
+def _raw_csv(csv_path="data/processed/filtered_combined_species.csv") -> pd.DataFrame:
+    """
+    Read the 52 MB CSV exactly once per interpreter process and cache it.
+    Nothing else should touch disk.
+    """
+    print("• loading master CSV…")
+    return pd.read_csv(csv_path)
+    
+    
 # ------------- NEW: batch query Wikipedia once --------------------
 def _wiki_pages_exist(names, batch_size=50):
     """
@@ -28,64 +38,47 @@ def _wiki_pages_exist(names, batch_size=50):
     return existing
 # ------------------------------------------------------------------
 
+@lru_cache(maxsize=1)
+def load_species_data() -> pd.DataFrame:
+    df = _raw_csv().copy()                 # copy _once_ for mutability
 
-def load_species_data(csv_path="data/processed/filtered_combined_species.csv"):
-    df = pd.read_csv(csv_path)
-    ...
-    df["dropdown_label"] = df.apply(
-        lambda row: f"{row['FBname']} ({row['Genus_Species']})"
-        if pd.notna(row["FBname"]) else row["Genus_Species"],
-        axis=1
-    )
+    # add the synthetic human row
+    df = pd.concat([df, load_homo_sapiens()], ignore_index=True)
 
-    # ------------- NEW: mark which species actually exist on Wikipedia --------
-    print("🔎 One-time check: which species have a Wikipedia page …")
-    existing = _wiki_pages_exist(df["Genus_Species"].tolist())
-    df["has_wiki_page"] = df["Genus_Species"].isin(existing)
-    # --------------------------------------------------------------------------
+    # clean + derived cols (vectorised → fast)
+    df["Genus"]        = df["Genus"].str.strip()
+    df["Species"]      = df["Species"].str.strip()
+    df["Genus_Species"]= df["Genus"] + " " + df["Species"]
 
-    return df
-
-
-def load_species_data(csv_path="data/processed/filtered_combined_species.csv"):
-    df = pd.read_csv(csv_path)
-    
-    homo = load_homo_sapiens()
-    homo = homo.dropna(axis=1, how="all")
-    df = pd.concat([df, homo], ignore_index=True)
-    
-    # Trim whitespace
-    df["Genus"] = df["Genus"].astype(str).str.strip()
-    df["Species"] = df["Species"].astype(str).str.strip()
-
-    # Full scientific name
-    df["Genus_Species"] = df["Genus"] + " " + df["Species"]
-
-    # Filter out species with no usable depth info (both pairs missing)
-    no_common = df["DepthRangeComShallow"].isna() | df["DepthRangeComDeep"].isna()
-    no_general = df["DepthRangeShallow"].isna() | df["DepthRangeDeep"].isna()
-    df = df[~(no_common & no_general)].copy()
-
-    # Convert depth and length values
+    # length / depth helpers
     df["Length_cm"] = df["Length"]
     df["Length_in"] = df["Length_cm"].apply(cm_to_in)
 
     for col in ["DepthRangeComShallow", "DepthRangeComDeep",
-                "DepthRangeShallow", "DepthRangeDeep"]:
+                "DepthRangeShallow",    "DepthRangeDeep"]:
         df[f"{col}_ft"] = df[col].apply(m_to_ft)
 
-    # Depth preference flag
-    df["DepthComPreferred"] = ~(df["DepthRangeComShallow"].isna() | df["DepthRangeComDeep"].isna())
+    df["DepthComPreferred"] = ~(
+        df["DepthRangeComShallow"].isna() | df["DepthRangeComDeep"].isna()
+    )
 
-    # For search
-    df["dropdown_label"] = df.apply(
-        lambda row: f"{row['FBname']} ({row['Genus_Species']})" if pd.notna(row["FBname"]) else row["Genus_Species"],
-        axis=1
+    # one‑line dropdown label (matches the *old* behaviour exactly)
+    df["dropdown_label"] = (
+        df["FBname"].fillna("")
+          .str.cat(df["Genus_Species"].radd(" ("), na_rep="")
+          .str.rstrip("(").add(")")
+          .str.replace(" ()", "", regex=False)
     )
 
     return df
 
 
+def load_name_table() -> pd.DataFrame:
+    cols = ["Genus", "Species", "FBname", "has_wiki_page", "Genus_Species",
+            "dropdown_label"]
+    return load_species_data()[cols]
+    
+    
 def load_homo_sapiens():
     return pd.DataFrame([{
         "SpecCode":              "0",

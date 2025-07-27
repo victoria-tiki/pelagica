@@ -16,7 +16,7 @@ import numpy as np
 import json, base64   
 
 
-from src.process_data import load_species_data, load_homo_sapiens
+from src.process_data import load_species_data, load_homo_sapiens, load_name_table
 from src.wiki import get_blurb, get_commons_thumb      
 from src.utils import assign_random_depth
 import os
@@ -26,24 +26,33 @@ import re
 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
-df = load_species_data()       
+df_full  = load_species_data()   # heavy table (cached in process_data)
+df_light = load_name_table()     # 5‑col view on the cached frame   
 
-df_wiki = df[df["has_wiki_page"]].copy() #only those with wikipedia page
-
-df_light = df[["Genus", "Species", "Genus_Species", "FBname", "has_wiki_page"]].copy()
-df_light["dropdown_label"] = df_light["FBname"] + " (" + df_light["Genus"] + " " + df_light["Species"] + ")"
+#df_wiki = df[df["has_wiki_page"]].copy() #only those with wikipedia page
+#df_light = df[["Genus", "Species", "Genus_Species", "FBname", "has_wiki_page"]].copy()
+#df_light["dropdown_label"] = df_light["FBname"] + " (" + df_light["Genus"] + " " + df_light["Species"] + ")"
 
 # --- Popular-species whitelist -----------------------------------
 popular_df   = pd.read_csv("data/processed/popular_species.csv")        # <-- path in /mnt/data
 popular_set  = set(popular_df["Genus"] + " " + popular_df["Species"])
 
 
+'''genus_options = [
+    {"label": g, "value": g}
+    for g in sorted(df_light["Genus"].unique())
+]
+
+common_options = [
+    {"label": r.dropdown_label, "value": r.Genus_Species}
+    for _, r in df_light.iterrows()
+]'''
+
 # Genus dropdown options
-genus_options = [{"label": g, "value": g} for g in sorted(df_wiki["Genus"].unique())]
+#genus_options = [{"label": g, "value": g} for g in sorted(df_wiki["Genus"].unique())]
 
 # Common-name dropdown options (label = “Common (Genus species)”)
-common_options = [{"label": r["dropdown_label"], "value": r["Genus_Species"]}
-                  for _, r in df_wiki.iterrows()]
+#common_options = [{"label": r["dropdown_label"], "value": r["Genus_Species"]}                 for _, r in df_wiki.iterrows()]
 
 # ---------- Build Dash app ----------------------------------------------------------
 # external sheets (font + bootstrap)
@@ -56,6 +65,34 @@ app = Dash(__name__, external_stylesheets=external_stylesheets)
 @app.server.route('/cached-images/<path:filename>')
 def serve_cached_images(filename):
     return send_from_directory('image_cache', filename)
+    
+def _apply_shared_filters(frame: pd.DataFrame,
+                          wiki_val, pop_val, fav_val=None, favs_data=None):
+    mask = pd.Series(True, index=frame.index)
+    if "wiki" in wiki_val:
+        mask &= frame["has_wiki_page"]
+    if "pop" in pop_val:
+        mask &= frame["Genus_Species"].isin(popular_set)
+    if fav_val and "fav" in fav_val:
+        fav_set = set(json.loads(favs_data or "[]"))
+        mask &= frame["Genus_Species"].isin(fav_set)
+    return frame.loc[mask]              # view → O(1) no RAM / time
+    
+def get_filtered_df(size_on, depth_on, wiki_val, pop_val, seed=None):
+    df_use = _apply_shared_filters(df_full, wiki_val, pop_val)
+
+    if size_on:
+        df_use = df_use[df_use["Length_cm"].notna()]
+
+    if depth_on:
+        df_use = df_use[
+            df_use["DepthRangeComShallow"].notna() |
+            df_use["DepthRangeShallow"].notna()
+        ]
+        if seed is not None:
+            df_use = assign_random_depth(df_use, seed)
+
+    return df_use         # still a *view* – negligible time / memory
 
 # ─── TOP BAR ───────────────────────────────────────────────
 
@@ -120,13 +157,13 @@ top_bar = html.Div(
 # ─── SEARCH STACK ───────────────────────────────────────────────
 search_stack = html.Div(id="search-stack", children=[
     html.Div(
-        dcc.Dropdown(id="common-dd", options=common_options,
-                     placeholder="Common name…", className="dash-dropdown")
+        dcc.Dropdown(id="common-dd", options=[],
+                     placeholder="Common name…", className="dash-dropdown",clearable=True,searchable=True)
     ),
     html.Div(
         dbc.Row([
             dbc.Col(
-                dcc.Dropdown(id="genus-dd", options=genus_options,
+                dcc.Dropdown(id="genus-dd", options=[],
                              placeholder="Genus", className="dash-select"), width=6
             ),
             dbc.Col(
@@ -633,7 +670,7 @@ def choose_species(species_val, genus_val, common_val, rnd,
     trig = ctx.triggered_id
 
     # ---------- build the filtered frame -----------------
-    df_use = _apply_shared_filters(df, wiki_val, pop_val,
+    df_use = _apply_shared_filters(df_full, wiki_val, pop_val,
                                    fav_val, favs_data)
 
     # ---------- Random button ----------------------------
@@ -717,7 +754,7 @@ def fill_citation(gs_name):
         raise PreventUpdate
 
     genus, species = gs_name.split(" ", 1)
-    row = df.loc[df["Genus_Species"] == gs_name].iloc[0]
+    row = df_full.loc[df_full["Genus_Species"] == gs_name].iloc[0]
 
     # ---------- try Wikimedia Commons -------------
     import time
@@ -878,7 +915,7 @@ def update_image(gs_name, units_bool):
     # -------- pull the chosen row once -------
     #row = df_wiki.loc[df_wiki["Genus_Species"] == gs_name].iloc[0]
     
-    row_full = df.loc[df["Genus_Species"] == gs_name]
+    row_full = df_full.loc[df_full["Genus_Species"] == gs_name]
     if row_full.empty:                 
         raise PreventUpdate
     row = row_full.iloc[0]
@@ -1162,7 +1199,7 @@ def do_import(contents):
     return txt
 
 
-# ──────────────────────────────────────────────────────────────
+'''# ──────────────────────────────────────────────────────────────
 # Helper: build one consistent dataframe for the current filters
 # ──────────────────────────────────────────────────────────────
 def get_filtered_df(size_on: bool, depth_on: bool,
@@ -1199,7 +1236,7 @@ def get_filtered_df(size_on: bool, depth_on: bool,
     if depth_on and seed is not None:
         df_use = assign_random_depth(df_use, seed)
 
-    return df_use
+    return df_use'''
 
 '''# ─── size-axis navigation (left / right) ────────────────────────────
 @app.callback(
@@ -1281,26 +1318,39 @@ def set_depth_labels(current, depth_val):
 
 ####------------------------------------------------------------
 
+from dash import no_update
+
 @app.callback(
     Output("common-dd", "options"),
     Output("common-dd", "value"),
-    Input("wiki-toggle",   "value"),
+    Input("common-dd",  "search_value"),     # live typing
+    Input("wiki-toggle","value"),
     Input("popular-toggle","value"),
-    Input("favs-toggle",   "value"),       # NEW
-    State("favs-store",    "data"),        # NEW
-    State("common-dd", "value"),
+    Input("favs-toggle","value"),
+    State("favs-store","data"),
+    State("common-dd","value"),
 )
-def filter_common(wiki_val, pop_val, fav_val, favs_data, current):
+def filter_common(search, wiki_val, pop_val, fav_val, favs_data, current):
     df_use = _apply_shared_filters(df_light, wiki_val, pop_val,
                                    fav_val, favs_data)
 
-    opts = [
-        {"label": row["dropdown_label"], "value": row["Genus_Species"]}
-        for _, row in df_use.iterrows()
-        if pd.notna(row["dropdown_label"])
+    # ── 1. user isn’t typing → keep everything as is ─────────────────
+    if not search or len(search) < 2:
+        return no_update, current          # **nothing** changes
+
+    # ── 2. build a suggestion list (≤50) ─────────────────────────────
+    mask = df_use["dropdown_label"].str.contains(search, case=False, na=False)
+    matches = df_use[mask].head(50)
+
+    options = [
+        {"label": r.dropdown_label, "value": r.Genus_Species}
+        for _, r in matches.iterrows()
     ]
-    valid = {o["value"] for o in opts}
-    return opts, current if current in valid else None
+
+    # keep the current selection if it’s still in the list
+    value = current if current in {o["value"] for o in options} else None
+    return options, value
+
 
 
 
@@ -1393,24 +1443,6 @@ function(n, currentGS, favsJSON){
     Input("selected-species", "data"),
     State("favs-store", "data"),
 )
-
-
-# -------------------------------------------------------------------
-# 0 · helpers
-# -------------------------------------------------------------------
-def _apply_shared_filters(frame, wiki_val, pop_val,
-                          fav_val=None, favs_data=None):
-    """Return a copy of *frame* after wiki/pop/fav filters."""
-    df_use = frame.copy()
-    if "wiki" in wiki_val:
-        df_use = df_use[df_use["has_wiki_page"]]
-    if "pop" in pop_val:
-        df_use = df_use[df_use["Genus_Species"].isin(popular_set)]
-    if fav_val and "fav" in fav_val:
-        fav_set = set(json.loads(favs_data or "[]"))
-        df_use = df_use[df_use["Genus_Species"].isin(fav_set)]
-    return df_use
-
 
 
 
