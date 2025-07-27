@@ -14,7 +14,7 @@ from flask import send_from_directory
 import pandas as pd, random, datetime
 import numpy as np 
 import json, base64   
-
+import glob
 
 from src.process_data import load_species_data, load_homo_sapiens, load_name_table
 from src.wiki import get_blurb, get_commons_thumb      
@@ -23,6 +23,24 @@ import os
 
 import gc
 import re
+
+# --- Pre‑index scale images ------------------------------------
+_scale_db = []
+_pat = re.compile(r'(.+?)_(\d+(?:p\d+)?)(cm|m)\.png$')
+
+for p in glob.glob("assets/species/scale/*.png"):
+    name = os.path.basename(p)
+    m = _pat.match(name)
+    if not m:
+        continue
+    desc, num, unit = m.groups()
+    num = float(num.replace('p', '.'))
+    length_cm = num if unit == "cm" else num * 100
+    _scale_db.append({
+        "path": f"/assets/species/scale/{name}",
+        "desc": desc.replace('_', ' '),
+        "length_cm": length_cm
+    })
 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
@@ -197,14 +215,19 @@ CITATION_W  = 300
 PANEL_WIDTH  = CITATION_W
 SEARCH_W, SEARCH_TOP = 450, 120    # width px, distance below top bar
 
-advanced_filters = html.Div(                # collapsible area
-    [
+advanced_filters = html.Div([           # collapsible area
+
+
+    # ── Filters ────────────────────────────────────────────────────
     html.H6("Filters", className="settings-header"),
 
     html.Div([
         dbc.Checklist(
             id="wiki-toggle",
-            options=[{"label": "Only species with Wikipedia entry", "value": "wiki"}],
+            options=[{
+                "label": "Only species with Wikipedia entry",
+                "value": "wiki"
+            }],
             value=["wiki"],
             switch=True
         )
@@ -213,99 +236,68 @@ advanced_filters = html.Div(                # collapsible area
     html.Div([
         dbc.Checklist(
             id="popular-toggle",
-            options=[{"label": "Only 1000 curated species", "value": "pop"}],
+            options=[{
+                "label": "Only 1000 curated species (loads faster)",
+                "value": "pop"
+            }],
             value=["pop"],
             switch=True
         ),
-        html.Div("Longer loading times if toggled off.", className="settings-note")
+
     ], className="settings-group"),
-    
+
     dbc.Checklist(
-    id="favs-toggle",
-    options=[{"label": "Only favourites", "value": "fav"}],
-    value=[], switch=True
-    ),
-    html.Div(                      
-        "Search only among species favourited by you.",
-        className="settings-note"
+        id="favs-toggle",
+        options=[{"label": "Only species I have favourited", "value": "fav"}],
+        value=[], switch=True
     ),
 
-
-
-    html.H6("Depth Menu Options", className="settings-header"),
+    # ── Navigation options (depth & size) ──────────────────────────
+    html.H6("Navigation options", className="settings-header"),
 
     html.Div([
         dbc.Checklist(
             id="depth-toggle",
-            options=[{"label": "Show depth navigation", "value": "depth"}],
+            options=[{
+                "label": "Enable navigation by depth",
+                "value": "depth"
+            }],
             value=["depth"],
             switch=True
         ),
-        html.Div("Uses a random depth within the species' depth range.",
-                 className="settings-note"),
-    ], className="settings-group"),
 
-    html.H6("Size Menu Options", className="settings-header"),
-
-    html.Div([
         dbc.Checklist(
             id="size-toggle",
-            options=[{"label": "Show size navigation", "value": "size"}],
+            options=[{
+                "label": "Enable navigation by size/length",
+                "value": "size"
+            }],
             value=["size"],
             switch=True
         ),
-        html.Div("Uses length as a proxy for size.",
-                 className="settings-note")
-        #dbc.Checklist(
-        #    id="order-toggle",
-        #    options=[{"label": "…only within same order", "value": "order"}],
-        #    value=[],
-        #    switch=True,
-        #    style={"display": "none"}
-        #)
     ], className="settings-group"),
 
     html.Hr(style={"opacity": .3}),
 
-        html.H6("Quick jumps"),
-        dbc.Row(
-            [
-                dbc.Col(
-                    html.Button("jump to shallowest", id="shallowest-btn",
-                                className="btn btn-outline-light btn-sm w-100"),
-                    width=6
-                ),
-                
-                dbc.Col(
-                    html.Button("jump to deepest",    id="deepest-btn",
-                                className="btn btn-outline-light btn-sm w-100"),
-                    width=6
-                ),
-            ],
-            className="gx-1", style={"marginBottom": ".4rem"}
-        ),
-        
+    # ── Quick-jump buttons (unchanged) ─────────────────────────────
+    html.H6("Quick jumps"),
+    dbc.Row([
+        dbc.Col(html.Button("jump to shallowest", id="shallowest-btn",
+                            className="btn btn-outline-light btn-sm w-100"), width=6),
+        dbc.Col(html.Button("jump to deepest",    id="deepest-btn",
+                            className="btn btn-outline-light btn-sm w-100"), width=6),
+    ], className="gx-1", style={"marginBottom": ".4rem"}),
 
-        dbc.Row(
-            [
-                dbc.Col(
-                    html.Button("jump to smallest",  id="smallest-btn",
-                                className="btn btn-outline-light btn-sm w-100"),
-                    width=6
-                ),
-                dbc.Col(
-                    html.Button("jump to largest",   id="largest-btn",
-                                className="btn btn-outline-light btn-sm w-100"),
-                    width=6
-                ),
-            ],
-            className="gx-1"
-        ),
+    dbc.Row([
+        dbc.Col(html.Button("jump to smallest", id="smallest-btn",
+                            className="btn btn-outline-light btn-sm w-100"), width=6),
+        dbc.Col(html.Button("jump to largest",  id="largest-btn",
+                            className="btn btn-outline-light btn-sm w-100"), width=6),
+    ], className="gx-1"),
+],
+id="adv-box",
+style={"display": "none"})
 
-    ],
-    id="adv-box",
-    style={"display": "none"} 
-)
 
 search_header = html.Div(
     #[
@@ -434,9 +426,11 @@ centre_flex = html.Div(id="page-centre-flex", children=[
 
         # this div now contains the image AND the up/down buttons
         html.Div(id="image-inner", children=[
+            html.Img(id="sizecmp-img",style={"position": "absolute","left": 0, "top": 0,"zIndex":0,"opacity": 0.85,"pointerEvents": "auto","cursor": "pointer"}),
             html.Img(id="species-img"),
             html.Div("i", id="info-handle", style={"display": "none"}),
             html.Div("♡", id="fav-handle", className="heart-icon"),
+            html.Div("📏", id="compare-handle", className="scale-icon"),
         ]),
 
         # info card remains outside image-inner
@@ -594,6 +588,8 @@ app.layout = dbc.Container([
     footer,
     dcc.Store(id="selected-species", data=None),
     dcc.Store(id="favs-store",storage_type="local"),      # persists in localStorage
+    dcc.Store(id="compare-store", data=False, storage_type="session"),
+
 
     citations_panel,
 ], fluid=True)
@@ -1414,35 +1410,95 @@ def close_search_mobile(n, current_class):
         return new_class.strip(), "search-handle collapsed"
     raise PreventUpdate
 
+import json
+from dash.exceptions import PreventUpdate
+from dash import ctx                           # you already import this
 
+# ────────────────────────────────────────────────────────────────
+#  1) client‑side: toggle favourites when the heart is clicked
+# ────────────────────────────────────────────────────────────────
+import json
+from dash import html, Input, Output, State, ctx
+from dash.exceptions import PreventUpdate
+
+# ──────────────────────────────────────────────────────────────
+# A) Client‑side toggle (runs in the browser)
+# ──────────────────────────────────────────────────────────────
 app.clientside_callback(
-"""
-function(n, currentGS, favsJSON){
-    const nu = dash_clientside.no_update;
-    if(!currentGS){ return [nu, nu, nu]; }
+    """
+    function(n_clicks, favs_json, species_id) {
+        // safety: ignore first load or missing species
+        if (n_clicks === undefined || !species_id) {
+            return window.dash_clientside.no_update;
+        }
 
-    const favs = favsJSON ? JSON.parse(favsJSON) : [];
-    const hit  = favs.includes(currentGS);
+        const favs = new Set(JSON.parse(favs_json || "[]"));
+        const wasFav = favs.has(species_id);
 
-    // toggle if the click came from the heart itself
-    if(dash_clientside.callback_context.triggered[0].prop_id === "fav-handle.n_clicks"){
-        if(hit){ favs.splice(favs.indexOf(currentGS),1); }
-        else    { favs.push(currentGS); }
-        document.cookie = "pelagica_favs="+btoa(JSON.stringify(favs))+";path=/;max-age=31536000";
+        // flip state
+        if (wasFav) { favs.delete(species_id); }
+        else        { favs.add(species_id);   }
+
+        const filled   = !wasFav;
+        const newClass = filled ? "heart-icon filled"
+                                : "heart-icon";
+        const newGlyph = filled ? "♥" : "♡";
+
+        return [JSON.stringify([...favs]), newClass, newGlyph];
     }
-
-    const glyph = favs.includes(currentGS) ? "♥" : "♡";
-    const cls   = favs.includes(currentGS) ? "heart-icon filled" : "heart-icon";
-    return [glyph, cls, JSON.stringify(favs)];
-}
-""",
-    Output("fav-handle", "children"),
-    Output("fav-handle", "className"),
-    Output("favs-store", "data"),
+    """,
+    # outputs (must match the 3‑item return)
+    [
+        Output("favs-store", "data"),
+        Output("fav-handle", "className", allow_duplicate=True),
+        Output("fav-handle", "children",  allow_duplicate=True),
+    ],
+    # input
     Input("fav-handle", "n_clicks"),
+    # state
+    [
+        State("favs-store",     "data"),
+        State("selected-species","data"),
+    ],
+    prevent_initial_call=True
+)
+
+# ──────────────────────────────────────────────────────────────
+# B) Python refresh  (runs when you change species)
+# ──────────────────────────────────────────────────────────────
+
+
+
+
+@app.callback(
+    Output("compare-store", "data", allow_duplicate=True),
+    Input("compare-handle", "n_clicks"),
+    State("compare-store", "data"),
+    prevent_initial_call=True
+)
+def toggle_size_overlay(_, is_on):
+    # first click → True, then simply flip the bool
+    return not (is_on or False)
+
+
+
+@app.callback(
+    Output("fav-handle", "className", allow_duplicate=True),
+    Output("fav-handle", "children",  allow_duplicate=True),
     Input("selected-species", "data"),
     State("favs-store", "data"),
+    prevent_initial_call=True
 )
+def refresh_fav_icon(gs_name, favs_json):
+    if not gs_name:
+        raise PreventUpdate
+
+    favs   = set(json.loads(favs_json or "[]"))
+    filled = gs_name in favs
+    return (
+        "heart-icon filled" if filled else "heart-icon",
+        "♥" if filled else "♡"
+    )
 
 
 
@@ -1710,6 +1766,40 @@ def toggle_nav_info(n, style):
     if style and style.get("display") == "none":
         return {"display": "block", "marginTop": "0.5rem", "opacity": 0.85}
     return {"display": "none"}
+
+
+
+
+
+@app.callback(
+    Output("sizecmp-img", "src"),
+    Output("sizecmp-img", "style"),
+    Output("sizecmp-img", "title"),
+    Input("selected-species", "data"),
+    Input("compare-store",    "data"),     # ← boolean
+    prevent_initial_call=True
+)
+def update_sizecmp(gs_name, is_on):
+    # OFF or no species → hide the silhouette
+    if not gs_name or not is_on:
+        return "", {"display":"none"}, ""
+
+    genus, species = gs_name.split(" ", 1)
+    row = df_full.loc[df_full["Genus_Species"] == gs_name].iloc[0]
+    if pd.isna(row.Length_cm):
+        return "", {"display":"none"}, ""
+
+    species_len = row.Length_cm
+    best = min(_scale_db, key=lambda d: abs(d["length_cm"] - species_len))
+    scale = best["length_cm"] / species_len
+
+    style = {
+        "position":"absolute", "left":0, "top":0,
+        "width":f"{scale*100:.2f}%", "zIndex":0,
+        "opacity":0.85, "pointerEvents":"auto", "cursor":"pointer"
+    }
+    title = f"this is a {best['desc']}"
+    return best["path"], style, title
 
 
 app.run(host="0.0.0.0", port=8050, debug=True)
