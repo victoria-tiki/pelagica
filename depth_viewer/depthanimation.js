@@ -1,5 +1,6 @@
+
 /* ─────────────────────────────────────────────
-   Deep-Sea Viewer – consolidated JS (NO BIRDS)
+   Deep-Sea Viewer 
    ───────────────────────────────────────────── */
 const TILE_H = 1000;          // must match tiler
 //let tileLayers = [];          // filled in setupLazyTiles()
@@ -77,6 +78,95 @@ let pendingDepth = null;   // the depth the user really asked for
 let frozenTime = null;   // null while live, a Number while paused
 
 
+/* ─────────────────────────────────────────────
+   messages 
+   ───────────────────────────────────────────── */
+   /* ───────── Simple caption system ───────── */
+let depthBuckets = [];
+
+fetch("messages.json")
+  .then(r => r.json())
+  .then(data => depthBuckets = data)
+  .catch(e => console.error("Could not load messages.json", e));
+
+
+
+let   messageBox, hideTimer;
+let units = "metric";  
+
+function formatDepth(val){
+  if (units === "imperial") {
+    const ft = val * 3.28084;
+    return `${Math.round(ft)} ft`;
+  }
+  return `${Math.round(val)} m`;
+}
+
+
+function showMessage(txt, ms){
+  if(!messageBox){
+    messageBox = document.getElementById('message-box');
+  }
+  clearTimeout(hideTimer);
+  messageBox.innerHTML = txt.replace(/\n/g,'<br>');
+  messageBox.style.opacity = 1;
+  if (Number.isFinite(ms) && ms>0){
+    hideTimer = setTimeout(()=>messageBox.style.opacity = 0, ms);
+  }
+}
+
+function randomDepthMsg(depth, direction) {
+  const bucket = depthBuckets.find(b => depth >= b.min && depth <= b.max);
+  if (!bucket) return null;
+
+  const pool = bucket[direction] || bucket.descend || bucket.ascend || bucket.msg;
+  if (!pool || pool.length === 0) return null;
+
+  const verb = direction === "ascend" ? "Ascending into" :
+               direction === "descend" ? "Descending into" :
+               "Traveling to";
+
+  const msg = pool[Math.floor(Math.random() * pool.length)];
+  return `${verb} ${formatDepth(depth)}\n"${msg}"`;
+}
+
+
+
+
+/* greet on first load */
+window.addEventListener('load', ()=>
+  showMessage('Welcome to Pelagica!\nChoose a species to get started', Infinity)
+);
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
 
 
 /* ── Layer behaviour hooks (kept) ── */
@@ -441,6 +531,7 @@ function updateUnderwater(depthMeters) {
 window.addEventListener("message", (e) => {
   const t = e.data?.type;
   if (t === "startAnimation") {
+    units = e.data?.units || "metric";
     const d = Number(e.data.depth) || 0;
     document.getElementById("depth-input").value = d;
     goToDepth();
@@ -454,6 +545,11 @@ window.addEventListener("message", (e) => {
 
 /* Go button */
 function goToDepth(){
+  if (messageBox){
+   clearTimeout(hideTimer);          
+    messageBox.style.opacity = 0;     
+  }
+  
   let v = parseFloat(document.getElementById('depth-input').value);
   if (Number.isNaN(v)) return;
 
@@ -485,9 +581,11 @@ function goToDepth(){
   /* ——— all subsequent jumps use your existing code ——— */
   const prev = currentDepth;
   const dz = Math.abs(v - prev);      // metres to travel
+  const direction = v > prev ? "descend" : v < prev ? "ascend" : null;
   const MIN_T = 1.5;                  // never shorter than 1.5 s
   const MAX_T = 7;                    // keep your long‑dive ceiling
-  const T = Math.min(MAX_T,MIN_T + 1.25 * Math.pow(dz / 800, 0.75));
+  let T = Math.min(MAX_T,MIN_T + 1.25 * Math.pow(dz / 800, 0.75));
+  if (dz < 50) T = Math.max(0.5, T * 0.33);
 
 
   startDepth = prev;
@@ -495,6 +593,13 @@ function goToDepth(){
   moveStart = performance.now();
   moveDur   = T * 1000 * 2;
   depthMode = true;
+
+
+  if (moveDur >= 2000) {
+  const caption = randomDepthMsg(v, direction);
+  if (caption) showMessage(caption, moveDur);}
+
+
 
 }
 

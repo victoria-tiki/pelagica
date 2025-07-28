@@ -17,7 +17,15 @@
         /* 2 · tell the viewer what to do */
         const instant = (instantArr || []).includes("instant");
         frame.contentWindow.postMessage({ type: instant ? "pauseAll" : "resumeAll" }, "*");
-        frame.contentWindow.postMessage({ type: "startAnimation", depth }, "*");
+        
+        const unitsToggle = document.getElementById("units-toggle");
+        const isImperial = unitsToggle && unitsToggle.checked;
+        frame.contentWindow.postMessage({
+          type: "startAnimation",
+          depth,
+          units: isImperial ? "imperial" : "metric"
+        }, "*");
+
 
         return window.dash_clientside.no_update;     // dummy output
       }

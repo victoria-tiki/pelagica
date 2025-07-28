@@ -1,0 +1,406 @@
+[
+  { "min": -20, "max": 0,
+    "descend": ["Crossing the air‒sea interface; surface tension ripples around you"],
+    "ascend":  ["Emerging into the spray layer; waves crest above"] },
+
+  { "min": 0, "max": 10,
+    "descend": ["Epipelagic start: full solar irradiance,  photosynthesis in overdrive"],
+    "ascend":  ["Returning to the photosynthetic maximum; coral larvae drift nearby"] },
+
+  { "min": 10, "max": 20,
+    "ascend":  ["Climbing into waters where red wavelengths still reach"] },
+
+  { "min": 20, "max": 30,
+    "descend": ["Kelp forests thrive here"]},
+
+  { "min": 30, "max": 40,
+    "descend": ["Surface wave energy now < 5 % of value at 0 m"],
+    "ascend":  ["Wave‑induced turbulence resumes above"] },
+
+  { "min": 40, "max": 50,
+    "descend": ["Last reliable SCUBA depth for recreational divers"],
+    "ascend":  ["Approaching limits of standard SCUBA certification"] },
+
+  { "min": 50, "max": 60,
+    "descend": ["Nitrogen narcosis risk begins for air‑breathers"]},
+
+  {"min": 8, "max": 20,
+  "descend": ["You enter some lakes’ thermocline—temperatures may drop sharply just below"],
+  "ascend":  ["Crossing up through some lakes' thermocline—sunlight has warmed the surface again"]},
+  
+  {"min": 10, "max": 25,
+  "descend": ["Some lakes divide here—cool, dense water settles below the warmer surface"]},
+
+  {"min": 100, "max": 200,
+  "descend": ["You cross into colder, deeper waters—the warm top layer ends here"],
+  "ascend":  ["You rise into warmer water—sunlight’s warmth returns above"]},
+  
+  {"min": 200, "max": 300,
+  "descend": ["In some waters, the ‘thermocline’ begins—a sharp drop in temperature with depth"],
+  "ascend":  ["Crossing back up through the thermocline—water warms fast above"]},
+  
+  {"min": 200, "max": 300,
+  "descend": ["Crossing into the mesopelagic zone—light here is less than 1% of the surface"]},
+  
+  {"min": 800, "max": 1000,
+  "ascent": ["Crossing into the mesopelagic zone—light here is less than 1% of the surface"]},
+  
+  {"min": 60,"max": 100,
+  "descend": ["You leave behind most of the sun’s light—the world dims quickly now"]},
+  
+  {"min": 60,"max": 100,
+  "descend": ["In clearer seas, this is where light becomes too faint for most plants to survive"]},
+
+  { "min": 70, "max": 100,
+    "ascend":  ["Photon flux increases ten‑fold between here and the surface"] },
+
+  { "min": 90, "max": 100,
+    "descend": ["World freedive record (without fins) ~102 m"],
+    "ascend":  ["Passing the depth of deepest human breath‑hold"] },
+
+  { "min": 180, "max": 220,
+    "descend": ["Epipelagic→mesopelagic transition begins"],
+    "ascend":  ["Re‑entering upper mesopelagic"] },
+
+  {"min": 30, "max": 45,
+   "descend": ["In lakes or coastal waters, chlorophyll–rich layers often peak around here"],
+   "ascent": ["In lakes or coastal waters, chlorophyll–rich layers often peak around here"]},
+   
+  {"min": 60, "max": 80,
+  "ascent": ["In tropical seas, this often marks the chlorophyll maximum layer"],
+  "descend": ["In tropical seas, this often marks the chlorophyll maximum layer"]},
+
+  {"min": 300, "max": 500,
+  "descend": ["Entering a low‑oxygen zone where life slows—oxygen may dip < 2 mg/L"],
+  "ascend":  ["Entering a low‑oxygen zone where life slows—oxygen may dip < 2 mg/L"]},
+
+  { "min": 130, "max": 140,
+    "descend": ["Blue light dominates; other colours absorbed"],
+    "ascend":  ["Polychromatic light slowly returns"] },
+
+  { "min": 140, "max": 150,
+    "descend": ["Going any deeper, helium blends become necessary in many dives"]},
+
+  { "min": 160, "max": 170,
+    "descend": ["End of euphotic zone in many temperate seas"],
+    "ascend":  ["Returning to the euphotic fringe; photosynthesis resumes above"] },
+
+  { "min": 180, "max": 200,
+    "descend": ["Mesopelagic ‘twilight’ starts below"],
+    "ascend":  ["Climbing into final metres of epipelagic brightness"] },
+
+  { "min": 180, "max": 190,
+    "descend": ["Migratory lanternfish school densely at dusk here"],
+    "ascend":  ["Passing nightly migration path of lanternfish"] },
+
+  {"min": 180, "max": 200,
+  "descend": ["Sunlight drops below 1%—photosynthesis is no longer possible here"],
+  "ascend":  ["Thanks to light, plants may barely survive above this layer"]},
+
+  {"min": 900,"max": 1100,
+  "descend": ["Entering the SOFAR channel—sound speed hits its minimum here, allowing low-frequency sound to travel far"],
+  "ascend": ["Entering the SOFAR channel—sound speed hits its minimum here, allowing low-frequency sound to travel far"]},
+
+  { "min": 600, "max": 700,
+    "descend": ["Vertical migrants turn back here at dawn"]},
+
+  { "min": 1000, "max": 1100,
+    "descend": ["Bathypelagic ‘midnight zone’ entry; temperature ~4 °C"],
+    "ascend":  ["Dim twilight just above"] },
+    
+   { "min": 1000, "max": 2000,
+    "descend": ["Midnight zone: No light reaches here"]},
+
+  {"min": 4000,"max": 5500,
+  "descend": ["The water is so corrosive here, carbonate shells won’t last."]},
+
+  { "min": 1200, "max": 1300,
+    "descend": ["Bioluminescent predators dominate here"],
+    "ascent": ["Bioluminescent predators dominate here"]},
+
+  { "min": 1700, "max": 1800,
+    "descend": ["Diel‑vertical‑migrant crustaceans rarely exceed this depth"],
+    "ascend":  ["Diel‑vertical‑migrant crustaceans rarely exceed this depth"] },
+
+  {"min": 1100,"max": 1300,
+  "descend": ["Pressure here is ~120 atm—about the bite pressure of a hippopotamus"],
+  "ascend": ["Pressure here is ~120 atm—about the bite pressure of a hippopotamus"]},
+
+  {"min": 3900,"max": 4100,
+  "descend": ["Pressure here is ~400 atm—about the bite pressure of a great white shark"],
+  "ascend": ["Pressure here is ~400 atm—about the bite pressure of a great white shark"]},
+ 
+  {"min": 2300,"max": 3000,
+    "descend": ["Water cools toward ~4 °C as you enter the lower bathyal zone"]},
+    
+  {"min": 3000,"max": 6000,
+    "descend": ["Entering abyssal depths—temperature stabilizes around 2 °C on vast ocean plains"]},
+
+  { "min": 3000, "max": 3700,
+  "descend": ["Approaching global mean ocean depth (~3700 m)"] },
+  
+  { "min": 3700, "max": 3900,
+  "descend": ["Approaching global mean ocean depth (~3700 m)"] },
+
+  {"min": 2300,
+  "max": 3000,
+  "descend": ["Abyssal currents are slow here—typically under 10 cm/s near the seafloor"],
+  "ascend": ["Abyssal currents are slow here—typically under 10 cm/s near the seafloor"]},
+
+  { "min": 3800, "max": 4100,
+    "descend": ["Bathyal‑abyssal transition; benthic fauna sparse"],
+    "ascend":  ["Bathyal‑abyssal transition; benthic fauna sparse"] },
+
+  { "min": 3600, "max": 4000,
+    "descend": ["Titanic’s bow sits at ~3800 m depth; still deeper ahead"],
+    "ascend":  ["Approaching depths of historic wrecks"] },
+
+  { "min": 1500, "max": 2000,
+    "descend": ["Submarine cables are buried here to mitigate damage"],
+    "ascend":  ["Submarine cables are buried here to mitigate damage"] },
+
+  {"min": 2000, "max": 5000,
+  "descend": ["Passing hydrothermal vent territory—chimney-like black smokers may rise here"],
+  "ascend":  ["Passing hydrothermal vent territory—chimney-like black smokers may rise here"]},
+
+  { "min": 3700, "max": 3800,
+    "descend": ["Approaching RMS Titanic resting depth (3800 m)"],
+    "ascend":  ["Passing the grave of RMS Titanic"] },
+
+  {"min": 9800,"max": 10000,
+  "descend": ["Descending into depth where the ROV Nereus met its end (~9,990 m)"],
+  "ascend": ["Ascending from the depths where Nereus imploded (~9,990 m)"]},
+
+  {"min": 700,"max": 800,
+  "descend": ["In 1521, Magellan lowered a line and found no bottom—believing he'd hit the deepest ocean at ~730 m"],
+  "ascend": ["Passing depths where Magellan once thought he'd measured ocean’s bottom (~730 m)"]},
+
+  {"min": 4600,"max": 4800,
+  "descend": ["Approaching the depth of Atlantic abyssal plains (~4,600–4,800 m)"],
+  "ascend": ["Approaching the depth of Atlantic abyssal plains (~4,600–4,800 m)"]},
+
+ {"min": 3500,"max": 5500,
+  "descend": ["Deep‑sea storms may churn sediment here—strong currents resuspend the seabed"],
+  "ascend":  ["Deep‑sea storms may churn sediment here—strong currents resuspend the seabed"]},
+
+  { "min": 5900, "max": 6200,
+    "descend": ["Abyss→hadal transition; trench walls appear"],
+    "ascend":  ["Rising into abyssal open plains from the trenches"] },
+
+  { "min": 6000, "max": 6100,
+    "descend": ["Hadalpelagic begins; pressure >600 atm"],
+    "ascend":  ["Exiting hadalpelagic into abyssal depths"] },
+
+  {"min": 3000,"max": 6000,
+  "descend": ["Temperatures level off around 2 °C—deep water here stays icy and steady"],
+  "ascend":  ["Temperatures level off around 2 °C—deep water here stays icy and steady"]},
+
+  {"min": 6300,"max": 6400,
+  "descend": ["Deep-sea sediments teem with microbes—even at hadal depths"],
+  "ascend":  ["Deep-sea sediments teem with microbes—even at hadal depths"]},
+
+  {"min": 4000,"max": 5500,
+  "descend": ["Below the CCD—carbonate dissolves, so sediments turn to abyssal clay"],
+  "ascend":  ["Below the CCD—carbonate dissolves, so sediments turn to abyssal clay"]},
+
+  {"min": 8600,"max": 8800,
+  "descend": ["You’re diving as deep as Mount Everest is tall (~8,848 m)!"],
+  "ascend": ["You're rising through a depth equal to Everest's height inverted"]},
+
+  {"min": 8800,"max": 9000,
+  "descend": ["Even here, deep‑sea sediments contain microplastic fibers"],
+  "ascend": ["Even here, deep‑sea sediments contain microplastic fibers"]},
+
+  {"min": 9500,"max": 10000,
+  "descend": ["Descending through depths first reached by Trieste (~10,911 m)"],
+  "ascend": ["Rising through depths first reached by Trieste (~10,911 m)"]},
+
+ {"min": 10800,
+  "max": 10900,
+  "descend": ["Approaching the lip of the Challenger Deep—lowest trench still below"],
+  "ascend":  ["Ascending past the Challenger Deep’s lip—its true bottom is even deeper"]},
+
+  { "min": 10990, "max": 11050,
+    "descend": ["You’ve reached Earth’s deepest known point—the Challenger Deep (~10,995 m)"]},
+
+  { "min": 0, "max": 10,
+    "descend": ["Full sunlight zone: tiny plants make most of the ocean’s oxygen here."],
+    "ascend":  ["Heading back toward bright, plant‑filled water."] },
+
+  { "min": 10, "max": 20,
+    "descend": ["Red light fades first; only blues and greens follow you down."],
+    "ascend":  ["Rising where red colors start to glow again."] },
+
+  { "min": 20, "max": 30,
+    "descend": ["Sea‑turtles often dive to this depth for tasty jellyfish."],
+    "ascend":  ["Turtles and snorkelers can meet just above."] },
+
+  { "min": 30, "max": 40,
+    "descend": ["Below most surf waves—you now glide in calmer water."],
+    "ascend":  ["Surf waves will soon rumble over your head."] },
+
+  { "min": 40, "max": 50,
+    "descend": ["Deeper than normal SCUBA lessons—special training needed now."],
+    "ascend":  ["Coming up to the safe limit for hobby divers."] },
+
+  { "min": 50, "max": 60,
+    "descend": ["Nitrogen in your blood can feel dizzy at this level."],
+    "ascend":  ["Nitrogen narcosis risk drops as you rise."] },
+
+  { "min": 60, "max": 70,
+    "descend": ["Many seas have a sharp temperature drop here, called the thermocline."],
+    "ascend":  ["Water will warm quickly just above."] },
+
+  { "min": 80, "max": 100,
+    "descend": ["Sunlight is only 1 % of the surface here—plants can’t grow anymore."],
+    "ascend":  ["Photosynthesis becomes possible a short swim up."] },
+
+  { "min": 80, "max": 90,
+    "descend": ["Pressure is 9 times what you feel on land."],
+    "ascend":  ["Pressure is 9 times what you feel on land."] },
+
+  { "min": 90, "max": 100,
+    "descend": ["Record breath‑hold dives reach about this deep—very few people dare."],
+    "ascend":  ["You are swimming above the deepest human breath‑hold record."] },
+
+  { "min": 190, "max": 230,
+    "descend": ["Leaving the Sun‑lit ‘epipelagic’ layer—welcome to the twilight zone."]},
+
+  { "min": 150, "max": 200,
+    "descend": ["Light here is dim blue; many fish have huge eyes to catch it."],
+    "ascend":  ["Big‑eyed fish will fade from view as light grows."] },
+
+  { "min": 500, "max": 600,
+    "descend": ["Pressure is 60 times surface weight—submarines need very strong walls."],
+    "ascend":  ["Pressure is 60 times surface weight—submarines need very strong walls."] },
+
+  { "min": 700, "max": 800,
+    "descend": ["Oxygen is lowest here; animals slow their bodies to survive."],
+    "ascend":  ["Breathing gets easier for sea life above."] },
+
+  { "min": 800, "max": 900,
+    "descend": ["Bits of sinking plankton fall like snow—called ‘marine snow’."],
+    "ascend":  ["The snow of dead plankton thins out above."] },
+
+  { "min": 900, "max": 1000,
+    "descend": ["Sound channel center—whale songs can circle the globe from here."],
+    "ascend":  ["Sound channel center—whale songs can circle the globe from here."] },
+
+  { "min": 1000, "max": 1200,
+    "descend": ["Entering the midnight zone—no sunlight ever reaches this layer."],
+    "ascend":  ["A faint glow may greet you as you rise above 1000 m."] },
+
+  { "min": 1200, "max": 1400,
+    "descend": ["Water stays a steady ~2–3 °C—like a giant, endless fridge."],
+    "ascend":  ["Temperature will soon rise above this deep‑sea chill."] },
+
+  { "min": 1400, "max": 1600,
+    "descend": ["Record dives of hunting sperm whales end around 1.4 km."],
+    "ascend":  ["Record dives of hunting sperm whales end around 1.4 km."] },
+
+  {"min": 2000,"max": 2200,
+  "descend": ["Diving into Mid‑Atlantic Ridge rift valleys—ridge crest sits around 2,500 m"],
+  "ascend": ["Entering Mid‑Atlantic Ridge terrain—rugged volcanic valleys lie ahead"]},
+
+  { "min": 2200, "max": 2400,
+    "descend": ["Some deep‑sea creatures grow extra large—called ‘gigantism’."],
+    "ascend":  ["Giant isopods and amphipods will become rarer above."] },
+
+  { "min": 2600, "max": 2800,
+    "descend": ["Water here is super still—currents slow to a creep."],
+    "ascend":  ["Currents pick up speed as you rise."] },
+
+  { "min": 2800, "max": 3000,
+    "descend": ["Carbonate shells start to dissolve; their chalk can’t survive the pressure."],
+    "ascend":  ["Tiny shells will stay whole again above these depths."] },
+
+  { "min": 3400, "max": 3600,
+    "descend": ["Hydrothermal vents—underwater geysers—exist down here."],
+    "ascend":  ["Hydrothermal vents—underwater geysers—exist down here."] },
+
+  { "min": 3800, "max": 5000,
+    "descend": ["Welcome to the abyssal zone: dark, cold, but full of weird life."],
+    "ascend":  ["Welcome to the abyssal zone: dark, cold, but full of weird life."] },
+
+  { "min": 4000, "max": 4200,
+    "descend": ["Some deep‑sea microbes eat oil and gas seeping from the seafloor."],
+    "ascend":  ["Oil‑eating microbes become rarer above."] },
+
+  { "min": 4200, "max": 4400,
+    "descend": ["Calcium shells fully dissolve below this point."],
+    "ascend":  ["Shells can stay safe again above this depth."] },
+
+  { "min": 4400, "max": 4600,
+    "descend": ["Daily ‘marine snow’ may take a century to settle this far."],
+    "ascend":  ["Daily ‘marine snow’ may take a century to settle this far."] },
+
+  { "min": 4600, "max": 4800,
+    "descend": ["Abyssal plains stretch flat like deserts made of mud."],
+    "ascend":  ["Leaving the flattest part of Earth’s seafloor behind."] },
+
+  { "min": 5000, "max": 5200,
+    "descend": ["Benthic storms—powerful bottom currents—can still swirl at this depth."],
+    "ascend":  ["Benthic storms—powerful bottom currents—swirl at this depth."] },
+
+  { "min": 5600, "max": 5800,
+    "descend": ["Manganese nodules—rocky golf balls rich in metals—dot the floor."],
+    "ascend":  ["Manganese nodules—rocky golf balls rich in metals—dot the floor."] },
+
+  { "min": 5800, "max": 6000,
+    "descend": ["Approaching the trench lip; next stop, hadal zone."],
+    "ascend":  ["Leaving steep trench walls for flatter abyss."] },
+
+  { "min": 6000, "max": 7000,
+    "descend": ["Entering the hadal zone—named after Hades, the god of the underworld."],
+    "ascend":  ["Climbing out of Hades’ zone back to the abyss."] },
+
+  { "min": 6800, "max": 7000,
+    "descend": ["Trench floor mud is only 1 °C—close to freezing but never ice."],
+    "ascend":  ["Trench floor mud is only 1 °C—close to freezing but never ice."] },
+
+  { "min": 7062, "max": 7400,
+    "descend": ["Life here survives on tiny bits of food that drift down—very energy‑poor."],
+    "ascend":  ["Life here survives on tiny bits of food that drift down—very energy‑poor."] },
+
+  { "min": 7400, "max": 7600,
+    "descend": ["Glass sponges have been found perched on trench walls here."],
+    "ascend":  ["Glass sponges have been found perched on trench walls here."] },
+
+
+  { "min": 7900, "max": 8200,
+    "descend": ["Scientists filmed snailfish swimming happily at these depths."],
+    "ascend":  ["Scientists filmed snailfish swimming happily at these depths."] },
+
+
+  { "min": 8600, "max": 8800,
+    "descend": ["Now deeper than Everest is tall—welcome below the world’s highest mountain flip."],
+    "ascend":  ["Now deeper than Everest is tall—welcome below the world’s highest mountain flip!"] },
+
+  { "min": 8800, "max": 9000,
+    "descend": ["Microplastics have been found even in trench cores here."],
+    "ascend":  ["Microplastics have been found even in trench cores here."] },
+
+  { "min": 9000, "max": 9500,
+    "descend": ["Very few living cells work this deep; energy is incredibly scarce."],
+    "ascend":  ["Very few living cells work this deep; energy is incredibly scarce."] },
+
+  { "min": 10200, "max": 10400,
+    "descend": ["Only a handful of people have ever been this deep!"],
+    "ascend":  ["Only a handful of people have ever been this deep!"] },
+
+  { "min": 10800, "max": 10900,
+    "descend": ["Almost at Challenger Deep—the lowest point on Earth’s surface."],
+    "ascend":  ["Leaving Challenger Deep’s doorway behind."] },
+
+  { "min": 10900, "max": 11000,
+    "descend": ["Touchdown: Challenger Deep, ~10 928 m. The ocean’s absolute bottom!"],
+    "ascend":  ["Ascending from the very deepest known place on the planet."] },
+
+  { "min": 11000, "max": 12000,
+    "descend": ["Below verified charts—this is uncharted imagination land."],
+    "ascend":  ["Returning to depths humans have truly measured."] }
+]
+
+
+
+
