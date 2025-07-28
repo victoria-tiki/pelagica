@@ -39,7 +39,6 @@ body {
   margin: 0;
   font-family: "Inter", sans-serif;
   color: var(--text-light);
-  background-image: url('/assets/background_prelim.png'); /* adjust path as needed */
   background-size: cover; /* makes the image fill the screen */
   background-repeat: no-repeat;
   background-position: center;
@@ -509,11 +508,15 @@ body.search-open .search-handle {
   height: auto;
   object-fit: contain;
   display: block;
-
   animation: subtle-bounce 2.5s ease-in-out infinite;
 }
 
-#species-img{ position: relative; z-index: 1; }
+#species-img{ position: relative;  z-index: 1 !important;
+}
+
+#sizecmp-img {
+  z-index: 2 !important;
+}
 
 
 
@@ -1074,4 +1077,21 @@ helper text size matches the sideways labels
 }
 
 
+
+
+/* custom.css  ─ add at the very end */
+
+/* a) let the iframe cover the viewport edge‑to‑edge */
+#depth-iframe {
+  position: fixed;
+  inset: 0;                 /* top:0 left:0 right:0 bottom:0 */
+  width: 100vw;
+  height: 100vh;
+  border: none;
+  z-index: 0;               /* sits underneath the glass UI */
+  pointer-events: none;     /* clicks go to the UI, not the iframe */
+}
+
+/* b) remove the hard cap that caused the side gutters */
+.container-fluid { max-width: 100% !important; }  /* overrides the 1600 px rule */
 

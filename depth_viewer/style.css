@@ -1,0 +1,226 @@
+/* Reset + base */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background: #001427;
+}
+
+
+
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  background-image: url('tiles/back_0.webp'); /* adjust path as needed */
+  background-size: cover; /* makes the image fill the screen */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed; /* keeps it stationary while scrolling */
+}
+
+
+
+/* Shared camera window for each layer */
+.layer-view {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  width: 100vw;
+  height: 24000px;
+  transform: translateX(-50%);
+
+}
+
+/* Image stays centered and at natural width */
+.layer-img{
+  position:absolute;
+  top:0; left:50%;
+  transform:translate(-50%,0);
+  height:var(--strip-h,1000px);   /* NEW – full strip height once JS sets it */
+  image-rendering:crisp-edges;
+  transition:transform 1.2s ease-out;
+}
+
+
+
+
+.layer-img {
+  transition: none !important;
+}
+
+
+
+
+
+
+/* Z-index stack */
+#back-view     { z-index: 0; }
+#layer3-view   { z-index: 1; }
+#layer4-view   { z-index: 3; }
+#layer5-view   { z-index: 4; }
+#layer6-view   { z-index: 5; }
+#layer7-view   { z-index: 6; }
+#layer8-view   { z-index: 7; }
+#layer9-view   { z-index: 8; }
+#view          { z-index: 10; }
+#ui            { z-index: 100; }
+
+/* UI */
+#ui {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-family: sans-serif;
+}
+
+
+
+/* after JS flips the flag */
+body.ready .parallax-layer{
+  /*will-change:transform;*/
+  /*transition:transform 1.2s ease-out;*/
+  transition: none !important;
+}
+
+/*.parallax-layer{ will-change:auto; transition:none; }*/
+.active          { will-change:transform; }   /* JS toggles this */
+.content-hidden  { visibility:hidden; }       /* optional fade‑in */
+
+
+/* generic wrapper – applies to every layer-view/parallax-layer combo */
+.parallax-layer{
+  position: fixed;
+  top: 0;
+  left: 50%;
+  width: 100vw;
+  height: 24000px;
+  transform: translateX(-50%);   /* centre horizontally */
+}
+
+/* ─── depth ruler ────────────────────────────────────────── */
+.layer-ruler {
+  left: 10% !important;
+  right: 5%;
+  transform: none !important;
+}
+
+#ruler-view{ z-index:11; }      
+
+#ruler-view{
+  left:auto%;           
+  right:0%;             
+  transform:none;     
+}
+
+
+
+/* depth‑dependent caustics overlay */
+#underwater-img{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);   /* centre, so left/right crop symmetrically */
+
+  top:1100px;                  /* vertical anchor */
+  width:3400px;                /* ⬅︎ SAME width as your front tile         */
+  max-width:none;              /* prevent it from shrinking on small screens */
+
+  height:100px;                /* stretches from 100 → 500 px in JS */
+  object-fit:fill;             /* vertical squish/expand, no horizontal scaling */
+  object-position:top center;
+
+  pointer-events:none;
+}
+
+
+
+
+#birds-view { z-index: 2; }
+
+
+.bird-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  pointer-events: none;
+  animation: birdFlight var(--dur) linear forwards;
+  transform-origin: center;
+}
+
+
+
+.bird {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background: url('bird_up.png') center/contain no-repeat;
+  opacity: 0.9;
+  will-change: transform;
+  transform-origin: center;
+  transform: scale(var(--s, 1));
+}
+
+
+@keyframes birdFlight {
+  0%   { transform: translateX(120vw) translateY(0); }
+  10%  { transform: translateX(100vw) translateY(calc(var(--wave, 8px) * -1)); }
+  20%  { transform: translateX(80vw)  translateY(0); }
+  30%  { transform: translateX(60vw)  translateY(var(--wave, 8px)); }
+  40%  { transform: translateX(40vw)  translateY(0); }
+  50%  { transform: translateX(20vw)  translateY(calc(var(--wave, 8px) * -1)); }
+  60%  { transform: translateX(0vw)   translateY(0); }
+  70%  { transform: translateX(-20vw) translateY(var(--wave, 8px)); }
+  80%  { transform: translateX(-40vw) translateY(0); }
+  90%  { transform: translateX(-60vw) translateY(calc(var(--wave, 8px) * -1)); }
+  100% { transform: translateX(-120vw) translateY(0); }
+}
+
+
+
+
+/* ─── bubble strip: world‑Y 900‑1500 px ───────────────────── 
+
+#bubble-layer{
+  position:fixed; left:0; width:100%;
+  height:600px;                     
+  pointer-events:none;
+  overflow:hidden;                  
+  z-index:9999;
+}
+
+
+.bubble{
+  position:absolute; bottom:-60px; border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,
+              rgba(255,255,255,.9) 0%,
+              rgba(255,255,255,.55) 40%,
+              rgba(255,255,255,.15) 80%, transparent 100%);
+  box-shadow:0 0 12px rgba(255,255,255,.45);
+  opacity:.9;
+  will-change:transform;
+  animation:bubbleRise var(--dur) linear forwards;
+}
+
+
+@keyframes bubbleRise{
+  0%   {transform:translateY(0)        scale(0);}
+  15%  {transform:translateY(-80px)    scale(1);}
+  80%  {transform:translateY(calc(-100% + 80px)) scale(1);}
+  92%  {transform:translateY(calc(-100% + 40px)) scale(1.5);}  
+  100% {transform:translateY(-100%)    scale(0); opacity:0;}
+}
+
+
+/* ─── global freeze state ─────────────────────── */
+body.paused *{
+  animation-play-state: paused !important; /* stop key‑frame CSS */
+  transition-duration: 0s   !important;   /* stop any swaying */
+}
+
+
+
+

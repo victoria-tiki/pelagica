@@ -40,10 +40,22 @@ def _wiki_pages_exist(names, batch_size=50):
 
 @lru_cache(maxsize=1)
 def load_species_data() -> pd.DataFrame:
-    df = _raw_csv().copy()                 # copy _once_ for mutability
+    df = _raw_csv().copy()
 
-    # add the synthetic human row
-    df = pd.concat([df, load_homo_sapiens()], ignore_index=True)
+    homo = load_homo_sapiens()
+
+    # --- make sure both frames share the same columns -----------------
+    missing_in_homo = df.columns.difference(homo.columns)
+    for col in missing_in_homo:
+        homo[col] = pd.NA
+
+    missing_in_df = homo.columns.difference(df.columns)
+    for col in missing_in_df:
+        df[col] = pd.NA
+
+    df = pd.concat([df, homo[df.columns]], ignore_index=True)
+    # ------------------------------------------------------------------
+
 
     # clean + derived cols (vectorised → fast)
     df["Genus"]        = df["Genus"].str.strip()
