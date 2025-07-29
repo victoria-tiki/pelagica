@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 from scipy.stats import beta
 
+
 '''def assign_random_depth(df: pd.DataFrame, seed: int) -> pd.DataFrame: #triangular probability distribution
+
     import numpy as np, pandas as pd
     rng  = np.random.default_rng(seed)
     out  = df.copy()
@@ -70,9 +72,6 @@ from scipy.stats import beta
     return out'''
     
     
-import numpy as np, pandas as pd
-from scipy.stats import beta
-
 '''def assign_random_depth(df, seed,
                         small_thresh=200,   # “small” range if w < small_thresh
                         surf_thresh=150,    # “surface” if s < surf_thresh
@@ -161,7 +160,7 @@ from scipy.stats import beta
     return out'''
     
     
-def assign_random_depth(df, seed,
+'''def assign_random_depth(df, seed,
                         surf_thresh    = 150.0,   # controls how quickly surface bias decays
                         k_max          = 20.0,    # concentration for Beta tails
                         zero_clamp     = 200.0,   # max depth when s==0
@@ -241,5 +240,60 @@ def assign_random_depth(df, seed,
         depths.append(s + u * (d - s))
 
     out["RandDepth"] = depths
+    return out'''
+    
+    
+
+
+# Species that always get override depth 0–5 m
+OVERRIDE_DEPTH = {
+    "Delphinus delphis",
+    "Homo sapiens",
+    "Mirounga leonina"
+}
+
+def assign_random_depth(df: pd.DataFrame, seed: int) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    out = df.copy()
+
+    def get_bounds(row):
+        s = row.get("DepthRangeComShallow", np.nan)
+        if pd.isna(s): s = row.get("DepthRangeShallow", np.nan)
+        d = row.get("DepthRangeComDeep", np.nan)
+        if pd.isna(d): d = row.get("DepthRangeDeep", np.nan)
+        return float(s), float(d)
+
+    def biased_depth(s, d, bias):
+        if np.isnan(s) or np.isnan(d) or s == d:
+            return s
+        u = rng.random()
+        if bias == "shallow":
+            return s + (u ** 2.0) * (d - s)
+        elif bias == "medium":
+            return s + u * (d - s)
+        elif bias == "deep":
+            return s + (1 - (1 - u) ** 2.0) * (d - s)
+        else:
+            return s + u * (d - s)
+
+    depths = []
+    for i, row in out.iterrows():
+        gs = row["Genus_Species"]
+        if gs in OVERRIDE_DEPTH:
+            s, d = 0.0, 5.0
+        else:
+            s, d = get_bounds(row)
+
+        if s < 200:
+            bias = "shallow"
+        elif s < 2000:
+            bias = "medium"
+        else:
+            bias = "deep"
+
+        depths.append(biased_depth(s, d, bias))
+
+    out["RandDepth"] = depths
     return out
+
 

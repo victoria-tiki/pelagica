@@ -103,16 +103,15 @@ body.ready .parallax-layer{
 
 /* ─── depth ruler ────────────────────────────────────────── */
 .layer-ruler {
-  left: 10% !important;
-  right: 5%;
+  left: auto !important;
+  right: 10% !important; /* adjust as needed */
   transform: none !important;
 }
+
 
 #ruler-view{ z-index:11; }      
 
 #ruler-view{
-  left:auto%;           
-  right:0%;             
   transform:none;     
 }
 

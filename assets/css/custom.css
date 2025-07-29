@@ -291,6 +291,11 @@ body.search-open .search-handle {
 .search-handle{
     top: 134px !important;           
   }
+  
+@media (max-width: 769px) {
+  #search-panel {
+    top: 0px !important;
+  }}
 
 
 /* ==========  4. SIDE TABS  ==================================== */
@@ -309,7 +314,7 @@ body.search-open .search-handle {
   padding: .55rem .45rem;
   font-size: .85rem;
   cursor: pointer;
-  z-index: 1050;
+  z-index: 1;
   transition: left .3s ease, right .3s ease;
 }
 
@@ -843,7 +848,7 @@ helper text size matches the sideways labels
 #nav-panel {
   position: fixed;
   top: 6.5rem;
-  right: 1rem;
+  right: 3.5rem;
   width: 210px;
   height: 210px;
   padding: 0.5rem;

@@ -18,6 +18,7 @@ import glob
 import gc
 import re
 import random
+import time
 
 from src.process_data import load_species_data, load_homo_sapiens, load_name_table
 from src.wiki import get_blurb, get_commons_thumb      
@@ -57,6 +58,9 @@ df_light = load_name_table()     # 5‑col view on the cached frame
 popular_df   = pd.read_csv("data/processed/popular_species.csv")        # <-- path in /mnt/data
 popular_set  = set(popular_df["Genus"] + " " + popular_df["Species"])
 
+# --- Transparency‑removal blacklist -----------------------------
+transp_df  = pd.read_csv("data/processed/transparency_blacklist.csv")
+transp_set = set(transp_df["Genus"] + " " + transp_df["Species"])
 
 '''genus_options = [
     {"label": g, "value": g}
@@ -223,7 +227,7 @@ advanced_filters = html.Div([           # collapsible area
         dbc.Checklist(
             id="popular-toggle",
             options=[{
-                "label": "Only 1000 curated species (loads faster)",
+                "label": "Only 1000 curated species (recommended)",
                 "value": "pop"
             }],
             value=["pop"],
@@ -353,7 +357,7 @@ centre_flex = html.Div(id="page-centre-flex", children=[
             html.Div("♡", id="fav-handle", className="heart-icon"),
             dbc.Tooltip( "Add this species to favourites",target="fav-handle",placement="top",style={"fontSize": "0.8rem"}),
             html.Div("📏", id="compare-handle", className="scale-icon"),
-            dbc.Tooltip(id="scale-tooltip",target="compare-handle",placement="top",style={"fontSize": "0.8rem"})
+            dbc.Tooltip("...",id="scale-tooltip",target="compare-handle",placement="top",style={"fontSize": "0.8rem"})
 
 
         ]),
@@ -402,7 +406,7 @@ footer = html.Div(
     ],
     style={
         "position": "fixed",
-        "right": "1rem",
+        "right": "3rem",
         "bottom": "1rem",
         "fontSize": ".8rem",
         "opacity": .7
@@ -578,8 +582,9 @@ def update_species_options(genus, wiki_val, pop_val,
 
 
 
+
 # -------------------------------------------------------------------
-# Callback 2 – whenever any chooser fires, update selected-species
+# Callback 2 – whenever any chooser fires, update selected‑species
 # -------------------------------------------------------------------
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
@@ -587,36 +592,72 @@ def update_species_options(genus, wiki_val, pop_val,
     Input("genus-dd",   "value"),
     Input("common-dd",  "value"),
     Input("random-btn", "n_clicks"),
+    State("size-toggle",    "value"),   # ① size / depth come first here
+    State("depth-toggle",   "value"),
     State("wiki-toggle",    "value"),
     State("popular-toggle", "value"),
-    State("favs-toggle",    "value"),      # NEW
-    State("favs-store",     "data"),       # NEW
+    State("favs-toggle",    "value"),
+    State("favs-store",     "data"),
     State("selected-species", "data"),
     prevent_initial_call=True
 )
-def choose_species(species_val, genus_val, common_val, rnd,wiki_val, pop_val, fav_val, favs_data,current_sel):
+def choose_species(species_val, genus_val, common_val, rnd,
+                   size_val, depth_val,          # ② …and here
+                   wiki_val, pop_val,
+                   fav_val, favs_data,
+                   current_sel):
+    """
+    Decide which species string “Genus Species” should be stored in
+    `selected-species` whenever *any* of the four selectors fires.
+
+    • genus‑dd / species‑dd pair  → exact match
+    • common‑dd                   → value of the dropdown
+    • random‑btn                  → random row honouring every active filter:
+        – Wiki‑only
+        – Popular‑only
+        – Favourites
+        – Size/Depth navigation toggles
+          (requires full depth‑pair or positive Length_cm)
+    """
     trig = ctx.triggered_id
 
-    # ---------- build the filtered frame -----------------
-    df_use = _apply_shared_filters(df_full, wiki_val, pop_val,
-                                   fav_val, favs_data)
-
-    # ---------- Random button ----------------------------
+    # ──────────────────────────────────────────────────────────
+    # 1. RANDOM BUTTON
+    # ──────────────────────────────────────────────────────────
     if trig == "random-btn":
+        size_on  = "size"  in size_val
+        depth_on = "depth" in depth_val
+
+        # strict length/depth rules
+        df_use = get_filtered_df(size_on, depth_on,
+                                 wiki_val, pop_val)
+
+        # favourites (must be applied after get_filtered_df)
+        if fav_val and "fav" in fav_val:
+            fav_set = set(json.loads(favs_data or "[]"))
+            df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
+
         if df_use.empty:
             raise PreventUpdate
+
         row = df_use.sample(1).iloc[0]
         return f"{row.Genus} {row.Species}"
 
-    # ---------- Common-name dropdown ---------------------
+    # ──────────────────────────────────────────────────────────
+    # 2. COMMON‑NAME DROPDOWN
+    # ──────────────────────────────────────────────────────────
     if trig == "common-dd" and common_val:
         return common_val
 
-    # ---------- Genus + Species pair ---------------------
+    # ──────────────────────────────────────────────────────────
+    # 3. GENUS + SPECIES PAIR (cascading)
+    # ──────────────────────────────────────────────────────────
     if trig in ("genus-dd", "species-dd") and genus_val and species_val:
         return f"{genus_val} {species_val}"
 
+    # nothing actionable
     raise PreventUpdate
+
 
 
 
@@ -662,9 +703,11 @@ def fill_citation(gs_name):
     row = df_full.loc[df_full["Genus_Species"] == gs_name].iloc[0]
 
     # ---------- try Wikimedia Commons -------------
-    import time
+
     start = time.time()
-    thumb, author, lic, lic_url, up, ret = get_commons_thumb(genus, species)
+    skip_bg = gs_name in transp_set
+    thumb, author, lic, lic_url, up, ret = get_commons_thumb(
+        genus, species, remove_bg=not skip_bg)
     print(f"Image time: {time.time() - start:.2f}s")
 
     # ---------- build the image block if any ------------
@@ -676,12 +719,17 @@ def fill_citation(gs_name):
             html.Span((lic or "") + " "),
             html.A("(license link)", href=lic_url, target="_blank") if lic_url else None,
             html.Span(f" — uploaded {up}, retrieved {ret} from Wikimedia Commons"),
-            html.Br(), html.Br(),
-            html.Span("Background removed using "),
-            html.A("rembg", href="https://github.com/danielgatis/rembg", target="_blank"),
-            html.Span(", an open-source background removal tool by Daniel Gatis."),
-            html.Br(), html.Br(),
         ]
+
+        # add the rembg citation only when we **really** removed the background
+        if gs_name not in transp_set:
+            image_block.extend([
+                html.Br(), html.Br(),
+                html.Span("Background removed using "),
+                html.A("rembg", href="https://github.com/danielgatis/rembg", target="_blank"),
+                html.Span(", an open‑source background removal tool by Daniel Gatis."),
+            ])
+        image_block.extend([html.Br(), html.Br()])
 
     # ---------- Wikipedia text excerpt (always) ----------
     today = datetime.date.today().isoformat()
@@ -788,13 +836,23 @@ def get_filtered_df(size_on, depth_on, wiki_val, pop_val, seed=None):
     """
     df_use = _apply_shared_filters(df_full, wiki_val, pop_val)
 
+    # ── SIZE ───────────────────────────────────────────────
     if size_on:
-        df_use = df_use[df_use[["Length_cm", "Length_in"]].notna().any(axis=1)]
+        # require a *real* positive measurement in centimetres
+        df_use = df_use[df_use["Length_cm"].notna() & (df_use["Length_cm"] > 0)]
 
+    # ── DEPTH ──────────────────────────────────────────────
     if depth_on:
         df_use = df_use[
-            df_use[["DepthRangeComShallow", "DepthRangeShallow"]].notna().any(axis=1)
+            # 1️⃣ commercial pair complete
+            (df_use["DepthRangeComShallow"].notna() &
+             df_use["DepthRangeComDeep"   ].notna())
+            |
+            # 2️⃣ generic pair complete
+            (df_use["DepthRangeShallow"   ].notna() &
+             df_use["DepthRangeDeep"      ].notna())
         ]
+
     return df_use
 
 
@@ -848,7 +906,12 @@ def update_image(gs_name, units_bool):
 
     genus, species = gs_name.split(" ", 1)
     summary, url = get_blurb(genus, species, 4)
-    thumb, *_ = get_commons_thumb(genus, species)
+    # ── skip bg‐removal for any species on the blacklist
+    skip_bg = gs_name in transp_set
+    thumb, *_ = get_commons_thumb(
+        genus, species,
+        remove_bg=not skip_bg
+    )
 
     # -------- pull the chosen row once -------
     #row = df_wiki.loc[df_wiki["Genus_Species"] == gs_name].iloc[0]
@@ -1610,6 +1673,7 @@ def toggle_nav_info(n, style):
     return {"display": "none"}
 
 
+
 @app.callback(
     Output("scale-tooltip", "children"),
     Input("selected-species", "data"),
@@ -1617,19 +1681,25 @@ def toggle_nav_info(n, style):
     prevent_initial_call=True
 )
 def update_scale_tooltip(gs_name, is_on):
-    if not gs_name or not is_on:
-        raise PreventUpdate
+    if not gs_name:
+        return "Select a species to compare"
 
-    genus, species = gs_name.split(" ", 1)
-    row = df_full.loc[df_full["Genus_Species"] == gs_name].iloc[0]
-    if pd.isna(row.Length_cm):
-        raise PreventUpdate
+    if not is_on:
+        return "Click to compare size"
 
-    species_len = row.Length_cm
-    best = min(_scale_db, key=lambda d: abs(d["length_cm"] - species_len))
-    desc = best["desc"]
+    try:
+        genus, species = gs_name.split(" ", 1)
+        row = df_full.loc[df_full["Genus_Species"] == gs_name].iloc[0]
+        if pd.isna(row.Length_cm):
+            return "No size data available"
 
-    return f"Compare size to a {desc} (approximate, assumes species length ≃ species image width)"
+        species_len = row.Length_cm
+        best = min(_scale_db, key=lambda d: abs(d["length_cm"] - species_len))
+        desc = best["desc"]
+
+        return f"Compare size to a {desc} (approximate)"
+    except Exception as e:
+        return "Error loading tooltip"
 
 
 

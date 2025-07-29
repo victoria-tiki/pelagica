@@ -115,20 +115,43 @@ function showMessage(txt, ms){
   }
 }
 
+let lastShownMsg = null;
+
 function randomDepthMsg(depth, direction) {
-  const bucket = depthBuckets.find(b => depth >= b.min && depth <= b.max);
-  if (!bucket) return null;
+  // grab only buckets that contain at least one valid string for THIS direction
+  const candidates = depthBuckets.filter(b =>
+    depth >= b.min && depth <= b.max && (
+      (direction === "ascend"  && b.ascend) ||
+      (direction === "descend" && b.descend) ||
+      b.msg
+    )
+  );
 
-  const pool = bucket[direction] || bucket.descend || bucket.ascend || bucket.msg;
-  if (!pool || pool.length === 0) return null;
+  // flatten all message arrays that match the direction
+  const pool = candidates.flatMap(b =>
+    (direction === "ascend"  && b.ascend)  ||
+    (direction === "descend" && b.descend) ||
+    b.msg || []
+  );
 
-  const verb = direction === "ascend" ? "Ascending into" :
-               direction === "descend" ? "Descending into" :
-               "Traveling to";
+  if (!pool.length) return null;        // nothing suitable found
 
-  const msg = pool[Math.floor(Math.random() * pool.length)];
-  return `${verb} ${formatDepth(depth)}\n"${msg}"`;
+  // don’t repeat last caption if we have >1 option
+  let msg;
+  do {
+    msg = pool[Math.floor(Math.random() * pool.length)];
+  } while (pool.length > 1 && msg === lastShownMsg);
+
+  lastShownMsg = msg;
+
+  // optional prefix
+  const verb = direction === "ascend" ? "Ascending into"
+             : direction === "descend" ? "Descending into"
+             : "Traveling to";
+
+  return `${verb} ${formatDepth(depth)}\n${msg}`;
 }
+
 
 
 
@@ -581,7 +604,15 @@ function goToDepth(){
   /* ——— all subsequent jumps use your existing code ——— */
   const prev = currentDepth;
   const dz = Math.abs(v - prev);      // metres to travel
-  const direction = v > prev ? "descend" : v < prev ? "ascend" : null;
+
+  // decide which way we’re moving
+    let direction = null;
+    if (typeof currentDepth === "number") {
+      direction = v < currentDepth ? "ascend"
+                : v > currentDepth ? "descend"
+                : null;                    
+    }
+
   const MIN_T = 1.5;                  // never shorter than 1.5 s
   const MAX_T = 7;                    // keep your long‑dive ceiling
   let T = Math.min(MAX_T,MIN_T + 1.25 * Math.pow(dz / 800, 0.75));
@@ -595,9 +626,11 @@ function goToDepth(){
   depthMode = true;
 
 
-  if (moveDur >= 2000) {
-  const caption = randomDepthMsg(v, direction);
-  if (caption) showMessage(caption, moveDur);}
+    if (moveDur >= 2000 && direction) {
+      const caption = randomDepthMsg(v, direction);
+      if (caption) showMessage(caption, moveDur);
+    }
+
 
 
 
@@ -807,7 +840,7 @@ function raf(ts) {
 
       /* prune off‑screen tiles (buffer ±5) */
       for (const s in layer.imgNodes) {
-        if (s < slice - 5 || s > slice + 5) {
+        if (s < slice - 7 || s > slice + 7) {
           layer.el.removeChild(layer.imgNodes[s]);
           delete layer.imgNodes[s];
         }

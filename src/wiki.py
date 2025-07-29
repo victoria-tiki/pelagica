@@ -102,14 +102,23 @@ def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None,
 @lru_cache(maxsize=1000)
 def get_commons_thumb(genus: str,
                       species: str,
-                      width: int = 640
+                      width: int = 640,
+                      remove_bg: bool = True
 ) -> tuple[str | None, str | None, str | None, str | None,
            str | None, str | None]:
+
     title_plain = f"{genus} {species}"
-    key = f"{title_plain}_{width}"
+    if remove_bg:                      
+        key  = f"{title_plain}_{width}"
+    else:                              
+        key  = f"{title_plain}_{width}_raw"
     stem = url_to_stem(key)
 
     cached_path, cached_meta = load_cached_image_and_meta(key)
+    
+    if cached_path and not os.path.exists(cached_path):
+        cached_path, cached_meta = None, None
+
     if cached_path and cached_meta:
         return (
             f"/cached-images/{os.path.basename(cached_path)}",
@@ -193,13 +202,17 @@ def get_commons_thumb(genus: str,
         print(f"[Commons metadata] Failed: {e}")
         return (None,) * 6
 
-    # --- Download + background removal ---
+    # --- Download (optionally run rembg) --------------------------
     try:
         with requests.get(raw_thumb_url, headers=HEADERS, timeout=10) as response:
             response.raise_for_status()
-            processed_image = remove(response.content)
+            img_bytes = response.content
 
-        save_image_to_cache(stem, processed_image)
+        # run rembg only when the caller asked for it
+        if remove_bg:
+            img_bytes = remove(img_bytes)
+
+        save_image_to_cache(stem, img_bytes)
         save_metadata_to_cache(stem, {
             "author": author,
             "licence": licence,
@@ -211,6 +224,7 @@ def get_commons_thumb(genus: str,
 
         enforce_cache_limit()
         gc.collect()
+
 
         return (
             f"/cached-images/{os.path.basename(get_cached_image_path(stem))}",
