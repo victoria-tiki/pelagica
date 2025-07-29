@@ -227,7 +227,7 @@ advanced_filters = html.Div([           # collapsible area
         dbc.Checklist(
             id="popular-toggle",
             options=[{
-                "label": "Only 1000 curated species (recommended)",
+                "label": "Only 350 curated species (recommended)",
                 "value": "pop"
             }],
             value=["pop"],
@@ -357,7 +357,7 @@ centre_flex = html.Div(id="page-centre-flex", children=[
             html.Div("♡", id="fav-handle", className="heart-icon"),
             dbc.Tooltip( "Add this species to favourites",target="fav-handle",placement="top",style={"fontSize": "0.8rem"}),
             html.Div("📏", id="compare-handle", className="scale-icon"),
-            dbc.Tooltip("...",id="scale-tooltip",target="compare-handle",placement="top",style={"fontSize": "0.8rem"})
+            dbc.Tooltip(id="scale-tooltip",target="compare-handle",placement="top",style={"fontSize": "0.8rem"}, children="Compare size", key="initial")
 
 
         ]),
@@ -1673,34 +1673,32 @@ def toggle_nav_info(n, style):
     return {"display": "none"}
 
 
-
 @app.callback(
     Output("scale-tooltip", "children"),
+    Output("scale-tooltip", "key"),
     Input("selected-species", "data"),
     Input("compare-store", "data"),
     prevent_initial_call=True
 )
 def update_scale_tooltip(gs_name, is_on):
-    if not gs_name:
-        return "Select a species to compare"
+    if not gs_name or not is_on:
+        raise PreventUpdate
 
-    if not is_on:
-        return "Click to compare size"
+    genus, species = gs_name.split(" ", 1)
+    row = df_full.loc[df_full["Genus_Species"] == gs_name].iloc[0]
 
-    try:
-        genus, species = gs_name.split(" ", 1)
-        row = df_full.loc[df_full["Genus_Species"] == gs_name].iloc[0]
-        if pd.isna(row.Length_cm):
-            return "No size data available"
+    if pd.isna(row.Length_cm):
+        raise PreventUpdate
 
-        species_len = row.Length_cm
-        best = min(_scale_db, key=lambda d: abs(d["length_cm"] - species_len))
-        desc = best["desc"]
+    species_len = row.Length_cm
+    best = min(_scale_db, key=lambda d: abs(d["length_cm"] - species_len))
+    desc = best["desc"]
 
-        return f"Compare size to a {desc} (approximate)"
-    except Exception as e:
-        return "Error loading tooltip"
-
+    # unique key → forces rerender of tooltip
+    return (
+        f"Compare size to a {desc} (approximate, assumes species length ≃ species image width)",
+        f"{genus}_{species}"
+    )
 
 
 @app.callback(
