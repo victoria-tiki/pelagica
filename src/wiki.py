@@ -38,13 +38,16 @@ def clean_html(raw: str) -> str:
 
 # ---------- Text summary (Wikipedia REST API) ----------------------
 
+# Manual redirect equivalents for Wikipedia summary lookup
+WIKI_NAME_EQUIVALENTS = {
+    "Lutra felina": "Lontra felina",   
+    "Magnapinna pacifica": "Bigfin squid",
+    "Hydrophis platura" : "Hydrophis platurus"
+}
+
 
 @lru_cache(maxsize=1000)
 def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None, str | None]:
-    """
-    Return a short plain-text blurb and canonical article URL.
-    Uses a persistent disk-backed cache keyed by genus, species, and sentence count.
-    """
     key_string = f"{genus.strip().lower()}_{species.strip().lower()}_{sentences}"
     stem = url_to_stem(key_string)
 
@@ -52,27 +55,37 @@ def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None,
     if cached:
         return cached.get("summary"), cached.get("page_url")
 
-    title = f"{genus}_{species}".replace(" ", "_")
-    url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote_plus(title)}"
+    def try_fetch(title: str):
+        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote_plus(title)}"
+        try:
+            with requests.get(url, headers=HEADERS, timeout=10) as r:
+                r.raise_for_status()
+                data = r.json()
+            summary = html.unescape(data.get("extract", ""))
+            summary = ". ".join(summary.split(". ")[:sentences]).strip() + "."
+            page_url = data.get("content_urls", {}).get("desktop", {}).get("page")
+            return summary, page_url
+        except Exception as e:
+            return None, None
 
-    try:
-        with requests.get(url, headers=HEADERS, timeout=10) as r:
-            r.raise_for_status()
-            data = r.json()
+    # Try the direct title first
+    main_title = f"{genus}_{species}".replace(" ", "_")
+    summary, page_url = try_fetch(main_title)
 
-        summary = html.unescape(data.get("extract", ""))
-        summary = ". ".join(summary.split(". ")[:sentences]).strip() + "."
-        page_url = data.get("content_urls", {}).get("desktop", {}).get("page")
+    if not summary:
+        alt = WIKI_NAME_EQUIVALENTS.get(f"{genus} {species}")
+        if alt:
+            print(f"[blurb] Fallback to Wikipedia title for {genus} {species} → {alt}")
+            summary, page_url = try_fetch(alt.replace(" ", "_"))
 
+    if summary:
         save_cached_blurb(stem, {"summary": summary, "page_url": page_url})
-
-        del data
         gc.collect()
-        return summary, page_url
+    else:
+        print(f"[blurb] Failed to fetch summary for {genus} {species}")
 
-    except Exception as e:
-        print(f"[blurb cache] Failed to fetch summary for {genus} {species}: {e}")
-        return None, None
+    return summary, page_url
+
 
         
 '''
@@ -108,6 +121,10 @@ def get_commons_thumb(genus: str,
            str | None, str | None]:
 
     title_plain = f"{genus} {species}"
+    fallback_name = WIKI_NAME_EQUIVALENTS.get(title_plain)
+    if fallback_name:
+        title_plain = fallback_name
+
     if remove_bg:                      
         key  = f"{title_plain}_{width}"
     else:                              

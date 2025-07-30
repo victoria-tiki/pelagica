@@ -17,10 +17,10 @@
   { "min": 30, "max": 50, "descend": ["Pressure here is just beginning to rise. Each 10 meters adds another atmosphere."]},
   { "min": 0, "max": 5, "descend": ["Even shallow water can feel endless when you look down."], "ascend": ["Even shallow water can feel endless when you look down."] },
   { "min": 10, "max": 40, "descend": ["Light bends and scatters. Colors begin to fade with depth."]},
-  { "min": 0, "max": 10, "descend": ["The first few meters teem with energy. Light, motion, heat."], "ascend": ["The first few meters teem with energy. Light, motion, heat."] },
+  { "min": 0, "max": 10, "descend": ["The first few meters teem with energy."], "ascend": ["The first few meters teem with energy."] },
   { "min": 1, "max": 20, "descend": ["In many lakes, this is the mixing zone where surface and deeper waters swap places."], "ascend": ["In many lakes, this is the mixing zone where surface and deeper waters swap places."] },
   { "min": 0, "max": 20, "descend": ["Do you ever wonder what’s under your feet, even when it looks like nothing at all?"], "ascend": ["Do you ever wonder what’s under your feet, even when it looks like nothing at all?"] },
-  { "min": 30, "max": 40, "descend": ["Below 30 m, colors begin to vanish. Reds disappear first."], "ascend": ["Below 30 m, colors begin to vanish. Reds disappear first."] },
+  { "min": 30, "max": 40, "descend": ["Below 30 m, colors begin to vanish. Reds disappear first."]},
   { "min": 30, "max": 70, "descend": ["Sunlight only penetrates so far. Darkness is coming."]},
   { "min": 0, "max": 10, "descend": ["You're in the epilimnion, the lake's sunlit, churning skin."], "ascend": ["You're in the epilimnion, the lake's sunlit, churning skin."] },
   { "min": 0, "max": 20, "descend": ["Shallow water hides more mystery than you think."], "ascend": ["Shallow water hides more mystery than you think."] },
@@ -385,7 +385,7 @@
 
   { "min": 3600, "max": 4200,
     "descend": ["The water grows corrosive. Carbonate shells begin dissolving in many oceans."],
-    "ascend":  ["Tiny shells will stay whole again above these depths."] },
+    "ascend":  ["Tiny shells will stay whole again above around these depths."] },
     
   {"min": 5000,"max": 5500,
     "descend": ["In the Atlantic, corrosion becomes so strong here that shells won’t survive."],
@@ -432,8 +432,8 @@
     "ascend":  ["Trench floor mud is only 1 °C. Close to freezing but never ice."] },
 
   { "min": 7062, "max": 7400,
-    "descend": ["Life here survives on tiny bits of food that drift down. Very energy‑poor."],
-    "ascend":  ["Life here survives on tiny bits of food that drift down. Very energy‑poor."] },
+    "descend": ["Life here survives on tiny bits of food that drift down."],
+    "ascend":  ["Life here survives on tiny bits of food that drift down."] },
 
   { "min": 7400, "max": 7600,
     "descend": ["Glass sponges have been found perched on trench walls here."],

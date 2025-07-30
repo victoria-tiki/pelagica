@@ -218,7 +218,7 @@ advanced_filters = html.Div([           # collapsible area
                 "label": "Only species with Wikipedia entry",
                 "value": "wiki"
             }],
-            value=["wiki"],
+            value=[],
             switch=True
         )
     ], className="settings-group"),
@@ -227,7 +227,7 @@ advanced_filters = html.Div([           # collapsible area
         dbc.Checklist(
             id="popular-toggle",
             options=[{
-                "label": "Only 350 curated species (recommended)",
+                "label": "Only ~600 curated species (recommended)",
                 "value": "pop"
             }],
             value=["pop"],
@@ -754,6 +754,36 @@ def fill_citation(gs_name):
             html.A("Cleveland Clinic", href="https://my.clevelandclinic.org/health/articles/lifespan", target="_blank"),
             html.Span(" — retrieved Jul 14 2025"),
         ]
+    elif row.get("Database") == -1:
+        data_block = [
+        html.Span("Depth estimate from "),
+        html.A("Maeda‐Obregon et al. (2025)", 
+               href="https://doi.org/10.1002/edn3.70147", 
+               target="_blank"),
+        html.Span(": "),
+        html.Em("Persisting at the Edge of Ecological Collapse: The Impact of Urbanization on Fish and Amphibian Communities From Lake Xochimilco."),
+        html.Span(" Published in "),
+        html.Span("Environmental DNA, Vol. 7"),
+        html.Br(), html.Br(),
+        html.Span("Size information from "),
+        html.A("Wikipedia", 
+               href="https://en.wikipedia.org/wiki/Axolotl", 
+               target="_blank"),
+        html.Span("— retrieved 29 Jul 2025. ")]
+    elif row.get("Database") == -2:
+        data_block = [
+        html.Span("Depth, length, and habitat information from "),
+        html.A("Michigan Natural Features Inventory",
+               href="https://mnfi.anr.msu.edu/species/description/10841/Necturus-maculosus",
+               target="_blank"),
+        html.Span("."), html.Br(), html.Br(),
+        html.Span("Longevity information from "),
+        html.A("National Geographic (archived)",
+               href="https://web.archive.org/web/20070614110211/http://animals.nationalgeographic.com/animals/amphibians/mudpuppy.html",
+               target="_blank"),
+        html.Span(": "),
+        html.Em("“Mudpuppies, Mudpuppy Pictures, Mudpuppy Facts.”"),
+        html.Span(" Retrieved 18 April 2010."),]
     else:
         src      = str(row.get("Database", "")).lower()
         slug     = f"{genus}-{species}".replace(" ", "-")

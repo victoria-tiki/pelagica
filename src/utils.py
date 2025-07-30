@@ -249,7 +249,10 @@ from scipy.stats import beta
 OVERRIDE_DEPTH = {
     "Delphinus delphis",
     "Homo sapiens",
-    "Mirounga leonina"
+    "Mirounga leonina", 
+    "Lobodon carcinophaga",
+    "Stenella coeruleoalba",
+    "Odobenus rosmarus"
 }
 
 def assign_random_depth(df: pd.DataFrame, seed: int) -> pd.DataFrame:

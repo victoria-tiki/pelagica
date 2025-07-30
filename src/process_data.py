@@ -42,18 +42,15 @@ def _wiki_pages_exist(names, batch_size=50):
 def load_species_data() -> pd.DataFrame:
     df = _raw_csv().copy()
 
-    homo = load_homo_sapiens()
+    extra = get_extra_species()
 
     # --- make sure both frames share the same columns -----------------
-    missing_in_homo = df.columns.difference(homo.columns)
-    for col in missing_in_homo:
-        homo[col] = pd.NA
-
-    missing_in_df = homo.columns.difference(df.columns)
-    for col in missing_in_df:
+    for col in df.columns.difference(extra.columns):
+        extra[col] = pd.NA
+    for col in extra.columns.difference(df.columns):
         df[col] = pd.NA
 
-    df = pd.concat([df, homo[df.columns]], ignore_index=True)
+    df = pd.concat([df, extra[df.columns]], ignore_index=True)
     # ------------------------------------------------------------------
 
 
@@ -125,3 +122,83 @@ def load_homo_sapiens():
         "Genus_Species":        "Homo sapiens"
 
     }])
+    
+    
+def get_extra_species():
+    """Concatenate all manually added species."""
+    species_list = [
+        load_homo_sapiens(),
+        load_ambystoma_mexicanum(),
+        load_necturus_maculosus(),
+        # add more here like load_canis_lupus(), etc.
+    ]
+    return pd.concat(species_list, ignore_index=True)
+
+
+def load_ambystoma_mexicanum():
+    return pd.DataFrame([{
+        "SpecCode": "1",                      # just needs to be unique
+        "Genus": "Ambystoma",
+        "Species": "mexicanum",
+        "FBname": "Axolotl",
+        "has_wiki_page": True,
+        "Database": -1,                        # ← this ensures special citation handling
+
+        # everything else is intentionally left blank or None
+        "Length": 45,
+        "DepthRangeComShallow": 0.0,
+        "DepthRangeComDeep": 1.0,
+        "DepthRangeShallow": None,
+        "DepthRangeDeep": None,
+        "DemersPelag": None,
+        "Vulnerability": None,
+        "LTypeMaxM": None,
+        "CommonLength": None,
+        "LTypeComM": None,
+        "LongevityWild": None,
+        "Electrogenic": None,
+        "Comments": None,
+
+        "Fresh": 1,
+        "Saltwater": 0,
+        "Brack": 0,
+        "Dangerous": None,
+        "Longevity": None,
+
+        "Genus_Species": "Ambystoma mexicanum"
+    }])
+
+
+def load_necturus_maculosus():
+    return pd.DataFrame([{
+        "SpecCode": "1",                      # just needs to be unique
+        "Genus": "Necturus",
+        "Species": "maculosus",
+        "FBname": "Common mudpuppy",
+        "has_wiki_page": True,
+        "Database": -2,                        # ← this ensures special citation handling
+
+        # everything else is intentionally left blank or None
+        "Length": 48.2,
+        "DepthRangeComShallow": 0.0,
+        "DepthRangeComDeep": 30.48,
+        "DepthRangeShallow": None,
+        "DepthRangeDeep": None,
+        "DemersPelag": "benthopelagic",
+        "Vulnerability": None,
+        "LTypeMaxM": None,
+        "CommonLength": None,
+        "LTypeComM": None,
+        "LongevityWild": 11,
+        "Electrogenic": None,
+        "Comments": None,
+
+        "Fresh": 1,
+        "Saltwater": 0,
+        "Brack": 0,
+        "Dangerous": None,
+        "Longevity": None,
+
+        "Genus_Species": "Necturus maculosus"
+    }])
+
