@@ -130,6 +130,9 @@ def get_extra_species():
         load_homo_sapiens(),
         load_ambystoma_mexicanum(),
         load_necturus_maculosus(),
+        load_castor_canadensis(),
+        load_castor_fiber()
+
         # add more here like load_canis_lupus(), etc.
     ]
     return pd.concat(species_list, ignore_index=True)
@@ -171,7 +174,7 @@ def load_ambystoma_mexicanum():
 
 def load_necturus_maculosus():
     return pd.DataFrame([{
-        "SpecCode": "1",                      # just needs to be unique
+        "SpecCode": "2",                      # just needs to be unique
         "Genus": "Necturus",
         "Species": "maculosus",
         "FBname": "Common mudpuppy",
@@ -202,3 +205,71 @@ def load_necturus_maculosus():
         "Genus_Species": "Necturus maculosus"
     }])
 
+
+
+
+def load_castor_canadensis():
+    return pd.DataFrame([{
+        "SpecCode": "3",                      # just needs to be unique
+        "Genus": "castor",
+        "Species": "canadensis",
+        "FBname": "North American Beaver",
+        "has_wiki_page": True,
+        "Database": -3,                        # ← this ensures special citation handling
+
+        # everything else is intentionally left blank or None
+        "Length": None,
+        "DepthRangeComShallow": 0.0,
+        "DepthRangeComDeep": 1.0,
+        "DepthRangeShallow": None,
+        "DepthRangeDeep": None,
+        "DemersPelag": None,
+        "Vulnerability": None,
+        "LTypeMaxM": None,
+        "CommonLength": None,
+        "LTypeComM": None,
+        "LongevityWild": None,
+        "Electrogenic": None,
+        "Comments": None,
+
+        "Fresh": 1,
+        "Saltwater": 0,
+        "Brack": 0,
+        "Dangerous": None,
+        "Longevity": None,
+
+        "Genus_Species": "Castor canadensis"
+    }])
+
+def load_castor_fiber():
+    return pd.DataFrame([{
+        "SpecCode": "4",                      # just needs to be unique
+        "Genus": "castor",
+        "Species": "fiber",
+        "FBname": "Eurasian Beaver",
+        "has_wiki_page": True,
+        "Database": -4,                        # ← this ensures special citation handling
+
+        # everything else is intentionally left blank or None
+        "Length": 150, #Kitchener, A. (2001). Beavers. Essex: Whittet Books. ISBN 978-1-873580-55-4.
+        "DepthRangeComShallow": 0.0,
+        "DepthRangeComDeep": 1.0, 
+        "DepthRangeShallow": None,
+        "DepthRangeDeep": None,
+        "DemersPelag": None,
+        "Vulnerability": None,
+        "LTypeMaxM": None,
+        "CommonLength": None,
+        "LTypeComM": None,
+        "LongevityWild": None,
+        "Electrogenic": None,
+        "Comments": None,
+
+        "Fresh": 1,
+        "Saltwater": 0,
+        "Brack": 0,
+        "Dangerous": None,
+        "Longevity": None,
+
+        "Genus_Species": "Castor fiber"
+    }])

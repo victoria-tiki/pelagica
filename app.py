@@ -227,7 +227,7 @@ advanced_filters = html.Div([           # collapsible area
         dbc.Checklist(
             id="popular-toggle",
             options=[{
-                "label": "Only ~600 curated species (recommended)",
+                "label": "Only ~800 curated species (recommended)",
                 "value": "pop"
             }],
             value=["pop"],
@@ -783,7 +783,28 @@ def fill_citation(gs_name):
                target="_blank"),
         html.Span(": "),
         html.Em("“Mudpuppies, Mudpuppy Pictures, Mudpuppy Facts.”"),
-        html.Span(" Retrieved 18 April 2010."),]
+        html.Span(" Retrieved 18 April 2010.")]
+    elif row.get("Database") == -3:
+        data_block = []
+    elif row.get("Database") == -4:
+        data_block = [
+        html.Span("Length data from "),
+        html.Em("Kitchener, A. (2001). "),
+        html.Span("Beavers. Essex: Whittet Books. ISBN 978-1-873580-55-4."),
+        html.Br(), html.Br(),
+        html.Span("Depth information from "),
+        html.A("Graf, P. M. et al. (2017)", 
+               href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5773300/",
+               target="_blank"),
+        html.Span(": "),
+        html.Em("Diving behavior in a free-living, semi-aquatic herbivore, the Eurasian beaver "),
+        html.Span("(Castor fiber). "),
+        html.Span("Published in "),
+        html.Em("Ecology and Evolution, 8(2), 997–1008"),
+        html.Span(". DOI: "),
+        html.A("10.1002/ece3.3726", 
+               href="https://doi.org/10.1002/ece3.3726", 
+               target="_blank")]
     else:
         src      = str(row.get("Database", "")).lower()
         slug     = f"{genus}-{species}".replace(" ", "-")
