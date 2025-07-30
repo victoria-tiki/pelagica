@@ -227,7 +227,7 @@ advanced_filters = html.Div([           # collapsible area
         dbc.Checklist(
             id="popular-toggle",
             options=[{
-                "label": "Only ~800 curated species (recommended)",
+                "label": "Only curated species (~ 1000 species, recommended)",
                 "value": "pop"
             }],
             value=["pop"],
