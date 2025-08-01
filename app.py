@@ -47,8 +47,11 @@ for p in glob.glob("assets/species/scale/*.png"):
 
 # ---------- Load & prep dataframe ---------------------------------------------------
 df_full  = load_species_data()   # heavy table (cached in process_data)
+#df_light = df_full[["Genus", "Species", "FBname", "has_wiki_page", "Genus_Species", "dropdown_label"]]
 df_light = load_name_table()     # 5‑col view on the cached frame   
 
+#print("d_full",df_full.info(memory_usage="deep"))
+#print("d_light",df_light.info(memory_usage="deep"))
 
 #df_wiki = df[df["has_wiki_page"]].copy() #only those with wikipedia page
 #df_light = df[["Genus", "Species", "Genus_Species", "FBname", "has_wiki_page"]].copy()
@@ -57,10 +60,13 @@ df_light = load_name_table()     # 5‑col view on the cached frame
 # --- Popular-species whitelist -----------------------------------
 popular_df   = pd.read_csv("data/processed/popular_species.csv")        # <-- path in /mnt/data
 popular_set  = set(popular_df["Genus"] + " " + popular_df["Species"])
+#print("popular_df",popular_df.info(memory_usage="deep"))
 
 # --- Transparency‑removal blacklist -----------------------------
 transp_df  = pd.read_csv("data/processed/transparency_blacklist.csv")
 transp_set = set(transp_df["Genus"] + " " + transp_df["Species"])
+
+gc.collect() 
 
 '''genus_options = [
     {"label": g, "value": g}
@@ -160,7 +166,7 @@ top_bar = html.Div(
 search_stack = html.Div(id="search-stack", children=[
     html.Div(
         dcc.Dropdown(id="common-dd", options=[],
-                     placeholder="Common name…", className="dash-dropdown",clearable=True,searchable=True)
+                     placeholder="Common name…", className="dash-dropdown",clearable=True, searchable=True, persistence=True,persistence_type="session")
     ),
     html.Div(
         dbc.Row([
@@ -203,11 +209,11 @@ advanced_filters = html.Div([           # collapsible area
 
     dbc.Checklist(
     id="instant-toggle",
-    options=[{"label": "Skip descent animation", "value": "instant"}],
-    value=[],
+    options=[{"label": "Enable descent animation", "value": "on"}],
+    value=["on"],          # checked    → animation runs
     switch=True,
-    className="settings-group"
-),
+    className="settings-group"),
+
     # ── Filters ────────────────────────────────────────────────────
     html.H6("Filters", className="settings-header"),
 
@@ -227,7 +233,7 @@ advanced_filters = html.Div([           # collapsible area
         dbc.Checklist(
             id="popular-toggle",
             options=[{
-                "label": "Only curated species (~ 1000 species, recommended)",
+                "label": "Only curated species (recommended)",
                 "value": "pop"
             }],
             value=["pop"],
@@ -235,6 +241,10 @@ advanced_filters = html.Div([           # collapsible area
         ),
 
     ], className="settings-group"),
+    
+    html.Div("Limits the list to ~1 000 species (faster loading and cleaner images).", className="settings-note"),
+    
+    html.Br(),
 
     dbc.Checklist(
         id="favs-toggle",
@@ -350,9 +360,18 @@ centre_flex = html.Div(id="page-centre-flex", children=[
 
         # this div now contains the image AND the up/down buttons
         html.Div(id="image-inner", children=[
-            html.Img(id="sizecmp-img",style={"position": "absolute","left": 0, "top": 0,"zIndex":2,"opacity": 0.85,"pointerEvents": "auto","cursor": "pointer"}),
             html.Img(id="species-img"),
-            html.Div("i", id="info-handle", style={"display": "none"}),
+            html.Img( id="arrow-img",src="/assets/species/scale/arrow.png",style={
+              "position": "absolute",
+              "left": "50%", "top": "50%",
+              "transform": "translate(-50%, -50%)",
+              "width": "100%",
+              "opacity": 0.9,
+              "pointerEvents": "none",  
+              "zIndex": 2               
+          }),
+           html.Img(id="sizecmp-img",style={"position": "absolute","left": 0, "top": 0,"zIndex":2,"opacity": 0.85,"pointerEvents": "auto","cursor": "pointer"}),
+            html.Div("i", id="info-handle", style={"display": "block","zIndex":4}),
             dbc.Tooltip("Show more information about this species",target="info-handle",placement="top",style={"fontSize": "0.8rem"}),
             html.Div("♡", id="fav-handle", className="heart-icon"),
             dbc.Tooltip( "Add this species to favourites",target="fav-handle",placement="top",style={"fontSize": "0.8rem"}),
@@ -387,7 +406,7 @@ center_message=html.Div(
         "display": "none",  # hidden by default
         "textAlign": "center"
     }
-),
+)
 
 
 
@@ -471,6 +490,10 @@ nav_panel = html.Div([
         html.Button("〉", id="next-btn", className="nav-icon"),
         html.Small("larger", id="nav-label-right", className="nav-label"),
     ], id="next-wrap", className="nav-wrap right"),
+    
+    html.Button("🔄", id="nav-random-btn", className="nav-icon",
+            style={"position": "absolute", "bottom": "4%", "right": "4%"}),
+
 
     # ── Hidden explanation ─────────────────────────────────────
     html.Div([
@@ -500,6 +523,7 @@ app.layout = dbc.Container([
     search_panel,
     search_handle,
     dcc.Store(id="rand-seed", storage_type="session"),
+    
     top_bar,
     
     fav_modal,
@@ -512,6 +536,7 @@ app.layout = dbc.Container([
     html.Div(feedback_link,   id="bug-tab",       className="side-tab"),
 
     html.Div(centre_flex, id="main-content", style={"display": "none"}),
+    center_message,
     nav_panel,
     
     html.Iframe(id="depth-iframe",src="/viewer/index.html",
@@ -522,9 +547,12 @@ app.layout = dbc.Container([
 
 
     footer,
+    
+    html.Div(id="js-trigger", style={"display": "none"}),
     dcc.Store(id="selected-species", data=None),
     dcc.Store(id="favs-store",storage_type="local"),      # persists in localStorage
     dcc.Store(id="compare-store", data=False, storage_type="session"),
+    dcc.Store(id="common-opt-cache", data=[]),
 
 
     citations_panel,
@@ -592,7 +620,8 @@ def update_species_options(genus, wiki_val, pop_val,
     Input("genus-dd",   "value"),
     Input("common-dd",  "value"),
     Input("random-btn", "n_clicks"),
-    State("size-toggle",    "value"),   # ① size / depth come first here
+    Input("nav-random-btn", "n_clicks"),
+    State("size-toggle",    "value"),   
     State("depth-toggle",   "value"),
     State("wiki-toggle",    "value"),
     State("popular-toggle", "value"),
@@ -601,7 +630,7 @@ def update_species_options(genus, wiki_val, pop_val,
     State("selected-species", "data"),
     prevent_initial_call=True
 )
-def choose_species(species_val, genus_val, common_val, rnd,
+def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
                    size_val, depth_val,          # ② …and here
                    wiki_val, pop_val,
                    fav_val, favs_data,
@@ -624,7 +653,7 @@ def choose_species(species_val, genus_val, common_val, rnd,
     # ──────────────────────────────────────────────────────────
     # 1. RANDOM BUTTON
     # ──────────────────────────────────────────────────────────
-    if trig == "random-btn":
+    if trig in ("random-btn", "nav-random-btn"):
         size_on  = "size"  in size_val
         depth_on = "depth" in depth_val
 
@@ -688,7 +717,7 @@ def toggle_citations(n, is_open):
 def toggle_info(_, __, card_style):
     show = card_style.get("display") != "none" if card_style else True
     new_card  = {"display":"none"} if show else {"display":"block"}
-    new_handle= {"display":"block"} if show else {"display":"none"}
+    new_handle= {"display":"block"} 
     return new_card, new_handle
 
 
@@ -1142,7 +1171,7 @@ def update_image(gs_name, units_bool):
             html.Br(),
             html.Span(children),
             html.Br(),
-            html.A(f"{src_name} ↗", href=cite_url, target="_blank", style={"textDecoration": "none", "color": "inherit"})
+            html.A(f"{src_name} ↗", href=cite_url, target="_blank")
         ])
 
 
@@ -1208,26 +1237,24 @@ def do_import(contents):
     txt = base64.b64decode(contents.split(",")[1]).decode()
     return txt
 
-
-
-
 @app.callback(
     Output("common-dd", "options"),
+    Output("common-opt-cache", "data"),
     Output("common-dd", "value"),
-    Input("common-dd",  "search_value"),     # live typing
+    Input("common-dd",  "search_value"),
     Input("wiki-toggle","value"),
     Input("popular-toggle","value"),
     Input("favs-toggle","value"),
     State("favs-store","data"),
     State("common-dd","value"),
+    State("common-opt-cache", "data"),
 )
-def filter_common(search, wiki_val, pop_val, fav_val, favs_data, current):
-    df_use = _apply_shared_filters(df_light, wiki_val, pop_val,
-                                   fav_val, favs_data)
+def filter_common(search, wiki_val, pop_val, fav_val, favs_data, current, cached):
+    df_use = _apply_shared_filters(df_light, wiki_val, pop_val, fav_val, favs_data)
 
     # ── 1. user isn’t typing → keep everything as is ─────────────────
     if not search or len(search) < 2:
-        return no_update, current          # **nothing** changes
+        return no_update, cached, current
 
     # ── 2. build a suggestion list (≤50) ─────────────────────────────
     mask = df_use["dropdown_label"].str.contains(search, case=False, na=False)
@@ -1238,9 +1265,14 @@ def filter_common(search, wiki_val, pop_val, fav_val, favs_data, current):
         for _, r in matches.iterrows()
     ]
 
-    # keep the current selection if it’s still in the list
+    # ── 3. skip update if options identical ──────────────────────────
+    if options == cached:
+        return no_update, cached, current
+
+    # ── 4. drop current value if no longer valid ─────────────────────
     value = current if current in {o["value"] for o in options} else None
-    return options, value
+
+    return options, options, value
 
 
 
@@ -1366,6 +1398,8 @@ app.clientside_callback(
     prevent_initial_call=True
 )
 
+
+
 # ──────────────────────────────────────────────────────────────
 # B) Python refresh  (runs when you change species)
 # ──────────────────────────────────────────────────────────────
@@ -1428,27 +1462,35 @@ def _init_seed(cur):
 def _ensure_randdepth(seed):
     global df_full
     if "RandDepth" not in df_full.columns:
-        df_full = assign_random_depth(df_full.copy(), seed)
+        df_full = assign_random_depth(df_full, seed)
 
 
 # ───────── client‑side: push depth to viewer ─────────
 app.clientside_callback(
     """
-    function(depth, instant) {
-        if (window.dash_clientside?.bridge?.sendDepth)
-            return window.dash_clientside.bridge.sendDepth(depth, instant);
+    function (depth, flag) {
+        /*
+           `flag` is the `value` array from the checklist.
+           When the box is checked   → ["on"]  (play)
+           When the box is unchecked → []      (skip)
+        */
+        const skip = !(Array.isArray(flag) && flag.length);  
+
+        if (window.dash_clientside?.bridge?.sendDepth) {
+            window.dash_clientside.bridge.sendDepth(depth, skip);
+        }
         return window.dash_clientside.no_update;
     }
     """,
-    Output("depth-iframe", "title"),      # single use
+    Output("depth-iframe", "title"),        # dummy
     Input("depth-store",    "data"),
     State("instant-toggle", "value"),
 )
 
 
 
+
 # ─── client‑side bridge for animationDone → anim‑done store ────────
-# fires exactly once – no Interval needed
 app.clientside_callback(
     """
     function (_, existing) {                // _  = dummy input
@@ -1471,13 +1513,16 @@ app.clientside_callback(
     State("anim-done",   "data")       # <‑‑ added so arg‑count == 2
 )
 
-# 2️⃣  Reset the flag on every new dive  (this callback is already active)
+
+
+
+#   Reset the flag on every new dive  (this callback is already active)
 @app.callback(Output("anim-done", "data", allow_duplicate=True),
               Input("selected-species", "data"), prevent_initial_call=True)
 def _reset_done(_):
     return False
 
-# 3️⃣  Reveal the species panel when the dive completes  (uncomment)
+#   Reveal the species panel when the dive completes  (uncomment)
 @app.callback(
     Output("main-content", "style"),
     Input("selected-species", "data"),   # hide while a new dive starts
@@ -1492,9 +1537,6 @@ def toggle_main_content(species, done):
     raise PreventUpdate
 
 
-
-
-
 '''# Reset the flag whenever a new species is chosen
 @app.callback(
     Output("anim-done", "data", allow_duplicate=True),
@@ -1504,20 +1546,6 @@ def toggle_main_content(species, done):
 def reset_anim_done(_):
     return False'''
 
-
-# -- reveal the species panel only after the dive has finished ----------
-'''@app.callback(
-    Output("main-content", "style"),
-    Input("selected-species", "data"),   # hide while a new dive starts
-    Input("anim-done",       "data"),    # show when the tween finishes
-    prevent_initial_call=True
-)
-def toggle_main_content(species, done):
-    if done:
-        return {"display": "block"}      # animation finished → show
-    if species:
-        return {"display": "none"}       # diving right now → hide
-    raise PreventUpdate'''
 
 
 # -------------------------------------------------------------------
@@ -1747,7 +1775,7 @@ def update_scale_tooltip(gs_name, is_on):
 
     # unique key → forces rerender of tooltip
     return (
-        f"Compare size to a {desc} (approximate, assumes species length ≃ species image width)",
+        f"Compare size to a {desc} (approximate)",
         f"{genus}_{species}"
     )
 
@@ -1779,14 +1807,29 @@ def update_sizecmp(gs_name, is_on):
     scale = best["length_cm"] / species_len
 
     style = {
-        "position":"absolute", "left":0, "top":0,
-        "width":f"{scale*100:.2f}%", "zIndex":0,
+        "position":"absolute", "left":"50%", "top":"50%", "transform":"translate(-50%,-50%)",
+        "width":f"{scale*100:.2f}%", "zIndex":3,
         "opacity":0.85, "pointerEvents":"auto", "cursor":"pointer"
     }
     title = f""#this is a {best['desc']}"
     return best["path"], style, title
 
-
+@app.callback(
+    Output("arrow-img", "style"),
+    Input("selected-species", "data"),
+    Input("compare-store",    "data"),
+    prevent_initial_call=True
+)
+def toggle_arrow(gs_name, is_on):
+    if not gs_name or not is_on:
+        return {"display": "none"}
+    return {
+        "position": "absolute",
+        "left": "50%", "top": "50%",
+        "transform": "translate(-50%, -50%)",
+        "width": "100%", "opacity": 0.9,
+        "pointerEvents": "none", "zIndex": 2
+    }
 
 
 

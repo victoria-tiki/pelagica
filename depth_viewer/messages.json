@@ -306,7 +306,7 @@
 
   { "min": 20, "max": 30,
     "descend": ["Sea‑turtles often dive to this depth for tasty jellyfish."],
-    "ascend":  ["Turtles and snorkelers can meet just above."] },
+    "ascend":  ["Turtles and snorkelers meet just above."] },
 
   { "min": 30, "max": 40,
     "descend": ["Below most surf waves. You now glide in calmer water."],

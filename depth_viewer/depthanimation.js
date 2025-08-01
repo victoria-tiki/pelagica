@@ -145,8 +145,8 @@ function randomDepthMsg(depth, direction) {
   lastShownMsg = msg;
 
   // optional prefix
-  const verb = direction === "ascend" ? "Ascending into"
-             : direction === "descend" ? "Descending into"
+  const verb = direction === "ascend" ? "Ascending to"
+             : direction === "descend" ? "Descending to"
              : "Traveling to";
 
   return `${verb} ${formatDepth(depth)}\n${msg}`;

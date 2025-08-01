@@ -40,7 +40,18 @@ def _wiki_pages_exist(names, batch_size=50):
 
 @lru_cache(maxsize=1)
 def load_species_data() -> pd.DataFrame:
-    df = _raw_csv().copy()
+    df = _raw_csv()#.copy()
+    
+    # reduce memory
+    cat_cols = ["Genus", "Species", "Genus_Species", "FBname", "DemersPelag", "Database", "LTypeMaxM", "LTypeComM", "Dangerous", "Electrogenic","has_wiki_page"]
+    for col in cat_cols:
+        df[col] = df[col].astype("category")
+    df["Length"] = pd.to_numeric(df["Length"], downcast="float")
+    for col in ["DepthRangeComShallow", "DepthRangeComDeep",
+                "DepthRangeShallow", "DepthRangeDeep"]:
+        df[col] = pd.to_numeric(df[col], downcast="float")
+    df["LongevityWild"] = pd.to_numeric(df["LongevityWild"], downcast="integer")
+
 
     extra = get_extra_species()
 

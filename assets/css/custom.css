@@ -78,9 +78,10 @@ h5,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-radius: 0rem;
   
   padding: 0.3rem 1rem;
-  height: 4rem;         
+  height: 4rem;       
 
   /* a hint of color for airiness */
   background: rgba(255, 255, 255, 0.15);
@@ -296,6 +297,14 @@ body.search-open .search-handle {
   #search-panel {
     top: 0px !important;
   }}
+  
+/* ↓ also shrink the items inside the opened menu */
+.Select-menu-outer .Select-option,
+.Select-menu-outer .VirtualizedSelectOption {   /* Dash >2.9 uses this class */
+    font-size: 0.85rem !important;
+}
+
+
 
 
 /* ==========  4. SIDE TABS  ==================================== */
@@ -509,7 +518,7 @@ body.search-open .search-handle {
 
 #species-img {
   max-height: 70vh;
-  width: 120%;
+  width: 100%;
   height: auto;
   object-fit: contain;
   display: block;
@@ -538,7 +547,7 @@ body.search-open .search-handle {
   /*box-shadow: 0 2px 6px #0008;*/
   border-radius: 0.8rem;
   overflow-y: auto;
-  z-index: 1;
+  z-index: 3;
   position: absolute;
   top: calc(100% + 0.0rem);    /* small gap under image */
   left: 0;
@@ -569,7 +578,7 @@ body.search-open .search-handle {
   backdrop-filter: var(--blur-md);
   box-shadow: 0 2px 6px #0008;
   display: none;  /* toggle via JS/callback */
-  z-index:2;
+  z-index:4;
   pointer-events:auto;
 }
 
@@ -833,9 +842,9 @@ helper text size matches the sideways labels
 }
 
 .settings-note {
-  margin-top: 0.3rem;
-  padding-left: 2rem;
-  font-size: 0.85em;
+  margin-top: 0.1rem;
+  padding-left: 4rem;
+  font-size: 0.8em;
   line-height: 1.4;
   opacity: 0.7;
   max-width: 380px;

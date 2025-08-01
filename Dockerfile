@@ -1,43 +1,39 @@
-FROM ubuntu:20.04
+# Use slim Python image with Debian base
+FROM python:3.12-slim
 
+# Set environment vars
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
+ENV POETRY_VIRTUALENVS_CREATE=false
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    software-properties-common curl git build-essential \
-    llvm-10 llvm-10-dev libssl-dev libbz2-dev libreadline-dev \
-    libsqlite3-dev zlib1g-dev libncurses5-dev libffi-dev \
-    wget make liblzma-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev \
+# Install only essential build tools and dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl git wget libssl-dev libffi-dev libbz2-dev \
+    liblzma-dev libsqlite3-dev zlib1g-dev libxml2-dev libxmlsec1-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python 3.12 from source
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.12.3/Python-3.12.3.tgz && \
-    tar xzf Python-3.12.3.tgz && \
-    cd Python-3.12.3 && \
-    ./configure --enable-optimizations && \
-    make -j$(nproc) && make altinstall && \
-    ln -sf /usr/local/bin/python3.12 /usr/bin/python3 && \
-    ln -sf /usr/local/bin/pip3.12 /usr/bin/pip3
+# Install poetry and rembg early
+RUN pip install --upgrade pip && pip install poetry rembg
 
-# Set working directory
+# Set working dir
 WORKDIR /pelagica
 
-# Copy project
+# Copy project code
 COPY . .
 
-RUN apt-get update && \
-    apt-get install -y r-base && \
-    pip3 install --upgrade pip && \
-    pip3 install poetry && \
-    poetry config virtualenvs.create false && \
-    poetry install && \
-    pip3 install rembg && \
-    python3 -c "from rembg import session_factory; session_factory.new_session('u2net')"
+# Install Python dependencies via Poetry
+RUN poetry install
 
-RUN mkdir -p /root/.u2net
+# Download U-2-Net model for rembg (if needed)
+RUN python3 -c "from rembg import session_factory; session_factory.new_session('u2net')"
 
-ENV LLVM_CONFIG=/usr/bin/llvm-config-10
+# Clean up build tools and caches
+RUN apt-get purge -y build-essential && \
+    apt-get autoremove -y && \
+    rm -rf ~/.cache/pip /root/.cache/pip /var/lib/apt/lists/*
+    
 
-CMD ["bash"]
+# Default command
+CMD ["python3", "app.py"]
 

@@ -271,7 +271,7 @@ def assign_random_depth(df: pd.DataFrame, seed: int) -> pd.DataFrame:
             return s
         u = rng.random()
         if bias == "shallow":
-            return s + (u ** 2.0) * (d - s)
+            return s + (u ** 1.3) * (d - s)
         elif bias == "medium":
             return s + u * (d - s)
         elif bias == "deep":
