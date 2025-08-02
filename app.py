@@ -242,7 +242,7 @@ advanced_filters = html.Div([           # collapsible area
 
     ], className="settings-group"),
     
-    html.Div("Limits the list to ~1 000 species (faster loading and cleaner images).", className="settings-note"),
+    html.Div("Limits the list to over 1 000 species (faster loading and cleaner images).", className="settings-note"),
     
     html.Br(),
 
@@ -395,7 +395,7 @@ centre_flex = html.Div(id="page-centre-flex", children=[
 
 center_message=html.Div(
     id="load-message",
-    children="Loading species…",
+    children="Select a species",
     style={
         "position": "fixed",
         "top": "50%",
@@ -626,7 +626,7 @@ def update_species_options(genus, wiki_val, pop_val,
     Input("common-dd",  "value"),
     Input("random-btn", "n_clicks"),
     Input("nav-random-btn", "n_clicks"),
-    State("size-toggle",    "value"),   
+    State("size-toggle",    "value"),
     State("depth-toggle",   "value"),
     State("wiki-toggle",    "value"),
     State("popular-toggle", "value"),
@@ -636,10 +636,11 @@ def update_species_options(genus, wiki_val, pop_val,
     prevent_initial_call=True
 )
 def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
-                   size_val, depth_val,          # ② …and here
+                   size_val, depth_val,
                    wiki_val, pop_val,
                    fav_val, favs_data,
                    current_sel):
+
     """
     Decide which species string “Genus Species” should be stored in
     `selected-species` whenever *any* of the four selectors fires.
@@ -655,41 +656,39 @@ def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
     """
     trig = ctx.triggered_id
 
-    # ──────────────────────────────────────────────────────────
-    # 1. RANDOM BUTTON
-    # ──────────────────────────────────────────────────────────
+    def _emit(new_gs):
+        # If it's the same as what we already have, do nothing.
+        if (new_gs or "").strip() == (current_sel or "").strip():
+            raise PreventUpdate
+        return new_gs
+
+    # 1) Random buttons
     if trig in ("random-btn", "nav-random-btn"):
         size_on  = "size"  in size_val
         depth_on = "depth" in depth_val
+        df_use = get_filtered_df(size_on, depth_on, wiki_val, pop_val)
 
-        # strict length/depth rules
-        df_use = get_filtered_df(size_on, depth_on,
-                                 wiki_val, pop_val)
-
-        # favourites (must be applied after get_filtered_df)
         if fav_val and "fav" in fav_val:
             fav_set = set(json.loads(favs_data or "[]"))
             df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
-
         if df_use.empty:
             raise PreventUpdate
 
+        # Prefer a *different* species; fall back if only one candidate.
+        if len(df_use) > 1 and current_sel in set(df_use["Genus_Species"]):
+            df_use = df_use[df_use["Genus_Species"] != current_sel]
+
         row = df_use.sample(1).iloc[0]
-        return f"{row.Genus} {row.Species}"
+        return _emit(f"{row.Genus} {row.Species}")
 
-    # ──────────────────────────────────────────────────────────
-    # 2. COMMON‑NAME DROPDOWN
-    # ──────────────────────────────────────────────────────────
+    # 2) Common-name dropdown
     if trig == "common-dd" and common_val:
-        return common_val
+        return _emit(common_val)
 
-    # ──────────────────────────────────────────────────────────
-    # 3. GENUS + SPECIES PAIR (cascading)
-    # ──────────────────────────────────────────────────────────
+    # 3) Genus + species pair
     if trig in ("genus-dd", "species-dd") and genus_val and species_val:
-        return f"{genus_val} {species_val}"
+        return _emit(f"{genus_val} {species_val}")
 
-    # nothing actionable
     raise PreventUpdate
 
 
@@ -976,10 +975,22 @@ def _units(value_bool):
 
 def _sound_paths(genus: str, species: str):
     base = f"{genus}_{species}".replace(" ", "_")
-    mp3_rel = os.path.join("assets", "species", "sound", f"{base}.ogg")
-    txt_rel = os.path.join("assets", "species", "sound", f"{base}.txt")
-    mp3_url = f"/assets/species/sound/{base}.ogg"
-    return mp3_rel, txt_rel, mp3_url
+    base_dir = os.path.join("assets", "species", "sound")
+
+    candidates = [f"{base}.ogg", f"{base}.mp3"]
+
+    audio_rel = ""
+    audio_url = ""
+    for fname in candidates:
+        rel = os.path.join(base_dir, fname)
+        if os.path.exists(rel):
+            audio_rel = rel
+            audio_url = f"/assets/species/sound/{fname}"
+            break
+
+    txt_rel = os.path.join(base_dir, f"{base}.txt")
+    return audio_rel, txt_rel, audio_url
+
 
 
 # NEW: sound – show/hide icon and set audio src when species changes
@@ -1451,10 +1462,24 @@ def push_depth(gs_name, seed):
     if not gs_name:
         raise PreventUpdate
     _ensure_randdepth(seed)             # safety net (cheap)
-    depth = df_full.loc[
+
+    # Look up the precomputed random depth
+    depth_series = df_full.loc[
         df_full["Genus_Species"] == gs_name, "RandDepth"
-    ].iat[0]
+    ]
+
+    if depth_series.empty:
+        # No row found (shouldn't happen), don't change the store
+        raise PreventUpdate
+
+    depth = depth_series.iat[0]
+
+    # If no depth is associated (NaN), push 0 to the animation only
+    if pd.isna(depth):
+        return 0
+
     return depth
+
 
 
 
