@@ -424,7 +424,7 @@
     "ascend":  ["Leaving steep trench walls for flatter abyss."] },
 
   { "min": 6000, "max": 7000,
-    "descend": ["Entering the hadal zone. Named after Hades, the god of the underworld."],
+    "descend": ["Entering the hadal zone, named after Hades, the god of the underworld."],
     "ascend":  ["Climbing out of Hades’ zone back to the abyss."] },
 
   { "min": 6800, "max": 7000,

@@ -20,7 +20,7 @@ import re
 import random
 import time
 
-from src.process_data import load_species_data, load_homo_sapiens, load_name_table
+from src.process_data import load_species_data, load_homo_sapiens, load_name_table, cm_to_in
 from src.wiki import get_blurb, get_commons_thumb      
 from src.utils import assign_random_depth
 import os
@@ -242,7 +242,7 @@ advanced_filters = html.Div([           # collapsible area
 
     ], className="settings-group"),
     
-    html.Div("Limits the list to over 1 000 species (faster loading and cleaner images).", className="settings-note"),
+    html.Div("Limits the list to over 1,000 curated species (faster loading and cleaner images).", className="settings-note"),
     
     html.Br(),
 
@@ -977,7 +977,7 @@ def _sound_paths(genus: str, species: str):
     base = f"{genus}_{species}".replace(" ", "_")
     base_dir = os.path.join("assets", "species", "sound")
 
-    candidates = [f"{base}.ogg", f"{base}.mp3"]
+    candidates = [f"{base}.ogg", f"{base}.mp3", f"{base}.wav"]
 
     audio_rel = ""
     audio_url = ""
@@ -1283,15 +1283,16 @@ def update_image(gs_name, units_bool):
             html.A(f"{src_name} ↗", href=cite_url, target="_blank")
         ])
 
+    # If no thumbnail was found, use the placeholder but make the URL
+    # unique per species so <img src> actually *changes* between picks.
+    if thumb:
+        img_src = thumb
+    else:
+        slug = f"{genus}_{species}".replace(" ", "_")
+        img_src = f"/assets/img/placeholder_fish.webp?gs={slug}"
 
-
-
-
-
-
-
-    gc.collect() 
-    return thumb or "/assets/img/placeholder_fish.webp", info_lines
+    gc.collect()
+    return img_src, info_lines
 
 
 
