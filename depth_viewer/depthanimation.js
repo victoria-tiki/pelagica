@@ -16,17 +16,20 @@ window.addEventListener('error', e => {
 });
 
 /* Tiny on-screen FPS / depth debug */
-(function makeDebugOverlay(){
-  const box = document.createElement('div');
-  box.id = 'debugBox';
-  Object.assign(box.style,{
-    position:'fixed',bottom:'4px',left:'6px',font:'12px/1.2 monospace',
-    background:'rgba(0,0,0,.5)',color:'#fff',padding:'4px 6px',
-    zIndex:9999,borderRadius:'4px',pointerEvents:'none'
-  });
-  box.textContent='init…';
-  document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(box));
-})();
+if (window.self === window.top) {  // only show debug overlay when *not* in an iframe
+  (function makeDebugOverlay(){
+    const box = document.createElement('div');
+    box.id = 'debugBox';
+    Object.assign(box.style,{
+      position:'fixed',bottom:'4px',left:'6px',font:'12px/1.2 monospace',
+      background:'rgba(0,0,0,.5)',color:'#fff',padding:'4px 6px',
+      zIndex:9999,borderRadius:'4px',pointerEvents:'none'
+    });
+    box.textContent='init…';
+    document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(box));
+  })();
+}
+
 
 /* Hide the control overlay when the page is running inside Pelagica */
 if (window.self !== window.top) {        // we are inside an <iframe>

@@ -376,7 +376,9 @@ centre_flex = html.Div(id="page-centre-flex", children=[
             html.Div("♡", id="fav-handle", className="heart-icon"),
             dbc.Tooltip( "Add this species to favourites",target="fav-handle",placement="top",style={"fontSize": "0.8rem"}),
             html.Div("📏", id="compare-handle", className="scale-icon"),
-            dbc.Tooltip(id="scale-tooltip",target="compare-handle",placement="top",style={"fontSize": "0.8rem"}, children="Compare size", key="initial")
+            dbc.Tooltip(id="scale-tooltip",target="compare-handle",placement="top",style={"fontSize": "0.8rem"}, children="Compare size", key="initial"),
+            html.Div("🕪", id="sound-handle", className="sound-icon"),  
+            dbc.Tooltip("Play species sound", target="sound-handle",placement="top", style={"fontSize": "0.8rem"}),
 
 
         ]),
@@ -385,7 +387,9 @@ centre_flex = html.Div(id="page-centre-flex", children=[
         html.Div(id="info-card", className="glass-panel",children=[
             html.Div(id="info-close", children="✕"),
             html.Div(id="info-content")
-        ])
+        ]),
+        html.Audio(id="species-audio", src="", preload="auto",style={"display": "none"}), 
+        
     ])
 ])
 
@@ -491,7 +495,7 @@ nav_panel = html.Div([
         html.Small("larger", id="nav-label-right", className="nav-label"),
     ], id="next-wrap", className="nav-wrap right"),
     
-    html.Button("🔄", id="nav-random-btn", className="nav-icon",
+    html.Button("🔄", id="nav-random-btn", className="nav-icon rand-icon",
             style={"position": "absolute", "bottom": "4%", "right": "4%"}),
 
 
@@ -543,6 +547,7 @@ app.layout = dbc.Container([
             style={"width": "100%", "height": "100vh", "border": "none"},
         ),
     dcc.Store(id="anim-done", data=False, storage_type="session"),
+    dcc.Store(id="img-loaded", data=False,  storage_type="session"),  # ← NEW
     depth_store,
 
 
@@ -849,7 +854,23 @@ def fill_citation(gs_name):
             html.Span(" — retrieved 12 Jul 2025."),
         ]
 
-    return image_block + wiki_block + data_block
+    sound_block = []
+    mp3_rel, txt_rel, _ = _sound_paths(genus, species)
+    if os.path.exists(txt_rel):
+        try:
+            with open(txt_rel, "r", encoding="utf-8") as f:
+                citation_text = f.read().strip()
+            if citation_text:
+                sound_block = [
+                    html.Br(), html.Br(),
+                    html.Strong("Audio: "),
+                    html.Span(citation_text)
+                ]
+        except Exception:
+            # If a bad file sneaks in, silently skip.
+            pass
+
+    return image_block + wiki_block + data_block + sound_block
 
 
 # --- populate image + overlay + titles whenever species or units change ----------
@@ -953,7 +974,56 @@ def _units(value_bool):
     """False = metric,  True = imperial (because pill right = ft)."""
     return "imperial" if value_bool else "metric"
 
+def _sound_paths(genus: str, species: str):
+    base = f"{genus}_{species}".replace(" ", "_")
+    mp3_rel = os.path.join("assets", "species", "sound", f"{base}.ogg")
+    txt_rel = os.path.join("assets", "species", "sound", f"{base}.txt")
+    mp3_url = f"/assets/species/sound/{base}.ogg"
+    return mp3_rel, txt_rel, mp3_url
 
+
+# NEW: sound – show/hide icon and set audio src when species changes
+@app.callback(
+    Output("sound-handle",  "style"),
+    Output("species-audio", "src"),
+    Input("selected-species", "data"),
+    prevent_initial_call=True
+)
+def update_sound_controls(gs_name):
+    if not gs_name:
+        raise PreventUpdate
+    genus, species = gs_name.split(" ", 1)
+    mp3_rel, txt_rel, mp3_url = _sound_paths(genus, species)
+
+    if os.path.exists(mp3_rel):
+        # visible icon + primed audio source
+        return ({"display": "block"}, mp3_url)
+    else:
+        # hide icon, clear src
+        return ({"display": "none"}, "")
+
+
+# sound – client-side click handler to play the audio
+app.clientside_callback(
+    """
+    function(n) {
+        if (!n) { return window.dash_clientside.no_update; }
+        const el = document.getElementById("species-audio");
+        if (el) {
+            if (!el.paused) {
+                el.pause();  // pause if already playing
+            } else {
+                el.currentTime = 0;
+                el.play();   // play from start if paused
+            }
+        }
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("js-trigger", "children"),
+    Input("sound-handle", "n_clicks"),
+    prevent_initial_call=True
+)
 
 
 
@@ -1005,27 +1075,55 @@ def update_image(gs_name, units_bool):
     if units == "metric":
         if pd.notna(row.Length_cm):
             if row.Length_cm >= 100:
-                # show in meters to two decimals
-                length = f"{row.Length_cm/100:.2f} m"
+                max_length = f"{row.Length_cm/100:.2f} m"
             else:
-                length = f"{row.Length_cm:.1f} cm"
+                max_length = f"{row.Length_cm:.1f} cm"
         else:
-            length = "?"
+            max_length = "?"
     else:
         if pd.notna(row.Length_in):
-            if row.Length_in >= 12:                     # 12 in = 1 ft
-                length = f"{row.Length_in/12:.2f} ft"   # decimal feet
+            if row.Length_in >= 12:
+                max_length = f"{row.Length_in/12:.2f} ft"
             else:
-                length = f"{row.Length_in:.1f} in"
+                max_length = f"{row.Length_in:.1f} in"
         else:
-            length = "?"
+            max_length = "?"
+
+    # --- Richer tooltip & text depending on CommonLength ----------------------
+    ltype_max = row.get("LTypeMaxM")
+    comm_cm   = row.get("CommonLength")
+    has_common = pd.notna(comm_cm)
+
+    # → 1. tooltip
+    if row.get("Database") == 0:
+        length_tooltip = "Global average height"
+    elif has_common and pd.notna(ltype_max):
+        length_tooltip = f"({ltype_max}, male)"
+    elif pd.notna(ltype_max):
+        length_tooltip = f"Maximum recorded length of species ({ltype_max}, male)"
+    else:
+        length_tooltip = "Maximum recorded length of species (male)"
+
+    # → 2. display string
+    if has_common:
+        if units == "metric":
+            if comm_cm >= 100:
+                common_str = f"{comm_cm/100:.2f} m"
+            else:
+                common_str = f"{comm_cm:.1f} cm"
+        else:
+            comm_in     = cm_to_in(comm_cm)
+            common_str  = f"{comm_in/12:.2f} ft" if comm_in >= 12 else f"{comm_in:.1f} in"
+
+        length_display = f"max {max_length}, common {common_str}"
+    else:
+        length_display = max_length
 
 
     if row.get("Database") == 0:
         length_tooltip = "Global average height"
         depth_tooltip  = "Unassisted freediving record depth"
     else:
-        length_tooltip = "Maximum recorded length of species"
         depth_tooltip  = (
             "Pelagica shows you this species at a random depth within this range. "
             "Note that this depth range doesn't always reflect the species' diving behavior — it may instead represent the maximum depth of the body of water it inhabits (see citation)."
@@ -1060,7 +1158,7 @@ def update_image(gs_name, units_bool):
             html.Span("length",
                       title=length_tooltip,
                       style={"textDecoration": "underline dashed"}),
-            f": {length}  |  ",
+            f": {length_display}  |  ",
             html.Span("depth",
                       title=depth_tooltip,
                       style={"textDecoration": "underline dashed"}),
@@ -1240,7 +1338,7 @@ def do_import(contents):
 @app.callback(
     Output("common-dd", "options"),
     Output("common-opt-cache", "data"),
-    Output("common-dd", "value"),
+    Output("common-dd", "value"),       # ← keep this output
     Input("common-dd",  "search_value"),
     Input("wiki-toggle","value"),
     Input("popular-toggle","value"),
@@ -1250,6 +1348,7 @@ def do_import(contents):
     State("common-opt-cache", "data"),
 )
 def filter_common(search, wiki_val, pop_val, fav_val, favs_data, current, cached):
+
     df_use = _apply_shared_filters(df_light, wiki_val, pop_val, fav_val, favs_data)
 
     # ── 1. user isn’t typing → keep everything as is ─────────────────
@@ -1267,11 +1366,15 @@ def filter_common(search, wiki_val, pop_val, fav_val, favs_data, current, cached
 
     # ── 3. skip update if options identical ──────────────────────────
     if options == cached:
-        return no_update, cached, current
+        return no_update, cached, no_update
 
-    # ── 4. drop current value if no longer valid ─────────────────────
+    # 2) If the callback was triggered by typing, leave `value` untouched
+    triggered_prop = next(iter(ctx.triggered_prop_ids))
+    if triggered_prop == "common-dd.search_value":
+        return options, options, no_update   # ← stops the field from resetting
+
+    # 3) Otherwise (filters toggled, etc.) update `value` if it became invalid
     value = current if current in {o["value"] for o in options} else None
-
     return options, options, value
 
 
@@ -1513,38 +1616,18 @@ app.clientside_callback(
     State("anim-done",   "data")       # <‑‑ added so arg‑count == 2
 )
 
-
-
-
-#   Reset the flag on every new dive  (this callback is already active)
-@app.callback(Output("anim-done", "data", allow_duplicate=True),
-              Input("selected-species", "data"), prevent_initial_call=True)
-def _reset_done(_):
-    return False
-
-#   Reveal the species panel when the dive completes  (uncomment)
-@app.callback(
-    Output("main-content", "style"),
-    Input("selected-species", "data"),   # hide while a new dive starts
-    Input("anim-done",       "data"),    # show when tween finishes
-    prevent_initial_call=True
-)
-def toggle_main_content(species, done):
-    if done:     # dive finished
-        return {"display": "block"}
-    if species:  # diving right now
-        return {"display": "none"}
-    raise PreventUpdate
-
-
-'''# Reset the flag whenever a new species is chosen
-@app.callback(
-    Output("anim-done", "data", allow_duplicate=True),
+# Put this near your other clientside callbacks in app.py
+app.clientside_callback(
+    """
+    function (gs) {
+        if (!gs) return window.dash_clientside.no_update;
+        return `waiting for ${gs} to arrive`;
+    }
+    """,
+    Output("load-message", "children"),
     Input("selected-species", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
-def reset_anim_done(_):
-    return False'''
 
 
 
@@ -1775,7 +1858,7 @@ def update_scale_tooltip(gs_name, is_on):
 
     # unique key → forces rerender of tooltip
     return (
-        f"Compare size to a {desc} (approximate)",
+        f"Compare maximum size to a {desc} (approximate)",
         f"{genus}_{species}"
     )
 
