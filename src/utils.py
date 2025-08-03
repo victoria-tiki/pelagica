@@ -253,7 +253,12 @@ OVERRIDE_DEPTH = {
     "Lobodon carcinophaga",
     "Stenella coeruleoalba",
     "Odobenus rosmarus",
-    "Stenella frontalis"
+    "Stenella frontalis", 
+    "Pagophilus groenlandicus", 
+    "Stenella longirostris", 
+    "Stenella attenuata", 
+    "Grampus griseus", 
+    "Tursiops truncatus"
 }
 
 def assign_random_depth(df: pd.DataFrame, seed: int) -> pd.DataFrame:

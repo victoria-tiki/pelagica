@@ -17,7 +17,6 @@ import json, base64
 import glob
 import gc
 import re
-import random
 import time
 
 from src.process_data import load_species_data, load_homo_sapiens, load_name_table, cm_to_in
@@ -25,7 +24,9 @@ from src.wiki import get_blurb, get_commons_thumb
 from src.utils import assign_random_depth
 import os
 
-
+def with_session_depth(df_use, depth_map):
+    return df_use.assign(RandDepth=df_use["Genus_Species"].map(depth_map))
+    
 # --- Pre‑index scale images ------------------------------------
 _scale_db = []
 _pat = re.compile(r'(.+?)_(\d+(?:p\d+)?)(cm|m)\.png$')
@@ -242,7 +243,7 @@ advanced_filters = html.Div([           # collapsible area
 
     ], className="settings-group"),
     
-    html.Div("Limits the list to over 1,000 curated species (faster loading and cleaner images).", className="settings-note"),
+    html.Div("Limits the list to around 1,500 curated species (faster loading and cleaner images).", className="settings-note"),
     
     html.Br(),
 
@@ -547,11 +548,14 @@ app.layout = dbc.Container([
             style={"width": "100%", "height": "100vh", "border": "none"},
         ),
     dcc.Store(id="anim-done", data=False, storage_type="session"),
-    dcc.Store(id="img-loaded", data=False,  storage_type="session"),  # ← NEW
+    dcc.Store(id="rand-depth-map", storage_type="session"),
+    
     depth_store,
 
 
     footer,
+    
+    
     
     html.Div(id="js-trigger", style={"display": "none"}),
     dcc.Store(id="selected-species", data=None),
@@ -1285,14 +1289,17 @@ def update_image(gs_name, units_bool):
 
     # If no thumbnail was found, use the placeholder but make the URL
     # unique per species so <img src> actually *changes* between picks.
-    if thumb:
-        img_src = thumb
-    else:
-        slug = f"{genus}_{species}".replace(" ", "_")
-        img_src = f"/assets/img/placeholder_fish.webp?gs={slug}"
+    # ---- build img_src -------------------------------------------------
+    slug      = f"{genus}_{species}".replace(" ", "_")
+    base_src  = thumb or "/assets/img/placeholder_fish.webp"
+
+    # add ? or & so the bitmap stays cached but the URL is unique per species
+    sep       = "&" if "?" in base_src else "?"
+    img_src   = f"{base_src}{sep}gs={slug}"
 
     gc.collect()
     return img_src, info_lines
+
 
 
 
@@ -1452,34 +1459,29 @@ def close_search_mobile(n, current_class):
         return new_class.strip(), "search-handle collapsed"
     raise PreventUpdate
     
+@app.callback(
+    Output("rand-depth-map", "data"),
+    Input("rand-seed", "data"),
+)
+def build_depth_map(seed):
+    if seed is None:
+        raise PreventUpdate
+    tmp = assign_random_depth(df_full.copy(), seed)  # returns a frame with RandDepth
+    depth_map = dict(zip(tmp["Genus_Species"], tmp["RandDepth"]))
+    return depth_map
 
 
 @app.callback(
     Output("depth-store", "data"),
     Input("selected-species", "data"),
-    State("rand-seed", "data")          #  ← added
+    State("rand-depth-map", "data"),
 )
-def push_depth(gs_name, seed):
+def push_depth(gs_name, depth_map):
     if not gs_name:
         raise PreventUpdate
-    _ensure_randdepth(seed)             # safety net (cheap)
+    depth = (depth_map or {}).get(gs_name)
+    return 0 if depth is None or pd.isna(depth) else depth
 
-    # Look up the precomputed random depth
-    depth_series = df_full.loc[
-        df_full["Genus_Species"] == gs_name, "RandDepth"
-    ]
-
-    if depth_series.empty:
-        # No row found (shouldn't happen), don't change the store
-        raise PreventUpdate
-
-    depth = depth_series.iat[0]
-
-    # If no depth is associated (NaN), push 0 to the animation only
-    if pd.isna(depth):
-        return 0
-
-    return depth
 
 
 
@@ -1570,28 +1572,14 @@ def refresh_fav_icon(gs_name, favs_json):
 
 
 @app.callback(
-    Output("rand-seed", "data", allow_duplicate=True),
-    Input("rand-seed", "data"),
-    prevent_initial_call=True
+    Output("rand-seed", "data"),
+    Input("rand-seed", "data")   
 )
-def _init_seed(cur):
-    import random
-    # first page-load → generate seed and create the column
+def init_seed(cur):
     if cur is None:
-        s = random.randint(0, 2**32 - 1)
-        _ensure_randdepth(s)
-        return s
-
-    # page loaded with an **existing** seed → just build the column
-    _ensure_randdepth(cur)
+        return random.randint(0, 2**32 - 1)
     raise PreventUpdate
 
-
-
-def _ensure_randdepth(seed):
-    global df_full
-    if "RandDepth" not in df_full.columns:
-        df_full = assign_random_depth(df_full, seed)
 
 
 # ───────── client‑side: push depth to viewer ─────────
@@ -1721,37 +1709,37 @@ def step_size(n_next, n_prev,
     State("depth-toggle",     "value"),
     State("wiki-toggle",      "value"),
     State("popular-toggle",   "value"),
-    State("favs-toggle",      "value"),     # ← NEW
-    State("favs-store",       "data"),      # ← NEW
+    State("favs-toggle",      "value"),
+    State("favs-store",       "data"),
     State("selected-species", "data"),
-    State("rand-seed",        "data"),
+    State("rand-depth-map",   "data"),   # ← add this
     prevent_initial_call=True
 )
 def step_depth(n_up, n_down,
                size_val, depth_val, wiki_val, pop_val,
                fav_val, favs_data,
-               current, seed):
+               current, depth_map):
 
     if ctx.triggered_id not in ("up-btn", "down-btn"):
         raise PreventUpdate
-    if "depth" not in depth_val:            # depth axis is off
+    if "depth" not in depth_val:
         raise PreventUpdate
 
-    size_on  = "size"  in size_val
+    size_on  = "size" in size_val
     depth_on = True
 
-    df_use = get_filtered_df(size_on, depth_on,
-                             wiki_val, pop_val, seed)
+    df_use = get_filtered_df(size_on, depth_on, wiki_val, pop_val)
 
-    # favourites filter
     if fav_val and "fav" in fav_val:
         fav_set = set(json.loads(favs_data or "[]"))
         df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
-
     if df_use.empty:
         raise PreventUpdate
 
-    df_use  = df_use.sort_values("RandDepth")
+    # inject per-session depths, then sort
+    df_use = with_session_depth(df_use, depth_map or {})
+    df_use = df_use.sort_values("RandDepth")
+
     species = df_use["Genus_Species"].tolist()
     if current not in species:
         current = species[0]
@@ -1761,9 +1749,11 @@ def step_depth(n_up, n_down,
          else (idx + 1) % len(species)
     return species[idx]
 
+
 # -------------------------------------------------------------------
 # Quick‑jump buttons (deepest / shallowest / largest / smallest)
 # -------------------------------------------------------------------
+# Quick jumps
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
     Input("deepest-btn",    "n_clicks"),
@@ -1772,37 +1762,34 @@ def step_depth(n_up, n_down,
     Input("smallest-btn",   "n_clicks"),
     State("wiki-toggle",    "value"),
     State("popular-toggle", "value"),
-    State("favs-toggle",    "value"),     # ← NEW
-    State("favs-store",     "data"),      # ← NEW
-    State("rand-seed",      "data"),
+    State("favs-toggle",    "value"),
+    State("favs-store",     "data"),
+    State("rand-depth-map", "data"),      # ← add this
     prevent_initial_call=True
 )
-def jump_to_extremes(n_deep, n_shallow,
-                     n_large, n_small,
-                     wiki_val, pop_val,
-                     fav_val, favs_data,
-                     seed):
+def jump_to_extremes(n_deep, n_shallow, n_large, n_small,
+                     wiki_val, pop_val, fav_val, favs_data,
+                     depth_map):
 
     trig = ctx.triggered_id
     if trig is None:
         raise PreventUpdate
 
-    # ---------------- Base dataframe -------------------------------
     size_on  = trig in ("largest-btn", "smallest-btn")
     depth_on = trig in ("deepest-btn", "shallowest-btn")
 
-    df_use = get_filtered_df(size_on, depth_on,
-                             wiki_val, pop_val, seed)
+    df_use = get_filtered_df(size_on, depth_on, wiki_val, pop_val)
 
-    # favourites filter
+    # per-session depths for the depth cases
+    if depth_on:
+        df_use = with_session_depth(df_use, depth_map or {})
+
     if fav_val and "fav" in fav_val:
         fav_set = set(json.loads(favs_data or "[]"))
         df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
-
     if df_use.empty:
         raise PreventUpdate
 
-    # ---------------- Pick extreme -------------------------------
     if trig in ("largest-btn", "smallest-btn"):
         df_use = df_use.sort_values(["Length_cm", "Length_in"])
         row    = df_use.iloc[-1] if trig == "largest-btn" else df_use.iloc[0]
@@ -1920,7 +1907,7 @@ def update_sizecmp(gs_name, is_on):
         "width":f"{scale*100:.2f}%", "zIndex":3,
         "opacity":0.85, "pointerEvents":"auto", "cursor":"pointer"
     }
-    title = f""#this is a {best['desc']}"
+    title = f"this is a {best['desc']}"
     return best["path"], style, title
 
 @app.callback(

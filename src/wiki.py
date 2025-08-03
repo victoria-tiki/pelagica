@@ -46,7 +46,7 @@ WIKI_NAME_EQUIVALENTS = {
 }
 
 
-@lru_cache(maxsize=1000)
+@lru_cache(maxsize=25)
 def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None, str | None]:
     key_string = f"{genus.strip().lower()}_{species.strip().lower()}_{sentences}"
     stem = url_to_stem(key_string)
@@ -112,7 +112,7 @@ def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None,
 # ---------- Image + attribution (robust) ---------------------------
 
 
-@lru_cache(maxsize=1000)
+@lru_cache(maxsize=25)
 def get_commons_thumb(genus: str,
                       species: str,
                       width: int = 640,

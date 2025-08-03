@@ -8,11 +8,23 @@
   // ---- small DOM helpers ---------------------------------------------
   const $ = (id) => document.getElementById(id);
 
+  let overlayTimer = null;                     // one global timer
+
   function setOverlay(visible) {
-    const msg = $("load-message");
+    const msg = document.getElementById("load-message");
     if (!msg) return;
-    msg.style.display = visible ? "block" : "none";
+
+    if (visible) {
+      clearTimeout(overlayTimer);              
+      overlayTimer = setTimeout(() => {
+        msg.style.display = "block";
+      }, 500);                                 // ← 0.5 s delay
+    } else {
+      clearTimeout(overlayTimer);              
+      msg.style.display = "none";
+    }
   }
+
 
   function hidePanel(why) {
     const panel = $("main-content");
@@ -29,7 +41,7 @@
   }
 
   // ────────────────────────────────────────────────────────────────────
-  // Dash ➜ viewer: sendDepth (keep your API; just reset gates + hide)
+  // Dash ➜ viewer: sendDepth
   // ────────────────────────────────────────────────────────────────────
   window.dash_clientside = Object.assign({}, window.dash_clientside, {
     bridge: {
@@ -49,7 +61,6 @@
         setOverlay(false);
         hidePanel("startAnimation");
 
-        // Your original viewer messages
         frame.contentWindow.postMessage({ type: skip ? "pauseAll" : "resumeAll" }, "*");
         const isImperial = !!$("units-toggle")?.checked;
         frame.contentWindow.postMessage(
@@ -92,7 +103,7 @@
 
           // Only show overlay after animation has completed
           if (animGate) {
-            setOverlay(true);    // Dash sets the message text
+            setOverlay(true);   
           } else {
             setOverlay(false);
           }
@@ -106,7 +117,7 @@
           };
           const onError = () => {
             if (img.getAttribute("src") === pendingSrc) {
-              imgGate = true; // fail-open so UI isn’t stuck
+              imgGate = true; 
               console.error("[Pelagica] image failed to load; showing panel anyway.");
               tryShowPanel();
             }
@@ -115,7 +126,6 @@
           img.addEventListener("load",  onLoad,  { once: true });
           img.addEventListener("error", onError, { once: true });
 
-          // Cached fast path (image already complete for this src)
           if (img.complete && img.naturalWidth > 0) {
             queueMicrotask(onLoad);
           }
@@ -130,7 +140,7 @@
       pendingSrc = img.getAttribute("src");
       imgGate = false;
       hidePanel("initial image pending");
-      if (animGate) setOverlay(true);   // Dash sets the message text
+      if (animGate) setOverlay(true);  
       img.addEventListener("load", () => {
         if (img.getAttribute("src") === pendingSrc) {
           imgGate = true;
@@ -142,13 +152,12 @@
         tryShowPanel();
       }, { once: true });
     } else if (img.complete && img.naturalWidth > 0) {
-      imgGate = true; // initial image already displayed
+      imgGate = true; 
     }
 
     return true;
   }
 
-  // Attach as soon as #species-img exists
   function attachWhenReady() {
     const ok = armImageWatch();
     if (!ok) {
@@ -161,17 +170,89 @@
     document.addEventListener("DOMContentLoaded", attachWhenReady);
   }
 
-  // Optional: if some other code toggles the overlay visibility later,
-  // keep to showing/hiding only (no text writes here).
+  //if some other code toggles the overlay visibility later, keep to showing/hiding only (no text writes here).
   const msg = $("load-message");
   if (msg) {
     new MutationObserver((mutList) => {
       for (const m of mutList) {
         if (m.type === "attributes" && m.attributeName === "style") {
-          // nothing to do; Dash controls the text, we control visibility elsewhere
         }
       }
     }).observe(msg, { attributes: true, attributeFilter: ["style"] });
+  }
+})();
+
+/* ---------- Force delayed start for species image loading (hacky, but this solves some racing issues where the image would never appear if it was processed too quickly) ---------- */
+(function () {
+  const TARGET_ID = "species-img";
+  const DELAY_MS  = 500;
+
+  function installDelayedSrc(el) {
+    if (!el || el.__delayedSrcInstalled) return;
+    el.__delayedSrcInstalled = true;
+
+    // Keep original property/behavior
+    const proto = Object.getPrototypeOf(el);
+    const desc  = Object.getOwnPropertyDescriptor(proto, "src");
+    const origSetAttribute = el.setAttribute;
+
+    // Intercept direct property sets:  el.src = "…"
+    Object.defineProperty(el, "src", {
+      configurable: true,
+      enumerable: desc && desc.enumerable,
+      get: function () {
+        return desc ? desc.get.call(this) : this.getAttribute("src");
+      },
+      set: function (v) {
+        const newUrl = String(v || "");
+        // Cancel any pending start, coalesce rapid changes
+        clearTimeout(this.__srcDelayTimer);
+
+        // No need to schedule if it wouldn't change anything
+        try {
+          const current = desc ? desc.get.call(this) : this.getAttribute("src");
+          if (newUrl === current) return;
+        } catch (_) { /* ignore */ }
+
+        this.__pendingSrc = newUrl;
+        this.__srcDelayTimer = setTimeout(() => {
+          try {
+            if (desc && desc.set) {
+              desc.set.call(this, this.__pendingSrc); // actual network start happens here
+            } else {
+              this.setAttribute("src", this.__pendingSrc);
+            }
+          } finally {
+            this.__pendingSrc = null;
+          }
+        }, DELAY_MS);
+      }
+    });
+
+    // Intercept attribute sets:  el.setAttribute('src', '…')
+    el.setAttribute = function (name, value) {
+      if (String(name).toLowerCase() === "src") {
+        // Route through the delayed property setter so we always delay network start
+        this.src = value;
+        return;
+      }
+      return origSetAttribute.apply(this, arguments);
+    };
+  }
+
+  function initOnce() {
+    const el = document.getElementById(TARGET_ID);
+    if (el) {
+      installDelayedSrc(el);
+      return true;
+    }
+    return false;
+  }
+
+  // Install now or as soon as the element exists
+  if (!initOnce()) {
+    const t = setInterval(() => initOnce() && clearInterval(t), 50);
+    document.addEventListener("DOMContentLoaded", () => initOnce() && clearInterval(t));
   }
 })();
 
