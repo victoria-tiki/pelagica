@@ -12,6 +12,7 @@ import dash_bootstrap_components as dbc
 from flask import send_from_directory
 
 import pandas as pd, random, datetime
+import dash_cytoscape as cyto
 import numpy as np 
 import json, base64   
 import glob
@@ -19,10 +20,15 @@ import gc
 import re
 import time
 
-from src.process_data import load_species_data, load_homo_sapiens, load_name_table, cm_to_in
+from src.process_data import load_species_data, load_homo_sapiens, load_name_table, cm_to_in,load_species_with_taxonomy
 from src.wiki import get_blurb, get_commons_thumb      
 from src.utils import assign_random_depth
+from src.taxonomic_tree import build_taxonomy_elements
 import os
+
+cyto.load_extra_layouts()
+print(f"BOOT: __name__={__name__} USE_DEV_SERVER={os.getenv('USE_DEV_SERVER')}")
+
 
 def with_session_depth(df_use, depth_map):
     return df_use.assign(RandDepth=df_use["Genus_Species"].map(depth_map))
@@ -47,21 +53,12 @@ for p in glob.glob("assets/species/scale/*.png"):
 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
-df_full  = load_species_data()   # heavy table (cached in process_data)
-#df_light = df_full[["Genus", "Species", "FBname", "has_wiki_page", "Genus_Species", "dropdown_label"]]
+df_full = load_species_with_taxonomy()  # heavy table + taxonomic data (cached in process_data)
 df_light = load_name_table()     # 5‑col view on the cached frame   
-
-#print("d_full",df_full.info(memory_usage="deep"))
-#print("d_light",df_light.info(memory_usage="deep"))
-
-#df_wiki = df[df["has_wiki_page"]].copy() #only those with wikipedia page
-#df_light = df[["Genus", "Species", "Genus_Species", "FBname", "has_wiki_page"]].copy()
-#df_light["dropdown_label"] = df_light["FBname"] + " (" + df_light["Genus"] + " " + df_light["Species"] + ")"
 
 # --- Popular-species whitelist -----------------------------------
 popular_df   = pd.read_csv("data/processed/popular_species.csv")        # <-- path in /mnt/data
 popular_set  = set(popular_df["Genus"] + " " + popular_df["Species"])
-#print("popular_df",popular_df.info(memory_usage="deep"))
 
 # --- Transparency‑removal blacklist -----------------------------
 transp_df  = pd.read_csv("data/processed/transparency_blacklist.csv")
@@ -69,21 +66,25 @@ transp_set = set(transp_df["Genus"] + " " + transp_df["Species"])
 
 gc.collect() 
 
-'''genus_options = [
-    {"label": g, "value": g}
-    for g in sorted(df_light["Genus"].unique())
-]
+# --- Common-name dictionary ------------------------------------------
+common_taxa_df = (
+    pd.read_csv("data/processed/common_names_taxa.csv",  
+                names=["scientific", "common"],   
+                header=None)
+      .apply(lambda s: s.str.strip())          # trim whitespace
+)
 
-common_options = [
-    {"label": r.dropdown_label, "value": r.Genus_Species}
-    for _, r in df_light.iterrows()
-]'''
+COMMON_NAMES = dict(zip(common_taxa_df.scientific, common_taxa_df.common))
 
-# Genus dropdown options
-#genus_options = [{"label": g, "value": g} for g in sorted(df_wiki["Genus"].unique())]
+def _label_with_common(taxon: str) -> str:
+    """
+    Return 'Taxon (common name)' if we have one, otherwise just 'Taxon'.
+    Keeps dropdown .value equal to the scientific name.
+    """
+    cmn = COMMON_NAMES.get(taxon)
+    return f"{taxon} ({cmn})" if cmn else taxon
 
-# Common-name dropdown options (label = “Common (Genus species)”)
-#common_options = [{"label": r["dropdown_label"], "value": r["Genus_Species"]}                 for _, r in df_wiki.iterrows()]
+
 
 # ---------- Build Dash app ----------------------------------------------------------
 # external sheets (font + bootstrap)
@@ -92,6 +93,7 @@ external_stylesheets = [
     "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
 ]
 app = Dash(__name__, external_stylesheets=external_stylesheets)
+server = app.server
 
 @app.server.route('/cached-images/<path:filename>')
 def serve_cached_images(filename):
@@ -101,8 +103,10 @@ def serve_cached_images(filename):
 def serve_viewer_file(filename):
     return send_from_directory("depth_viewer", filename)
 
-
-
+@app.server.route('/favicon.ico')
+def serve_favicon():
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'favicon.ico')
+    
 # ─── TOP BAR ───────────────────────────────────────────────
 
 units_toggle = dbc.Switch(
@@ -169,6 +173,26 @@ search_stack = html.Div(id="search-stack", children=[
         dcc.Dropdown(id="common-dd", options=[],
                      placeholder="Common name…", className="dash-dropdown",clearable=True, searchable=True, persistence=True,persistence_type="session")
     ),
+    
+    html.Div(                    # hidden unless the toggle is ON
+        id="taxa-row",
+        children=[
+            dbc.Row([
+                dbc.Col(
+                    dcc.Dropdown(
+                        id="order-dd", options=[],
+                        placeholder="Order", className="dash-select"),
+                    width=6),
+                dbc.Col(
+                    dcc.Dropdown(
+                        id="family-dd", options=[],
+                        placeholder="Family", className="dash-select"),
+                    width=6),
+            ])
+        ],
+        style={"display": "none"},),
+
+    
     html.Div(
         dbc.Row([
             dbc.Col(
@@ -181,6 +205,7 @@ search_stack = html.Div(id="search-stack", children=[
             )
         ])
     ),
+    
     html.Div(
         [
             html.Button("⚙ Settings", id="open-settings-btn",
@@ -214,10 +239,24 @@ advanced_filters = html.Div([           # collapsible area
     value=["on"],          # checked    → animation runs
     switch=True,
     className="settings-group"),
+    
+    dbc.Checklist(
+        id="taxa-toggle",
+        options=[{"label": "Allow selecting by order and family",
+                  "value": "taxa"}],
+        value=[],                # default = OFF
+        switch=True,
+        className="settings-group",
+    ),
+
 
     # ── Filters ────────────────────────────────────────────────────
     html.H6("Filters", className="settings-header"),
 
+    html.Div("Filters apply to dropdown options, random buttons, quick jumps, and navigation bridge", className="settings-note", style={"paddingLeft": "0.5rem"}),
+    
+    html.Br(),
+    
     html.Div([
         dbc.Checklist(
             id="wiki-toggle",
@@ -243,7 +282,7 @@ advanced_filters = html.Div([           # collapsible area
 
     ], className="settings-group"),
     
-    html.Div("Limits the list to around 1,500 curated species (faster loading and cleaner images).", className="settings-note"),
+    html.Div("Limits the list to ~ 1,500 curated species (faster loading).", className="settings-note"),
     
     html.Br(),
 
@@ -254,39 +293,10 @@ advanced_filters = html.Div([           # collapsible area
     ),
     
     #stop navigation
-    
 
-
-
-    # ── Navigation options (depth & size) ──────────────────────────
-    html.H6("Navigation options", className="settings-header"),
-
-    html.Div([
-        dbc.Checklist(
-            id="depth-toggle",
-            options=[{
-                "label": "Enable navigation by depth",
-                "value": "depth"
-            }],
-            value=["depth"],
-            switch=True
-        ),
-
-        dbc.Checklist(
-            id="size-toggle",
-            options=[{
-                "label": "Enable navigation by size/length",
-                "value": "size"
-            }],
-            value=["size"],
-            switch=True
-        ),
-    ], className="settings-group"),
-
-    html.Hr(style={"opacity": .3}),
 
     # ── Quick-jump buttons (unchanged) ─────────────────────────────
-    html.H6("Quick jumps"),
+    html.H6("Quick jumps", className="settings-header"),
     dbc.Row([
         dbc.Col(html.Button("jump to shallowest", id="shallowest-btn",
                             className="btn btn-outline-light btn-sm w-100"), width=6),
@@ -351,6 +361,88 @@ citations_panel = dbc.Offcanvas(
 
 
 
+# -------------- taxonomic tree ----------------
+
+taxonomic_tree = html.Div(
+    id="tree-panel",
+    className="glass-panel",
+    style={
+    "display": "none",
+    "position": "absolute",
+    "inset": "0",          # fill the image wrapper width exactly
+    "zIndex": 1,           # above image/handles
+    "padding": "0rem",
+    "boxSizing": "border-box",
+    },
+    children=[
+        cyto.Cytoscape(
+            id="tree-graph",
+            elements=[],
+
+            stylesheet = [
+                # Base node: tiny dot + white label below (larger font)
+                {"selector": "node", "style": {
+                    "width": 8, "height": 8,
+                    "background-opacity": 0.95,
+                    "border-width": 0,
+                    "label": "data(label)",
+                    "color": "#fff",
+                    "font-size": 17,  
+                    "min-zoomed-font-size":15,
+                    "font-weight": 600,# larger, as requested
+                    "text-outline-width": 2,
+                    "text-outline-color": "rgba(0,0,0,.55)",
+                    "text-halign": "center",
+                    "text-valign": "top",         # label below the dot
+                    "text-margin-y": 8,
+                    "text-wrap": "wrap",
+                    "text-max-width": 170,
+                    "text-outline-width": 2,      # soft glow for contrast
+                    "text-outline-color": "rgba(0,0,0,0.45)"
+                }},
+                
+
+                # Focus species
+                {"selector": '[kind = "focus"]', "style": {
+                    "background-color": "#ffd166",
+                    "color" : "#ffd166",
+                    "font-weight": 700,
+                    "color": "#ffd166",          # label *also* gold
+                    "width": 10, "height": 10
+                }},
+                # Example species
+                {"selector": '[kind = "example"]', "style": {
+                    "background-color": "#64d2ff",
+                    "color": "#64d2ff",
+                    "color": "#64d2ff"
+                }},
+
+
+                # Lineage taxon nodes (genus/family/order/class/phylum/kingdom)
+                {"selector": '[kind = "taxon"]', "style": {
+                    "background-color": "#bfbfbf"
+                }},
+
+                # Optional rank tints (subtle)
+                {"selector": '[rank = "family"]',  "style": {"background-color": "#a6a6a6"}},
+                {"selector": '[rank = "order"]',   "style": {"background-color": "#8c8c8c"}},
+                {"selector": '[rank = "class"]',   "style": {"background-color": "#737373"}},
+                {"selector": '[rank = "phylum"]',  "style": {"background-color": "#595959"}},
+                {"selector": '[rank = "kingdom"]', "style": {"background-color": "#404040"}},
+
+                # Edges
+                {"selector": "edge", "style": {
+                    "curve-style": "bezier",
+                    "width": 1.6,
+                    "line-color": "rgba(255,255,255,0.65)"
+                }},],
+
+
+            style={"width": "100%", "height": "min(65vh, 700px)", "display": "block", "margin": "0 auto"}  # will wrapper width
+        )
+    ]
+)
+
 
 # --------------------------------------------------------------------
 #  Centre-page flex wrapper
@@ -380,9 +472,13 @@ centre_flex = html.Div(id="page-centre-flex", children=[
             dbc.Tooltip(id="scale-tooltip",target="compare-handle",placement="top",style={"fontSize": "0.8rem"}, children="Compare size", key="initial"),
             html.Div("🕪", id="sound-handle", className="sound-icon"),  
             dbc.Tooltip("Play species sound", target="sound-handle",placement="top", style={"fontSize": "0.8rem"}),
+            html.Div("🧬", id="tree-handle", className="tree-icon"),
+            dbc.Tooltip("Show taxonomic tree (including a selection of related taxa)", target="tree-handle",placement="top", style={"fontSize": "0.8rem"}),
 
 
         ]),
+        
+        taxonomic_tree,
 
         # info card remains outside image-inner
         html.Div(id="info-card", className="glass-panel",children=[
@@ -430,7 +526,7 @@ footer = html.Div(
     ],
     style={
         "position": "fixed",
-        "right": "3rem",
+        "right": "3.5rem",
         "bottom": "1rem",
         "fontSize": ".8rem",
         "opacity": .7
@@ -441,12 +537,13 @@ footer = html.Div(
 # replace the whole fav_modal block
 fav_modal = dbc.Modal(
     [
-        dbc.ModalHeader("Liked species", close_button=True),
+        dbc.ModalHeader("Liked species", close_button=True, style={"color": "#000000"}),
         dbc.ModalBody(
             [
                 html.Button("⬇ Export (.txt)", id="fav-export",
                             className="btn btn-outline-primary btn-sm w-100"),
                 dcc.Download(id="fav-dl"),
+                html.Br(),
                 html.Br(),
                 dcc.Upload("⬆ Load (.txt)", id="fav-upload",
                            className="btn btn-outline-primary btn-sm w-100",
@@ -462,6 +559,22 @@ fav_modal = dbc.Modal(
     className="fav-modal",          # <─ NEW
 )
 
+#------------- some trick to remove the depth/size toggles from page w/o id errors ------------
+invisible_toggles= html.Div(
+    [
+        dcc.Checklist(
+            id="depth-toggle",
+            options=[{"label": "Enable navigation by depth", "value": "depth"}],
+            value=["depth"],  # or [] if you want them 'off' by default
+        ),
+        dcc.Checklist(
+            id="size-toggle",
+            options=[{"label": "Enable navigation by size", "value": "size"}],
+            value=["size"],
+        ),
+    ],
+    style={"display": "none"}  # ← this hides it from view
+)
 
 
 
@@ -498,17 +611,28 @@ nav_panel = html.Div([
     
     html.Button("🔄", id="nav-random-btn", className="nav-icon rand-icon",
             style={"position": "absolute", "bottom": "4%", "right": "4%"}),
+            
+    html.Button("🧬", id="order-lock-btn",className="nav-icon lock-icon",style={"position": "absolute", "bottom": "4%", "left": "4%","opacity": .25}),
+
 
 
     # ── Hidden explanation ─────────────────────────────────────
     html.Div([
-        "Navigation Menu",
+        "Navigation Bridge",
         html.Br(), html.Br(),
-        "Explore species by size or depth. Move from shallow waters to the deep sea, and from tiny creatures to giants."
+        "Explore species by size or depth. Move from shallow waters to the deep sea, and from tiny creatures to giants.",
+        html.Br(),
+        html.Br(),
+        "Tap 🔄 to discover a random species, or 🧬 to limit your journey to species within the same taxonomic order (applies to navigation bridge only).",
+        html.Br(),
     ],
         id="nav-info-text",
         style={"display": "none"}
-    )
+    ),
+    
+    html.Div(id="order-lock-label", className="order-lock-label")
+    
+
 
 ], id="nav-panel", className="glass-panel")
 
@@ -517,7 +641,7 @@ nav_panel = html.Div([
 
 
 
-
+#-------------
 search_handle = html.Div(["🔍 Search"], id="search-handle", className="search-handle", **{"data-mobile-x": "true"})
 
 depth_store = dcc.Store(id="depth-store", storage_type="session")
@@ -526,6 +650,7 @@ feedback_link=html.A("give feedback", href="https://forms.gle/YuUFrYPmDWsqyHdt7"
 #  Assemble Layout
 app.layout = dbc.Container([
     search_panel,
+    invisible_toggles, 
     search_handle,
     dcc.Store(id="rand-seed", storage_type="session"),
     
@@ -537,12 +662,13 @@ app.layout = dbc.Container([
 
     # -- side tabs, rendered once and slid by callbacks --
     html.Div("citations",      id="citations-tab", className="side-tab"),
-    #html.Div("⚙ Control Panel",id="settings-tab",  className="side-tab"),
     html.Div(feedback_link,   id="bug-tab",       className="side-tab"),
 
     html.Div(centre_flex, id="main-content", style={"display": "none"}),
     center_message,
+    
     nav_panel,
+    dcc.Store(id="order-lock-state", data=False, storage_type="session"),
     
     html.Iframe(id="depth-iframe",src="/viewer/index.html",
             style={"width": "100%", "height": "100vh", "border": "none"},
@@ -562,10 +688,67 @@ app.layout = dbc.Container([
     dcc.Store(id="favs-store",storage_type="local"),      # persists in localStorage
     dcc.Store(id="compare-store", data=False, storage_type="session"),
     dcc.Store(id="common-opt-cache", data=[]),
+    
 
 
     citations_panel,
 ], fluid=True)
+
+################################################
+# ---------- Update Dropdown Options ----------#
+################################################
+
+@app.callback(
+    Output("order-dd",  "options"),
+    Output("order-dd",  "value"),
+    Input("wiki-toggle",    "value"),
+    Input("popular-toggle", "value"),
+    Input("favs-toggle",    "value"),
+    Input("taxa-toggle",    "value"),
+    State("favs-store",     "data"),
+    State("order-dd",       "value"),
+)
+def filter_order(wiki_val, pop_val, fav_val, toggle_val,
+                 favs_data, current):
+    if "taxa" not in toggle_val:
+        return [], None
+
+    df_use = _apply_shared_filters(df_full, wiki_val, pop_val,
+                                   fav_val, favs_data)
+    # ---------- Order dropdown ----------
+    orders = sorted(df_use["order"].dropna().unique())
+    opts   = [{"label": _label_with_common(o), "value": o} for o in orders]
+
+    return opts, current if current in orders else None
+
+
+@app.callback(
+    Output("family-dd", "options"),
+    Output("family-dd", "value"),
+    Input("order-dd",      "value"),
+    Input("wiki-toggle",   "value"),
+    Input("popular-toggle","value"),
+    Input("favs-toggle",   "value"),
+    Input("taxa-toggle",   "value"),        # NEW
+    State("favs-store",    "data"),
+    State("family-dd",     "value"),
+)
+def filter_family(order_val, wiki_val, pop_val, fav_val, toggle_val,
+                  favs_data, current):
+    if "taxa" not in toggle_val:
+        return [], None      # toggle OFF → blank + cleared
+
+    df_use = _apply_shared_filters(df_full, wiki_val, pop_val,
+                                   fav_val, favs_data)
+    if order_val:
+        df_use = df_use[df_use["order"] == order_val]
+
+    # ---------- Family dropdown ----------
+    families = sorted(df_use["family"].dropna().unique())
+    opts     = [{"label": _label_with_common(f), "value": f} for f in families]
+
+
+    return opts, current if current in families else None
 
 
 @app.callback(
@@ -573,24 +756,27 @@ app.layout = dbc.Container([
     Output("genus-dd", "value"),
     Input("wiki-toggle",    "value"),
     Input("popular-toggle", "value"),
-    Input("favs-toggle",    "value"),      # NEW
-    State("favs-store",     "data"),       # NEW
+    Input("favs-toggle",    "value"),
+    Input("order-dd",       "value"),      # NEW
+    Input("family-dd",      "value"),      # NEW
+    State("favs-store",     "data"),
     State("genus-dd", "value"),
 )
-def filter_genus(wiki_val, pop_val, fav_val, favs_data, current):
-    df_use = _apply_shared_filters(df_light, wiki_val, pop_val,
-                                   fav_val, favs_data)
+def filter_genus(wiki_val, pop_val, fav_val,
+                 order_val, family_val, favs_data, current):
+    df_use = _apply_shared_filters(df_full, wiki_val, pop_val,
+                                   fav_val, favs_data)     
+    if order_val:
+        df_use = df_use[df_use["order"] == order_val]
+    if family_val:
+        df_use = df_use[df_use["family"] == family_val]
 
-    opts   = [{"label": g, "value": g}
-              for g in sorted(df_use["Genus"].unique())]
-    valid  = {o["value"] for o in opts}
-    return opts, current if current in valid else None
+    genera = sorted(df_use["genus"].dropna().unique())     # use df_full’s column
+    opts   = [{"label": g, "value": g} for g in genera]
+    return opts, current if current in genera else None
 
 
 
-# -------------------------------------------------------------------
-# Callback 1 – populate species options whenever genus changes
-# -------------------------------------------------------------------
 @app.callback(
     Output("species-dd", "options"),
     Output("species-dd", "value"),
@@ -636,13 +822,14 @@ def update_species_options(genus, wiki_val, pop_val,
     State("popular-toggle", "value"),
     State("favs-toggle",    "value"),
     State("favs-store",     "data"),
+    State("order-lock-state", "data"),
     State("selected-species", "data"),
     prevent_initial_call=True
 )
 def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
                    size_val, depth_val,
                    wiki_val, pop_val,
-                   fav_val, favs_data,
+                   fav_val, favs_data, lock_on,
                    current_sel):
 
     """
@@ -677,6 +864,17 @@ def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
             df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
         if df_use.empty:
             raise PreventUpdate
+            
+         # ── honour order-lock *only* for nav-random ─────────────
+        if trig == "nav-random-btn" and lock_on and current_sel:
+            try:
+                cur_order = (
+                    df_full.loc[df_full["Genus_Species"] == current_sel, "order"]
+                    .iloc[0]
+                )
+                df_use = df_use[df_use["order"] == cur_order]
+            except IndexError:
+                pass        # keep whole list if lookup fails      
 
         # Prefer a *different* species; fall back if only one candidate.
         if len(df_use) > 1 and current_sel in set(df_use["Genus_Species"]):
@@ -864,16 +1062,30 @@ def fill_citation(gs_name):
             with open(txt_rel, "r", encoding="utf-8") as f:
                 citation_text = f.read().strip()
             if citation_text:
+                url_pattern = r"(https?://\S+|www\.\S+)"
+                
+                formatted_text = re.sub(
+                    url_pattern,
+                    lambda m: (
+                        f"[Link]({(link := m.group(0).rstrip('.'))})"
+                        + ("." if m.group(0).endswith(".") else "")
+                    ),
+                    citation_text
+                )
+
+
+
                 sound_block = [
                     html.Br(), html.Br(),
                     html.Strong("Audio: "),
-                    html.Span(citation_text)
+                    dcc.Markdown(formatted_text, dangerously_allow_html=True)
                 ]
         except Exception:
-            # If a bad file sneaks in, silently skip.
             pass
 
-    return image_block + wiki_block + data_block + sound_block
+    taxonomy_block=[html.Br(), html.Br(),  html.Span("Taxonomic data (beyond Genus and Species): Derived dataset GBIF.org (7 August 2025) Filtered export of GBIF occurrence data https://doi.org/10.15468/dd.wbjqgn"),]
+
+    return image_block + wiki_block + data_block + taxonomy_block + sound_block
 
 
 # --- populate image + overlay + titles whenever species or units change ----------
@@ -1040,6 +1252,73 @@ app.clientside_callback(
     prevent_initial_call=True
 )
 
+def dagre_layout():
+    return {
+        "name": "dagre",
+        "rankDir": "TB",
+        "nodeDimensionsIncludeLabels": True,
+        "rankSep": 30,
+        "nodeSep": 60,
+        "fit": True,              # keep
+        "padding": 20,            # a bit more breathing space
+        "animate": False,
+    }
+
+
+
+@app.callback(
+    Output("tree-panel", "style"),
+    Output("tree-graph", "elements"),
+    Output("tree-graph", "layout"),
+
+    Input("tree-handle",        "n_clicks"),     # manual toggle
+    Input("selected-species",   "data"),         # auto-refresh on species change
+
+    State("tree-panel",         "style"),
+    prevent_initial_call=True
+)
+def show_or_update_tree(n_clicks, species, style):
+    if not species:
+        raise PreventUpdate
+
+    triggered = ctx.triggered_id
+    open_now = style and style.get("display") != "none"
+
+    # ─── User clicked the 🌳 button ─────────────────────────────
+    if triggered == "tree-handle":
+        if open_now:
+            return {**style, "display": "none"}, no_update, no_update
+        # opening the panel → load tree
+        elements, root = build_taxonomy_elements(df_full, species)
+        return {**style, "display": "block"}, elements, dagre_layout()
+
+    # ─── Species changed while panel is visible ────────────────
+    if triggered == "selected-species" and open_now:
+        elements, root = build_taxonomy_elements(df_full, species)
+        return no_update, elements, dagre_layout()
+
+    raise PreventUpdate
+
+
+@app.callback(
+    Output("order-lock-label", "children"),
+    Output("order-lock-label", "className"),
+    Input("order-lock-state",  "data"),      # ON / OFF toggle
+    Input("selected-species",  "data"),      # species changed
+    State("order-lock-label",  "className"), # keep other classes
+    prevent_initial_call=True
+)
+def update_order_lock_label(locked, species_id, old_class):
+    base_class = "order-lock-label"
+    if not locked or not species_id:
+        return "", base_class               # hide when OFF
+
+    # look up order (fallback "?")
+    order = df_full.loc[df_full["Genus_Species"] == species_id, "order"]
+    order_name = order.iloc[0] if not order.empty else "?"
+
+    text   = f"Navigating among {order_name} only"
+    return text, base_class + " active"
 
 
 
@@ -1318,23 +1597,41 @@ def slide_citation_tab(opened):
 
 
 
+# -------------------------------------------------------------------
+# Sync all four dropdowns whenever *selected-species* changes
+# -------------------------------------------------------------------
 @app.callback(
     Output("common-dd",  "value", allow_duplicate=True),
     Output("genus-dd",   "value", allow_duplicate=True),
-    Output("species-dd", "value", allow_duplicate=True),  # duplicate of other cb
+    Output("species-dd", "value", allow_duplicate=True),
+    Output("family-dd",  "value", allow_duplicate=True),   # NEW
+    Output("order-dd",   "value", allow_duplicate=True),   # NEW
     Input("selected-species", "data"),
     prevent_initial_call=True
 )
 def sync_dropdowns(gs_name):
     if not gs_name:
-        raise PreventUpdate
+        raise PreventUpdate                    # safeguard
 
     genus, species = gs_name.split(" ", 1)
-    common = f"{genus} {species}"          # you can pull FBname if you prefer
-    return common, genus, species
+
+    # df_full already carries GBIF taxonomy columns (order / family / …)
+    row     = df_full.loc[df_full["Genus_Species"] == gs_name].iloc[0]   # ← always exactly 1 row
+    family  = row.family
+    order_  = row.order
+
+    common  = f"{genus} {species}"             # or row.FBname if you prefer
+    return common, genus, species, family, order_
 
 
 
+
+@app.callback(
+    Output("taxa-row", "style"),
+    Input("taxa-toggle", "value"),
+)
+def _toggle_taxa_row(val):
+    return {"display": "block"} if "taxa" in val else {"display": "none"}
 
 
 # export
@@ -1650,14 +1947,23 @@ app.clientside_callback(
 # -------------------------------------------------------------------
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
+
+    # triggers
     Input("next-btn",  "n_clicks"),
     Input("prev-btn",  "n_clicks"),
+
+    # filters
     State("size-toggle",      "value"),
     State("depth-toggle",     "value"),
     State("wiki-toggle",      "value"),
     State("popular-toggle",   "value"),
-    State("favs-toggle",      "value"),     # ← NEW
-    State("favs-store",       "data"),      # ← NEW
+    State("favs-toggle",      "value"),
+    State("favs-store",       "data"),
+
+    # order-lock state
+    State("order-lock-state", "data"),
+
+    # context
     State("selected-species", "data"),
     State("rand-seed",        "data"),
     prevent_initial_call=True
@@ -1665,29 +1971,37 @@ app.clientside_callback(
 def step_size(n_next, n_prev,
               size_val, depth_val, wiki_val, pop_val,
               fav_val, favs_data,
+              lock_on,                # ← comes from order-lock store
               current, seed):
 
     if ctx.triggered_id not in ("prev-btn", "next-btn"):
         raise PreventUpdate
-    if "size" not in size_val:              # size axis is off
-        raise PreventUpdate
 
-    # ---- build dataframe respecting ALL filters -------------------
+
+    # ---- base dataframe after all UI filters ----------------------
     size_on  = True
-    depth_on = "depth" in depth_val
-
+    depth_on = False
     df_use = get_filtered_df(size_on, depth_on,
                              wiki_val, pop_val, seed)
 
-    # favourites post‑filter
+    # ---- favourites filter ----------------------------------------
     if fav_val and "fav" in fav_val:
         fav_set = set(json.loads(favs_data or "[]"))
         df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
 
+    # ---- limit to current order when lock is ON -------------------
+    if lock_on:
+        try:
+            # safest: look up order in the full taxonomy table
+            order = df_full.loc[df_full["Genus_Species"] == current, "order"].iloc[0]
+            df_use = df_use[df_use["order"] == order]
+        except IndexError:
+            pass  # current not in df_full – ignore
+
     if df_use.empty:
         raise PreventUpdate
 
-    # ---- rank by length and step ±1 --------------------------------
+    # ---- rank by length and step ±1 -------------------------------
     df_use  = df_use.sort_values(["Length_cm", "Length_in"])
     species = df_use["Genus_Species"].tolist()
     if current not in species:
@@ -1696,47 +2010,73 @@ def step_size(n_next, n_prev,
     idx = species.index(current)
     idx = (idx - 1) % len(species) if ctx.triggered_id == "prev-btn" \
          else (idx + 1) % len(species)
+
     return species[idx]
+
 
 # -------------------------------------------------------------------
 # Depth‑axis navigation (up / down)
 # -------------------------------------------------------------------
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
+
+    # triggers
     Input("up-btn",   "n_clicks"),
     Input("down-btn", "n_clicks"),
+
+    # filter toggles
     State("size-toggle",      "value"),
     State("depth-toggle",     "value"),
     State("wiki-toggle",      "value"),
     State("popular-toggle",   "value"),
     State("favs-toggle",      "value"),
     State("favs-store",       "data"),
+
+    # NEW  ➜  order-lock state
+    State("order-lock-state", "data"),
+
+    # context
     State("selected-species", "data"),
-    State("rand-depth-map",   "data"),   # ← add this
+    State("rand-depth-map",   "data"),
     prevent_initial_call=True
 )
 def step_depth(n_up, n_down,
                size_val, depth_val, wiki_val, pop_val,
                fav_val, favs_data,
+               lock_on,               # <- order-lock flag
                current, depth_map):
 
     if ctx.triggered_id not in ("up-btn", "down-btn"):
         raise PreventUpdate
-    if "depth" not in depth_val:
-        raise PreventUpdate
 
-    size_on  = "size" in size_val
-    depth_on = True
 
-    df_use = get_filtered_df(size_on, depth_on, wiki_val, pop_val)
+    # ------------------------------------------------------------------
+    # build dataframe with all active filters
+    # ------------------------------------------------------------------
+    size_on  = False
+    depth_on = True            # depth axis is ON
+    df_use = get_filtered_df(size_on, depth_on,
+                             wiki_val, pop_val)
 
+    # favourites filter
     if fav_val and "fav" in fav_val:
         fav_set = set(json.loads(favs_data or "[]"))
         df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
+
+    # order-lock filter
+    if lock_on:
+        try:
+            order = df_full.loc[df_full["Genus_Species"] == current, "order"].iloc[0]
+            df_use = df_use[df_use["order"] == order]
+        except IndexError:
+            pass   # current not found – ignore
+
     if df_use.empty:
         raise PreventUpdate
 
-    # inject per-session depths, then sort
+    # ------------------------------------------------------------------
+    # inject session depths, sort, and step ±1
+    # ------------------------------------------------------------------
     df_use = with_session_depth(df_use, depth_map or {})
     df_use = df_use.sort_values("RandDepth")
 
@@ -1747,6 +2087,7 @@ def step_depth(n_up, n_down,
     idx = species.index(current)
     idx = (idx - 1) % len(species) if ctx.triggered_id == "up-btn" \
          else (idx + 1) % len(species)
+
     return species[idx]
 
 
@@ -1811,7 +2152,7 @@ def jump_to_extremes(n_deep, n_shallow, n_large, n_small,
     prevent_initial_call=True
 )
 def toggle_size_wrap(gs, size_val):
-    if gs and "size" in size_val:
+    if gs: #and "size" in size_val:
         style = {"opacity": "1", "pointerEvents": "auto"}
     else:
         style = {"opacity": "0.3", "pointerEvents": "none"}
@@ -1828,7 +2169,7 @@ def toggle_size_wrap(gs, size_val):
 )
 def toggle_depth_wrap(gs, depth_val):
     # when depth‐comparison is on and we have a species, make arrows fully visible…
-    if gs and "depth" in depth_val:
+    if gs:# and "depth" in depth_val:
         style = {"opacity": "1", "pointerEvents": "auto"}
     # …otherwise “grey out” (low opacity + no clicks)
     else:
@@ -1871,7 +2212,7 @@ def update_scale_tooltip(gs_name, is_on):
 
     # unique key → forces rerender of tooltip
     return (
-        f"Compare maximum size to a {desc} (approximate)",
+        f"Compare maximum size (approximate)", # to a {desc} (approximate)",
         f"{genus}_{species}"
     )
 
@@ -1928,5 +2269,41 @@ def toggle_arrow(gs_name, is_on):
     }
 
 
+@app.callback(
+    Output("order-lock-state", "data"),
+    Output("order-lock-btn",   "className"),
+    Input("order-lock-btn", "n_clicks"),
+    State("order-lock-state", "data"),
+    prevent_initial_call=True
+)
+def toggle_order_lock(n, locked):
+    locked = not locked
+    cls = "nav-icon lock-icon" + (" active" if locked else "")
+    return locked, cls
 
-app.run(host="0.0.0.0", port=8050, debug=True)  #change to false later                
+
+#app.run(host="0.0.0.0", port=8050, debug=True)  #change to false later                
+
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>Pelagica</title>
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+        {%css%}
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+'''
+
+
+if __name__ == "__main__" and os.getenv("USE_DEV_SERVER", "0") == "1":
+    app.run_server(debug=True, port=8050)

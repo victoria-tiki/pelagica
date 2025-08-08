@@ -92,7 +92,29 @@ def load_species_data() -> pd.DataFrame:
 
     return df
 
+@lru_cache(maxsize=1)
+def load_species_with_taxonomy() -> pd.DataFrame:
+    """Return the master species table WITH kingdom-…-genus columns."""
+    df_sp  = load_species_data()                # your 52 MB main table
+    df_tax = pd.read_csv("data/processed/gbif_taxonomy.csv")
 
+    # normalise join key
+    df_tax["scientificName"] = df_tax["scientificName"].str.strip()
+    df_sp["Genus_Species"]   = df_sp["Genus_Species"].str.strip()
+
+    merged = (
+        df_sp
+        .merge(df_tax, left_on="Genus_Species", right_on="scientificName",
+               how="left", suffixes=("", "_tax"))
+        .copy()
+    )
+
+    # optional: down-cast the taxonomy columns to category to save RAM
+    for col in ["kingdom", "phylum", "class", "order", "family", "genus"]:
+        merged[col] = merged[col].astype("category")
+
+    return merged
+    
 def load_name_table() -> pd.DataFrame:
     cols = ["Genus", "Species", "FBname", "has_wiki_page", "Genus_Species",
             "dropdown_label"]

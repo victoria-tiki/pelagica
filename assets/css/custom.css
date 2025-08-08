@@ -587,6 +587,8 @@ body.search-open .search-handle {
   width:2rem;height:2rem;display:grid;place-items:center;
   font-size:1.4rem;font-weight:700;cursor:pointer;
   background:var(--glass-bg);border:var(--glass-brd);
+  border-radius: 50%;
+  color: var(--text-light);
   border-radius:50%;backdrop-filter:var(--blur-md);
   box-shadow:0 2px 6px #0008;color:var(--text-light);
   z-index:2;pointer-events:auto;
@@ -640,10 +642,37 @@ body.search-open .search-handle {
   color: #40c4ff;  /* blue tint when active (optional) */
 }
 
+.tree-icon{
+
+  position: absolute;
+  bottom: 10px;
+  left: 138px;  
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 2;
+
+  /* match other icons visually */
+  background: var(--glass-bg);
+  border: var(--glass-brd);
+  border-radius: 50%;
+  color: var(--text-light);
+  backdrop-filter: var(--blur-md);
+  box-shadow: 0 2px 6px #0008;
+  pointer-events: auto;
+  transition: opacity 0.2s ease;
+  opacity: 0.8;
+}
+
+
 .sound-icon {
   position: absolute;
   bottom: 10px;
-  left: 140px;  /* Adjust as needed */
+  left: 180px;  /* Adjust as needed */
   width: 2rem;
   height: 2rem;
   display: grid;
@@ -1027,11 +1056,13 @@ helper text size matches the sideways labels
   opacity: 1;  /* match nav-panel’s visual presence */
 
   /* Text styling */
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   line-height: 1.2;
 
   pointer-events: auto;
   display: none;  /* toggled by interaction */
+  
+  z-index:10;
 }
 
 
@@ -1114,6 +1145,36 @@ helper text size matches the sideways labels
 }
 
 
+.fav-modal .modal-content {
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur-md);
+  border: var(--glass-brd);
+  box-shadow: 0 2px 6px #0006;
+  color: var(--text-light);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.fav-modal .modal-header,
+.fav-modal .modal-body {
+  background: transparent;
+  color: var(--text-light);
+  padding: 1rem;
+  border: none;
+  text-align: center;
+}
+
+.fav-modal .modal-header {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.fav-modal .btn {
+  font-size: 0.9rem;
+  padding: 0.4rem 0.8rem;
+}
+
+
 
 
 /* custom.css  ─ add at the very end */
@@ -1148,5 +1209,48 @@ helper text size matches the sideways labels
 
 .rand-icon:active {
   transform: scale(0.95);
+}
+
+#tree-panel {overflow-x: visible !important;   
+    overflow-y: auto !important;}
+
+#tree-panel #tree-graph{
+  display: block;
+  margin: 0 auto;
+}
+
+.nav-icon:hover{
+  opacity: .9;        
+}
+
+.lock-icon{
+  font-size: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+/* custom.css – place this AFTER the existing lock-icon rules */
+.lock-icon       {opacity:.25;transition:opacity .15s;}
+.lock-icon.active{opacity:.9 !important;}
+.lock-icon:hover {opacity:.9; !important;}
+
+.order-lock-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 0.4em 0.3em;
+    border-radius: 7px;
+    font-size: 0.5rem;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 9;
+    display: none;
+}
+.order-lock-label.active {
+    display: block;
 }
 

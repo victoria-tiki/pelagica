@@ -18,6 +18,8 @@ tqdm = ">=4.67.1,<5.0.0"
 scipy = ">=1.16.0,<2.0.0"
 onnxruntime = "^1.17.3"
 plotly = "^5.20"
+dash-cytoscape = "^1.0.0"
+networkx = "^3.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

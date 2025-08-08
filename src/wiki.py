@@ -11,8 +11,7 @@ import requests, html
 from urllib.parse import quote_plus
 import re, datetime
 from functools import lru_cache
-from rembg import remove
-from PIL import Image
+#from rembg import remove
 import io, base64
 
 from src.image_cache import (
@@ -23,7 +22,109 @@ from src.text_cache import load_cached_blurb, save_cached_blurb
 import os
 import gc
 
+import threading
 
+
+# ---- Background-removal feature flag (env-driven) ----
+ENABLE_BG_REMOVAL = os.getenv("ENABLE_BG_REMOVAL", "1") == "1"
+_BG_MAX_SIDE = int(os.getenv("BG_MAX_SIDE", "800"))
+_REMBG_SEM = threading.BoundedSemaphore(int(os.getenv("REMBG_MAX_CONCURRENCY", "1")))
+
+# Internal: these are set only if/when ENABLE_BG_REMOVAL=True
+_REMBG_SESSION = None
+_REMBG_LOCK = threading.Lock()
+_rembg_remove = None
+_sessions_class = None
+_ort = None
+_Image = None  # <-- we'll set this lazily
+
+def _lazy_load_rembg_stack():
+    """Load rembg + onnxruntime + Pillow only when the feature is enabled."""
+    global _rembg_remove, _sessions_class, _ort, _Image
+    if _rembg_remove is not None:
+        return
+    from rembg import remove as _rm
+    from rembg.sessions import sessions_class as _sc
+    import onnxruntime as ort
+    from PIL import Image as _PILImage  # <-- import PIL here
+    _rembg_remove = _rm
+    _sessions_class = _sc
+    _ort = ort
+    _Image = _PILImage
+
+def _mem_saver_session(model_name="u2netp", providers=None):
+    """Create an ORT session with arenas disabled so RSS returns after spikes."""
+    # Find matching session class
+    session_class = None
+    for sc in _sessions_class:
+        if sc.name() == model_name:
+            session_class = sc
+            break
+    if session_class is None:
+        session_class = _sessions_class[0]
+
+    opts = _ort.SessionOptions()
+    nthreads = int(os.getenv("OMP_NUM_THREADS", "1"))
+    opts.intra_op_num_threads = nthreads
+    opts.inter_op_num_threads = nthreads
+    opts.enable_cpu_mem_arena = False    # key to avoid “sticky” RSS
+    opts.enable_mem_pattern = False
+
+    if providers is None:
+        providers = ["CPUExecutionProvider"]
+    return session_class(model_name, opts, providers)
+
+def _get_rembg_session():
+    """Singleton session (created on first use) with memory-friendly options."""
+    global _REMBG_SESSION
+    if _REMBG_SESSION is None:
+        with _REMBG_LOCK:
+            if _REMBG_SESSION is None:
+                _lazy_load_rembg_stack()
+                _REMBG_SESSION = _mem_saver_session(os.getenv("REMBG_MODEL", "u2netp"))
+    return _REMBG_SESSION
+    
+def _maybe_remove_bg(img_bytes: bytes) -> bytes:
+    if not ENABLE_BG_REMOVAL:
+        return img_bytes
+
+    # Ensure rembg + onnx + PIL are loaded
+    _lazy_load_rembg_stack()
+
+    # Pre-resize BEFORE model to cap memory
+    try:
+        with _Image.open(io.BytesIO(img_bytes)) as im:
+            im = im.convert("RGBA")
+            w, h = im.size
+            mx = max(w, h)
+            if mx > _BG_MAX_SIDE:
+                scale = _BG_MAX_SIDE / float(mx)
+                new_size = (max(1, int(w * scale)), max(1, int(h * scale)))
+                im = im.resize(new_size, _Image.LANCZOS)
+            buf = io.BytesIO()
+            im.save(buf, format="PNG", optimize=True)
+            img_bytes = buf.getvalue()
+    except Exception:
+        # If PIL not present or anything fails, skip pre-resize and continue
+        pass
+
+    try:
+        with _REMBG_SEM:
+            img_bytes = _rembg_remove(img_bytes, session=_get_rembg_session())
+    except Exception:
+        pass
+
+    # Optional: encourage glibc to return free pages on Linux
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
+
+    return img_bytes
+
+
+ 
 HEADERS = {
     # Tell Wikimedia who you are (policy requirement)
     "User-Agent": "Pelagica/0.1 (contact: victoria.t.tiki@gmail.com)"
@@ -46,7 +147,7 @@ WIKI_NAME_EQUIVALENTS = {
 }
 
 
-@lru_cache(maxsize=25)
+@lru_cache(maxsize=100)
 def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None, str | None]:
     key_string = f"{genus.strip().lower()}_{species.strip().lower()}_{sentences}"
     stem = url_to_stem(key_string)
@@ -125,14 +226,29 @@ def get_commons_thumb(genus: str,
     if fallback_name:
         title_plain = fallback_name
 
-    if remove_bg:                      
-        key  = f"{title_plain}_{width}"
-    else:                              
-        key  = f"{title_plain}_{width}_raw"
+    # NEW: if the caller asked for background removal, always prefer the
+    # already-processed cache first (independent of ENABLE_BG_REMOVAL).
+    if remove_bg:
+        proc_key  = f"{title_plain}_{width}"              # your processed key
+        # try both key forms in case cache stored by stem in the past
+        for candidate in (proc_key, url_to_stem(proc_key)):
+            cached_path, cached_meta = load_cached_image_and_meta(candidate)
+            if cached_path and os.path.exists(cached_path) and cached_meta:
+                return (
+                    f"/cached-images/{os.path.basename(cached_path)}",
+                    cached_meta.get("author"),
+                    cached_meta.get("licence"),
+                    cached_meta.get("licence_url"),
+                    cached_meta.get("upload_date"),
+                    cached_meta.get("retrieval_date"),
+                )
+
+    # ORIGINAL flow resumes here:
+    effective_remove = remove_bg and ENABLE_BG_REMOVAL
+    key  = f"{title_plain}_{width}" if effective_remove else f"{title_plain}_{width}_raw"
     stem = url_to_stem(key)
 
     cached_path, cached_meta = load_cached_image_and_meta(key)
-    
     if cached_path and not os.path.exists(cached_path):
         cached_path, cached_meta = None, None
 
@@ -146,59 +262,59 @@ def get_commons_thumb(genus: str,
             cached_meta.get("retrieval_date"),
         )
 
-    # --- Wikipedia PageImages API ---
+    # ---- Try PageImages for lead image + thumbnail URL ----
     try:
-        with requests.get("https://en.wikipedia.org/w/api.php",
-                          params=dict(action="query", titles=title_plain,
-                                      prop="pageimages", piprop="thumbnail|name",
-                                      pithumbsize=width, redirects=1, format="json"),
-                          headers=HEADERS, timeout=10) as r:
+        with requests.get(
+            "https://en.wikipedia.org/w/api.php",
+            params=dict(action="query", titles=title_plain,
+                        prop="pageimages", piprop="thumbnail|name",
+                        pithumbsize=width, redirects=1, format="json"),
+            headers=HEADERS, timeout=10
+        ) as r:
             pages = r.json().get("query", {}).get("pages", {})
             page = next(iter(pages.values()), {})
             file_name = page.get("pageimage")
             raw_thumb_url = page.get("thumbnail", {}).get("source")
-
-        del r, pages, page
     except Exception as e:
         print(f"[Commons] Failed to get PageImages: {e}")
         return (None,) * 6
 
-    # --- Fallback to image list if no thumbnail ---
+    # ---- Fallback: list images if no lead thumbnail ----
     if not raw_thumb_url:
         try:
-            with requests.get("https://en.wikipedia.org/w/api.php",
-                              params=dict(action="query", titles=title_plain,
-                                          prop="images", imlimit=50,
-                                          redirects=1, format="json"),
-                              headers=HEADERS, timeout=10) as r2:
+            with requests.get(
+                "https://en.wikipedia.org/w/api.php",
+                params=dict(action="query", titles=title_plain,
+                            prop="images", imlimit=50, redirects=1, format="json"),
+                headers=HEADERS, timeout=10
+            ) as r2:
                 pages2 = r2.json().get("query", {}).get("pages", {})
-                files = [img["title"] for p in pages2.values()
-                         for img in p.get("images", [])]
+                files = [img["title"] for p in pages2.values() for img in p.get("images", [])]
 
-            file_name = next((f.split("File:")[-1] for f in files
-                              if f.lower().endswith((".jpg", ".jpeg", ".png"))), None)
-
+            file_name = next(
+                (f.split("File:")[-1] for f in files if f.lower().endswith((".jpg", ".jpeg", ".png"))),
+                None
+            )
             if not file_name:
                 return (None,) * 6
 
-            raw_thumb_url = (f"https://commons.wikimedia.org/w/index.php"
-                             f"?title=Special:FilePath/{quote_plus(file_name)}"
-                             f"&width={width}")
-
-            del r2, pages2, files
+            raw_thumb_url = (
+                f"https://commons.wikimedia.org/w/index.php"
+                f"?title=Special:FilePath/{quote_plus(file_name)}&width={width}"
+            )
         except Exception as e:
             print(f"[Commons fallback] Failed to list images: {e}")
             return (None,) * 6
 
-    # --- Get metadata from Commons ---
+    # ---- Get image metadata (author, license, upload date) ----
     try:
-        with requests.get("https://commons.wikimedia.org/w/api.php",
-                          params=dict(action="query", titles=f"File:{file_name}",
-                                      prop="imageinfo",
-                                      iiprop="extmetadata|url|timestamp",
-                                      iiurlwidth=width,
-                                      format="json"),
-                          headers=HEADERS, timeout=10) as r3:
+        with requests.get(
+            "https://commons.wikimedia.org/w/api.php",
+            params=dict(action="query", titles=f"File:{file_name}",
+                        prop="imageinfo", iiprop="extmetadata|url|timestamp",
+                        iiurlwidth=width, format="json"),
+            headers=HEADERS, timeout=10
+        ) as r3:
             page = next(iter(r3.json()["query"]["pages"].values()))
             if "imageinfo" not in page:
                 return (None,) * 6
@@ -213,21 +329,48 @@ def get_commons_thumb(genus: str,
         licence_url = meta.get("LicenseUrl", {}).get("value", "")
         upload_date = info.get("timestamp", "")[:10]
         retrieval_date = datetime.date.today().isoformat()
-
-        del r3, page, meta, info
     except Exception as e:
         print(f"[Commons metadata] Failed: {e}")
         return (None,) * 6
 
-    # --- Download (optionally run rembg) --------------------------
+    # ---- Download -> (optional) pre-resize -> (optional) remove-bg ----
     try:
         with requests.get(raw_thumb_url, headers=HEADERS, timeout=10) as response:
             response.raise_for_status()
             img_bytes = response.content
 
-        # run rembg only when the caller asked for it
-        if remove_bg:
-            img_bytes = remove(img_bytes)
+        if effective_remove and img_bytes:
+            img_bytes = _maybe_remove_bg(img_bytes)
+
+            # Pre-resize BEFORE model to cap ONNX intermediates
+            try:
+                with Image.open(io.BytesIO(img_bytes)) as im:
+                    im = im.convert("RGBA")
+                    w, h = im.size
+                    mx = max(w, h)
+                    if mx > _BG_MAX_SIDE:
+                        scale = _BG_MAX_SIDE / float(mx)
+                        new_size = (max(1, int(w * scale)), max(1, int(h * scale)))
+                        im = im.resize(new_size, Image.LANCZOS)
+                    buf = io.BytesIO()
+                    im.save(buf, format="PNG", optimize=True)
+                    img_bytes = buf.getvalue()
+            except Exception:
+                pass
+
+            # Single pass of rembg with shared session + bounded concurrency
+            try:
+                with _REMBG_SEM:
+                    img_bytes = _rembg_remove(img_bytes, session=_get_rembg_session())
+            except Exception:
+                pass
+
+            # Optional: nudge glibc to return free pages (Linux)
+            try:
+                import ctypes
+                ctypes.CDLL("libc.so.6").malloc_trim(0)
+            except Exception:
+                pass
 
         save_image_to_cache(stem, img_bytes)
         save_metadata_to_cache(stem, {
@@ -238,19 +381,17 @@ def get_commons_thumb(genus: str,
             "retrieval_date": retrieval_date,
             "thumb_url": raw_thumb_url
         })
-
         enforce_cache_limit()
         gc.collect()
-
 
         return (
             f"/cached-images/{os.path.basename(get_cached_image_path(stem))}",
             author, licence, licence_url, upload_date, retrieval_date
         )
-
     except Exception as e:
         print(f"[rembg/cache] Failed to process image for {genus} {species}: {e}")
         return (None,) * 6
+
 
 
 
@@ -351,34 +492,20 @@ def get_commons_thumb(genus: str,
 
 
 def remove_background_base64(image_url: str, headers: dict = None) -> str | None:
-    """
-    Downloads an image from a URL, removes its background using rembg,
-    and returns a base64-encoded PNG string.
-
-    Parameters
-    ----------
-    image_url : str
-        The URL of the image to download and process.
-    headers : dict, optional
-        HTTP headers to use when fetching the image (e.g. User-Agent)
-
-    Returns
-    -------
-    str | None
-        A data:image/png;base64,... string if successful, or None on failure.
-    """
     try:
         r = requests.get(image_url, headers=headers, timeout=10)
         r.raise_for_status()
         input_data = r.content
 
-        output_data = remove(input_data)
-        b64_img = base64.b64encode(output_data).decode("utf-8")
+        # Only remove if enabled; otherwise just return original as PNG b64
+        out = _maybe_remove_bg(input_data) if ENABLE_BG_REMOVAL else input_data
+        b64_img = base64.b64encode(out).decode("utf-8")
         return f"data:image/png;base64,{b64_img}"
-
     except Exception as e:
         print(f"[rembg] Failed to process image: {e}")
         return None
+
+
 
 
 
