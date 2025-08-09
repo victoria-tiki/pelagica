@@ -18,6 +18,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl git wget libssl-dev libffi-dev libbz2-dev \
     liblzma-dev libsqlite3-dev zlib1g-dev libxml2-dev libxmlsec1-dev \
+    graphviz graphviz-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Build-time toggle (added *after* apt so cache is preserved) ----

@@ -12,6 +12,7 @@ import dash_bootstrap_components as dbc
 from flask import send_from_directory
 
 import pandas as pd, random, datetime
+from urllib.parse import parse_qs
 import dash_cytoscape as cyto
 import numpy as np 
 import json, base64   
@@ -19,12 +20,14 @@ import glob
 import gc
 import re
 import time
+import os
 
 from src.process_data import load_species_data, load_homo_sapiens, load_name_table, cm_to_in,load_species_with_taxonomy
 from src.wiki import get_blurb, get_commons_thumb      
 from src.utils import assign_random_depth
 from src.taxonomic_tree import build_taxonomy_elements
-import os
+
+
 
 cyto.load_extra_layouts()
 print(f"BOOT: __name__={__name__} USE_DEV_SERVER={os.getenv('USE_DEV_SERVER')}")
@@ -282,7 +285,7 @@ advanced_filters = html.Div([           # collapsible area
 
     ], className="settings-group"),
     
-    html.Div("Limits the list to ~ 1,500 curated species (faster loading).", className="settings-note"),
+    html.Div("Limits the list to over 1,500 curated species (faster loading, more relevant images).", className="settings-note"),
     
     html.Br(),
 
@@ -363,7 +366,7 @@ citations_panel = dbc.Offcanvas(
 
 # -------------- taxonomic tree ----------------
 
-taxonomic_tree = html.Div(
+'''taxonomic_tree = html.Div(
     id="tree-panel",
     className="glass-panel",
     style={
@@ -378,6 +381,7 @@ taxonomic_tree = html.Div(
         cyto.Cytoscape(
             id="tree-graph",
             elements=[],
+
 
             stylesheet = [
                 # Base node: tiny dot + white label below (larger font)
@@ -441,7 +445,51 @@ taxonomic_tree = html.Div(
             style={"width": "100%", "height": "min(65vh, 700px)", "display": "block", "margin": "0 auto"}  # will wrapper width
         )
     ]
+)'''
+
+
+# -------------- simple “tree” panel ----------------
+'''taxonomic_tree = html.Div(
+    id="tree-panel",
+    className="glass-panel",
+    style={
+        "display": "none",
+        "position": "absolute",
+        "inset": "0",          # fill the wrapper
+        "zIndex": 1,
+        "padding": "0",
+        "boxSizing": "border-box",
+    },
+    children=[
+        # centred horizontal line – adjust thickness / colour to taste
+        html.Div(
+            style={
+                "position": "absolute",
+                "top": "50%",
+                "left": 0,
+                "width": "100%",
+                "height": "3px",
+                "background": "white",
+                "opacity": .8,
+                "transform": "translateY(-50%)",
+            }
+        )
+    ],
+)'''
+
+
+taxonomic_tree = html.Div(
+    id="tree-panel",
+    className="glass-panel",
+    style={"display": "none", "position": "absolute", "inset": "0",
+           "padding": 0, "boxSizing": "border-box", "zIndex": 1},
+    children=dcc.Graph(id="tree-plot",
+                       style={"height": "100%", "width": "100%",
+                              "backgroundColor": "rgba(0,0,0,0)"},
+                       config={"displayModeBar": False}),
 )
+
+
 
 
 # --------------------------------------------------------------------
@@ -449,7 +497,7 @@ taxonomic_tree = html.Div(
 # --------------------------------------------------------------------
 
 centre_flex = html.Div(id="page-centre-flex", children=[
-    html.Div(id="image-wrapper", children=[
+    html.Div(id="image-wrapper", style={"position": "relative"}, children=[
 
         # this div now contains the image AND the up/down buttons
         html.Div(id="image-inner", children=[
@@ -649,6 +697,7 @@ feedback_link=html.A("give feedback", href="https://forms.gle/YuUFrYPmDWsqyHdt7"
 
 #  Assemble Layout
 app.layout = dbc.Container([
+    dcc.Location(id="url", refresh=False),
     search_panel,
     invisible_toggles, 
     search_handle,
@@ -684,6 +733,7 @@ app.layout = dbc.Container([
     
     
     html.Div(id="js-trigger", style={"display": "none"}),
+    html.Div(id="url-trigger", style={"display": "none"}),   # new
     dcc.Store(id="selected-species", data=None),
     dcc.Store(id="favs-store",storage_type="local"),      # persists in localStorage
     dcc.Store(id="compare-store", data=False, storage_type="session"),
@@ -1266,39 +1316,6 @@ def dagre_layout():
 
 
 
-@app.callback(
-    Output("tree-panel", "style"),
-    Output("tree-graph", "elements"),
-    Output("tree-graph", "layout"),
-
-    Input("tree-handle",        "n_clicks"),     # manual toggle
-    Input("selected-species",   "data"),         # auto-refresh on species change
-
-    State("tree-panel",         "style"),
-    prevent_initial_call=True
-)
-def show_or_update_tree(n_clicks, species, style):
-    if not species:
-        raise PreventUpdate
-
-    triggered = ctx.triggered_id
-    open_now = style and style.get("display") != "none"
-
-    # ─── User clicked the 🌳 button ─────────────────────────────
-    if triggered == "tree-handle":
-        if open_now:
-            return {**style, "display": "none"}, no_update, no_update
-        # opening the panel → load tree
-        elements, root = build_taxonomy_elements(df_full, species)
-        return {**style, "display": "block"}, elements, dagre_layout()
-
-    # ─── Species changed while panel is visible ────────────────
-    if triggered == "selected-species" and open_now:
-        elements, root = build_taxonomy_elements(df_full, species)
-        return no_update, elements, dagre_layout()
-
-    raise PreventUpdate
-
 
 @app.callback(
     Output("order-lock-label", "children"),
@@ -1457,10 +1474,7 @@ def update_image(gs_name, units_bool):
                       title=depth_tooltip,
                       style={"textDecoration": "underline dashed"}),
             f": {depth}"
-        ])
-
-
-    ]
+        ])]
 
 
     # ---------- WATER TYPE + PELAGIC ZONE ----------
@@ -2281,6 +2295,37 @@ def toggle_order_lock(n, locked):
     cls = "nav-icon lock-icon" + (" active" if locked else "")
     return locked, cls
 
+@app.callback(
+    Output("selected-species", "data", allow_duplicate=True),
+    Input("url", "search"),
+    prevent_initial_call=True
+)
+def load_from_query(search):
+    if not search:
+        raise PreventUpdate          # no query-string
+    qs = parse_qs(search.lstrip("?"))
+    raw = (qs.get("species") or [None])[0]
+    if not raw:
+        raise PreventUpdate          # parameter absent
+
+    # Accept “Genus_species” or “Genus%20species”
+    gs = raw.replace("_", " ").replace("%20", " ")
+    return gs.strip()
+
+app.clientside_callback(
+    """
+    function(gs) {
+        if (!gs) { return window.dash_clientside.no_update; }
+        const slug = gs.replace(/\\s+/g, "_");
+        const url  = new URL(window.location);
+        url.searchParams.set("species", slug);
+        window.history.replaceState({}, "", url);
+        return "";          // something to write
+    }
+    """,
+    Output("url-trigger", "children"),    # ← changed
+    Input("selected-species", "data")
+)
 
 #app.run(host="0.0.0.0", port=8050, debug=True)  #change to false later                
 
@@ -2303,6 +2348,96 @@ app.index_string = '''
     </body>
 </html>
 '''
+
+from dash import Output, Input, State, no_update, ctx
+
+@app.callback(
+    Output("tree-panel", "style"),
+    Output("tree-plot",  "figure"),
+    Input("tree-handle",      "n_clicks"),    # toggle button
+    Input("selected-species", "data"),        # species picker
+    State("tree-panel",       "style"),
+    prevent_initial_call=True,
+)
+def toggle_or_update_tree(n_clicks, species, style):
+    if not species:
+        raise PreventUpdate
+
+    triggered = ctx.triggered_id
+    is_open   = style and style.get("display") != "none"
+
+    # User clicked the 🧬 handle
+    if triggered == "tree-handle":
+        if is_open:                           # ── close panel ──
+            return {**style, "display": "none"}, no_update
+        # ── open panel ──
+        fig = make_tree_figure(df_full, species)
+        return {**style, "display": "block"}, fig
+
+    # Species changed while panel already open
+    if is_open and triggered == "selected-species":
+        fig = make_tree_figure(df_full, species)
+        return no_update, fig
+
+    raise PreventUpdate
+
+
+import networkx as nx
+import plotly.graph_objects as go
+
+def make_tree_figure(df, target_species):
+    """
+    Build an interactive Plotly figure of the taxonomic tree
+    for `target_species`.  Works entirely from the same DataFrame
+    you already pass to `build_taxonomy_elements`.
+    """
+    # 1  Build a NetworkX graph (you already have this logic)
+    els, root = build_taxonomy_elements(df, target_species)
+    G = nx.DiGraph(
+        [(e["data"]["source"], e["data"]["target"])
+         for e in els if "source" in e["data"]] )
+
+    # 2  Compute a tidy left-to-right “hierarchy” layout
+    try:                                # needs Graphviz installed
+        pos = nx.nx_agraph.graphviz_layout(G, prog="dot", args="-Grankdir=TB")
+    except Exception:                   # fall back to spring layout
+        pos = nx.spring_layout(G, seed=1)
+
+    # 3  Plotly traces: one scatter for nodes, one for the edges
+    x_nodes, y_nodes, labels = [], [], []
+    for n, (x, y) in pos.items():
+        x_nodes.append(x); y_nodes.append(y)   # flip y-axis for dot
+        labels.append(n)
+
+    edge_x, edge_y = [], []
+    for u, v in G.edges():
+        x0, y0 = pos[u];  x1, y1 = pos[v]
+        edge_x += [x0, x1, None]
+        edge_y += [y0, y1, None]
+
+    return go.Figure(
+        data=[
+            go.Scatter(x=edge_x, y=edge_y,
+                       mode="lines",
+                       line=dict(width=1, color="#888"),
+                       hoverinfo="skip"),
+            go.Scatter(x=x_nodes, y=y_nodes,
+                       mode="markers+text",
+                       marker=dict(size=12, color="#0055ff"),
+                       text=labels,
+                       textposition="bottom center",
+                       hoverinfo="text")
+        ],
+        layout=go.Layout(
+            margin=dict(t=10, b=10, l=10, r=10),
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            showlegend=False,
+            hovermode="closest",
+        )
+    )
+
+
 
 
 if __name__ == "__main__" and os.getenv("USE_DEV_SERVER", "0") == "1":

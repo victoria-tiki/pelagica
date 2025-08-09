@@ -750,6 +750,17 @@ files = [
 ]
 
 [[package]]
+name = "pygraphviz"
+version = "1.14"
+description = "Python interface to Graphviz"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "pygraphviz-1.14.tar.gz", hash = "sha256:c10df02377f4e39b00ae17c862f4ee7e5767317f1c6b2dfd04cea6acc7fc2bea"},
+]
+
+[[package]]
 name = "pyreadline3"
 version = "3.5.4"
 description = "A python implementation of GNU readline."
@@ -1053,4 +1064,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.14"
-content-hash = "4b0bd0d65f8502278184ac313ca8ed8217c8135184e54e2afadf7f5e15c3e739"
+content-hash = "b5fcc6c2ca8691b2cddcf97ba642bfdf5f859edae685229e2102bc85bd88245c"

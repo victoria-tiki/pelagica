@@ -475,7 +475,7 @@ body.search-open .search-handle {
 
 
 #image-inner {
-  position: relative;
+  position: relative !important;
   width: 100%;
   height: auto;
 }
@@ -484,7 +484,7 @@ body.search-open .search-handle {
 
 
 #image-wrapper{
-  position: relative;
+  position: relative !important;
   width: clamp(320px, 52vw, 520px);   /* overall image width */
   margin: 0 auto;
 
