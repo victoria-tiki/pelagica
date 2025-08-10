@@ -152,10 +152,21 @@ def load_homo_sapiens():
         "Brack":               0,
         "Dangerous":           "high",
         "Longevity":         73,
-        "Genus_Species":        "Homo sapiens"
+        "Genus_Species":        "Homo sapiens",
+        
+
+
+        
 
     }])
     
+    '''        "kingdom": "Animalia",
+        "phylum": 	"Chordata",
+        "class": 	"Mammalia",
+        "order": 	"Primates",
+        "family": 	"Hominidae",
+        "genus":    "Homo"
+        '''
     
 def get_extra_species():
     """Concatenate all manually added species."""

@@ -14,6 +14,8 @@ from flask import send_from_directory
 import pandas as pd, random, datetime
 from urllib.parse import parse_qs
 import dash_cytoscape as cyto
+import networkx as nx
+import plotly.graph_objects as go
 import numpy as np 
 import json, base64   
 import glob
@@ -134,16 +136,18 @@ units_block = html.Div(
 top_bar = html.Div(
     [
         # 1. logo & tagline
-        html.Div(
+        html.A(
             [
-                html.Img(src="/assets/img/logo_pelagica_colour.webp",
-                         style={"height": "50px"}),
-                html.Span("The Aquatic Life Atlas",
-                          className="tagline",
-                          style={"marginLeft": ".5rem", "fontSize": ".9rem",
-                                 "fontWeight": 500, "color": "#f5f5f5"})
+                html.Img(src="/assets/img/logo_pelagica_colour.webp", style={"height": "50px"}),
+                html.Span(
+                    "The Aquatic Life Atlas",
+                    className="tagline",
+                    style={"marginLeft": ".5rem", "fontSize": ".9rem", "fontWeight": 500, "color": "#f5f5f5"},
+                ),
             ],
-            style={"display": "flex", "alignItems": "center"}
+            href=app.get_relative_path("/"),
+            id="logo-link",
+            style={"display": "flex", "alignItems": "center", "textDecoration": "none", "color": "inherit"},
         ),
 
         # 2. spacer
@@ -481,13 +485,24 @@ citations_panel = dbc.Offcanvas(
 taxonomic_tree = html.Div(
     id="tree-panel",
     className="glass-panel",
-    style={"display": "none", "position": "absolute", "inset": "0",
-           "padding": 0, "boxSizing": "border-box", "zIndex": 1},
-    children=dcc.Graph(id="tree-plot",
-                       style={"height": "100%", "width": "100%",
-                              "backgroundColor": "rgba(0,0,0,0)"},
-                       config={"displayModeBar": False}),
+    style={
+        "display": "none",
+        "position": "absolute",
+        "inset": "0",
+        "padding": 0,
+        "boxSizing": "border-box",
+        "zIndex": 1,
+        "backgroundColor": "rgba(0,0,0,0.60)",
+        "color": "#fff",
+        "overflow": "auto",              # ← enable scrolling
+    },
+    children=dcc.Graph(
+        id="tree-plot",
+        style={"width": "100%", "height": "auto", "backgroundColor": "rgba(0,0,0,0)"},
+        config={"displayModeBar": False}
+    ),
 )
+
 
 
 
@@ -999,7 +1014,7 @@ def fill_citation(gs_name):
     image_block = []
     if author:
         image_block = [
-            html.Span("Image © "), html.Strong(author),
+            html.Span("Image: "), html.Strong(author),
             html.Span(", "),
             html.Span((lic or "") + " "),
             html.A("(license link)", href=lic_url, target="_blank") if lic_url else None,
@@ -1094,16 +1109,22 @@ def fill_citation(gs_name):
         src      = str(row.get("Database", "")).lower()
         slug     = f"{genus}-{species}".replace(" ", "-")
         src_name = "SeaLifeBase" if src == "sealifebase" else "FishBase"
+        editors  = (
+            "Palomares, M.L.D. and D. Pauly. Editors."
+            if src == "sealifebase" else
+            "Froese, R. and D. Pauly. Editors."
+        )
         cite_url = (
             f"https://www.sealifebase.se/summary/{slug}.html"
             if src == "sealifebase" else
             f"https://www.fishbase.se/summary/{slug}"
         )
         data_block = [
-            html.Span("Taxonomic information, length, habitat, longevity, danger, depth, and additional comments from "),
+            html.Span(f"Taxonomic information (genus/species), length, habitat, longevity, danger, depth, and additional comments: {editors} "),
             html.A(src_name, href=cite_url, target="_blank"),
-            html.Span(" — retrieved 12 Jul 2025."),
+            html.Span(" — retrieved 12 Jul 2025."),
         ]
+
 
     sound_block = []
     mp3_rel, txt_rel, _ = _sound_paths(genus, species)
@@ -1133,9 +1154,11 @@ def fill_citation(gs_name):
         except Exception:
             pass
 
-    taxonomy_block=[html.Br(), html.Br(),  html.Span("Taxonomic data (beyond Genus and Species): Derived dataset GBIF.org (7 August 2025) Filtered export of GBIF occurrence data https://doi.org/10.15468/dd.wbjqgn"),]
+    taxonomy_block=[html.Br(), html.Br(),  html.Span("Taxonomic information (kingdoms/phyla/classes/orders/families): Derived dataset GBIF.org (7 August 2025) Filtered export of GBIF occurrence data.  "), html.A('DOI', href="https://doi.org/10.15468/dd.wbjqgn", target="_blank"),]
+    
+    victoria_block=[html.Br(), html.Br(), html.Span("All other content, including code, background images, animations, and UI design: © 2025 Victoria Tiki"),]
 
-    return image_block + wiki_block + data_block + taxonomy_block + sound_block
+    return image_block + wiki_block + data_block + taxonomy_block + sound_block + victoria_block
 
 
 # --- populate image + overlay + titles whenever species or units change ----------
@@ -1322,7 +1345,7 @@ def dagre_layout():
     Output("order-lock-label", "className"),
     Input("order-lock-state",  "data"),      # ON / OFF toggle
     Input("selected-species",  "data"),      # species changed
-    State("order-lock-label",  "className"), # keep other classes
+    State("order-lock-label",  "className"), # (kept for symmetry; not required)
     prevent_initial_call=True
 )
 def update_order_lock_label(locked, species_id, old_class):
@@ -1330,12 +1353,10 @@ def update_order_lock_label(locked, species_id, old_class):
     if not locked or not species_id:
         return "", base_class               # hide when OFF
 
-    # look up order (fallback "?")
     order = df_full.loc[df_full["Genus_Species"] == species_id, "order"]
     order_name = order.iloc[0] if not order.empty else "?"
+    return f"Navigating among {order_name} only", base_class + " active"
 
-    text   = f"Navigating among {order_name} only"
-    return text, base_class + " active"
 
 
 
@@ -2025,7 +2046,10 @@ def step_size(n_next, n_prev,
     idx = (idx - 1) % len(species) if ctx.triggered_id == "prev-btn" \
          else (idx + 1) % len(species)
 
-    return species[idx]
+    new_sel = species[idx]
+    if new_sel == current:
+        raise PreventUpdate
+    return new_sel
 
 
 # -------------------------------------------------------------------
@@ -2102,7 +2126,12 @@ def step_depth(n_up, n_down,
     idx = (idx - 1) % len(species) if ctx.triggered_id == "up-btn" \
          else (idx + 1) % len(species)
 
-    return species[idx]
+    # ... keep existing code that computes idx ...
+    new_sel = species[idx]
+    if new_sel == current:
+        raise PreventUpdate
+    return new_sel
+
 
 
 # -------------------------------------------------------------------
@@ -2382,60 +2411,245 @@ def toggle_or_update_tree(n_clicks, species, style):
     raise PreventUpdate
 
 
-import networkx as nx
-import plotly.graph_objects as go
 
 def make_tree_figure(df, target_species):
-    """
-    Build an interactive Plotly figure of the taxonomic tree
-    for `target_species`.  Works entirely from the same DataFrame
-    you already pass to `build_taxonomy_elements`.
-    """
-    # 1  Build a NetworkX graph (you already have this logic)
+    from collections import defaultdict
+    from functools import lru_cache
+    import textwrap
+    import plotly.graph_objects as go
+
+    # ---- Build elements & metadata (from taxonomic_tree.py) ----
     els, root = build_taxonomy_elements(df, target_species)
-    G = nx.DiGraph(
-        [(e["data"]["source"], e["data"]["target"])
-         for e in els if "source" in e["data"]] )
 
-    # 2  Compute a tidy left-to-right “hierarchy” layout
-    try:                                # needs Graphviz installed
-        pos = nx.nx_agraph.graphviz_layout(G, prog="dot", args="-Grankdir=TB")
-    except Exception:                   # fall back to spring layout
-        pos = nx.spring_layout(G, seed=1)
+    node_meta = {}
+    edges = []
+    for e in els:
+        d = e.get("data", {})
+        if "source" in d and "target" in d:
+            edges.append((d["source"], d["target"]))
+        else:
+            nid = d.get("id")
+            if nid:
+                node_meta[nid] = {
+                    "label": d.get("label", nid),   # may contain sci/common; we’ll format below
+                    "rank":  d.get("rank"),
+                    "kind":  d.get("kind"),         # "focus" for the current species
+                    # if taxonomic_tree.py provided sci/common separately, use them:
+                    "sci":   d.get("sci"),
+                    "common":d.get("common"),
+                }
 
-    # 3  Plotly traces: one scatter for nodes, one for the edges
-    x_nodes, y_nodes, labels = [], [], []
-    for n, (x, y) in pos.items():
-        x_nodes.append(x); y_nodes.append(y)   # flip y-axis for dot
-        labels.append(n)
+    # Infer root if not provided
+    children = {v for _, v in edges}
+    if not root:
+        parents = [u for u, _ in edges if u not in children]
+        root = parents[0] if parents else (next(iter(node_meta)) if node_meta else None)
 
+    # ---- Graph structure ----
+    children_of = defaultdict(list)
+    parent_of = {}
+    for u, v in edges:
+        children_of[u].append(v)
+        parent_of[v] = u
+
+    rank_order = ["kingdom", "phylum", "class", "order", "family", "genus", "species"]
+    rank_index = {r: i for i, r in enumerate(rank_order)}
+
+    def get_rank(n):
+        r = node_meta.get(n, {}).get("rank")
+        if r in rank_index:
+            return r
+        p = parent_of.get(n)
+        if p:
+            pi = rank_index.get(get_rank(p))
+            if pi is not None and pi + 1 < len(rank_order):
+                return rank_order[pi + 1]
+        return "species"
+
+    # Deterministic child ordering
+    for u in children_of:
+        children_of[u].sort(key=lambda c: (rank_index.get(get_rank(c), 999),
+                                           node_meta.get(c, {}).get("label", c)))
+
+    # ---- Tidy layout (top-to-bottom) ----
+    @lru_cache(None)
+    def leaf_count(n):
+        ch = children_of.get(n, [])
+        if not ch: return 1
+        return sum(leaf_count(c) for c in ch)
+
+    X_SPACING = 150     # tweak if you want wider sibling spacing
+    Y_SPACING = 50    # tweak if you want taller row spacing
+
+    x_pos, y_pos = {}, {}
+    next_leaf_col = 0
+
+    def layout(n):
+        nonlocal next_leaf_col
+        ri = rank_index.get(get_rank(n), len(rank_order) - 1)
+        y_pos[n] = -ri * Y_SPACING
+        ch = children_of.get(n, [])
+        if not ch:
+            x_pos[n] = next_leaf_col * X_SPACING
+            next_leaf_col += 1
+        else:
+            for c in ch:
+                layout(c)
+            xs = [x_pos[c] for c in ch]
+            x_pos[n] = sum(xs) / len(xs)
+
+    if root: layout(root)
+
+    # ---- After layout() has been called ----
+    species_nodes = [n for n in node_meta if get_rank(n) == "species" and n in y_pos]
+
+    for i, n in enumerate(sorted(species_nodes, key=lambda x: x_pos[x])):
+        # Alternate between no offset and +species_offset
+        offset = 14 if i % 2 == 0 else -14
+        y_pos[n] += offset
+        
+        
+    # ---- Helpers for labels/hover ----
+    def sci_text(meta):
+        # Prefer explicit scientific name if provided
+        if meta.get("sci"):
+            return meta["sci"]
+        lbl = meta.get("label", "") or ""
+        # Split off any “sci — common” or “sci (common)” patterns
+        for sep in [" — ", " - ", " – "]:
+            if sep in lbl:
+                return lbl.split(sep, 1)[0].strip()
+        if "(" in lbl and lbl.endswith(")"):
+            return lbl[:lbl.rfind("(")].strip()
+        return lbl.strip()
+
+    def infer_common_from_label(label: str | None) -> str | None:
+        if not label:
+            return None
+        lbl = label
+        for sep in [" — ", " - ", " – "]:
+            if sep in lbl:
+                tail = lbl.split(sep, 1)[1].strip()
+                return tail if tail else None
+        if "(" in lbl and lbl.endswith(")"):
+            return lbl[lbl.rfind("(")+1:-1].strip() or None
+        return None
+    
+    def hover_text(n, meta):
+        r = get_rank(n)
+        sci = meta.get("sci") or sci_text(meta)
+
+        if r == "species":
+            # species: use provided "common" if present; else infer from label
+            common = meta.get("common") or infer_common_from_label(meta.get("label", ""))
+            if common:
+                return f"<b>{sci}</b><br><i>{common}</i>"
+            return f"<b>{sci}</b>"
+
+        # higher taxa: look up from COMMON_NAMES
+        cmn = COMMON_NAMES.get(sci)
+        if cmn:
+            return f"<b>{r.title()}</b><br>{sci}<br><i>{cmn}</i>"
+        else:
+            return f"<b>{r.title()}</b><br>{sci}"
+
+    def wrap(label, width=14):
+        return "<br>".join(textwrap.wrap(label, width=width)) if label else ""
+
+    # ---- Build traces ----
+    # Edges
     edge_x, edge_y = [], []
-    for u, v in G.edges():
-        x0, y0 = pos[u];  x1, y1 = pos[v]
-        edge_x += [x0, x1, None]
-        edge_y += [y0, y1, None]
+    for u, v in edges:
+        if u in x_pos and v in x_pos:
+            edge_x += [x_pos[u], x_pos[v], None]
+            edge_y += [y_pos[u], y_pos[v], None]
 
-    return go.Figure(
+    # Split nodes into three groups so text color can match marker color
+    species_focus = {"x": [], "y": [], "text": [], "hover": []}   # yellow
+    species_other = {"x": [], "y": [], "text": [], "hover": []}   # green
+    higher_taxa   = {"x": [], "y": [], "text": [], "hover": []}   # light gray
+
+    for n, meta in node_meta.items():
+        if n not in x_pos: continue
+        r = get_rank(n)
+        sci = sci_text(meta)
+        label = wrap(sci, width=14) if r == "species" else sci
+
+        if r == "species" and meta.get("kind") == "focus":
+            species_focus["x"].append(x_pos[n])
+            species_focus["y"].append(y_pos[n])
+            species_focus["text"].append(label)
+            species_focus["hover"].append(hover_text(n, meta))
+        elif r == "species":
+            species_other["x"].append(x_pos[n])
+            species_other["y"].append(y_pos[n])
+            species_other["text"].append(label)
+            species_other["hover"].append(hover_text(n, meta))
+        else:
+            higher_taxa["x"].append(x_pos[n])
+            higher_taxa["y"].append(y_pos[n])
+            higher_taxa["text"].append(label)
+            higher_taxa["hover"].append(hover_text(n, meta))
+
+    # Common layout bits
+    def nodes_trace(group, marker_color, text_color, text_size, name):
+        return go.Scatter(
+            x=group["x"], y=group["y"],
+            mode="markers+text",
+            name=name,
+            hovertext=group["hover"],
+            hoverinfo="text",
+            text=group["text"],
+            # species labels should be below the dot; higher taxa also below for consistency
+            textposition="bottom center",
+            textfont=dict(color=text_color, size=text_size),
+            marker=dict(size=10, color=marker_color),
+            cliponaxis=False,  # ← prevent text clipping at the axes
+            showlegend=False,
+        )
+
+    fig = go.Figure(
         data=[
-            go.Scatter(x=edge_x, y=edge_y,
-                       mode="lines",
-                       line=dict(width=1, color="#888"),
-                       hoverinfo="skip"),
-            go.Scatter(x=x_nodes, y=y_nodes,
-                       mode="markers+text",
-                       marker=dict(size=12, color="#0055ff"),
-                       text=labels,
-                       textposition="bottom center",
-                       hoverinfo="text")
+            go.Scatter(
+                x=edge_x, y=edge_y,
+                mode="lines",
+                line=dict(width=1.5, color="rgba(255,255,255,0.2)"),
+                hoverinfo="skip",
+                showlegend=False,
+            ),
+            nodes_trace(higher_taxa, marker_color="#bfbfbf", text_color="#bfbfbf", text_size=12, name="Higher taxa"),
+            nodes_trace(species_other, marker_color="#2ecc71", text_color="#2ecc71", text_size=11, name="Species"),
+            nodes_trace(species_focus, marker_color="#ffd166", text_color="#ffd166", text_size=11, name="Current"),
         ],
         layout=go.Layout(
-            margin=dict(t=10, b=10, l=10, r=10),
+            margin=dict(t=20, b=40, l=30, r=30),
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
             showlegend=False,
             hovermode="closest",
-        )
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#ffffff"),
+        ),
     )
+    
+
+    # ---- Padding so nothing is cut off ----
+    all_x = higher_taxa["x"] + species_other["x"] + species_focus["x"]
+    all_y = higher_taxa["y"] + species_other["y"] + species_focus["y"]
+    if all_x and all_y:
+        pad_x = 0.7 * X_SPACING
+        pad_y = 0.9 * Y_SPACING
+        fig.update_xaxes(range=[min(all_x) - pad_x, max(all_x) + pad_x])
+        fig.update_yaxes(range=[min(all_y) - pad_y, max(all_y) + pad_y])
+
+        # Let the figure height match content; the panel will scroll if needed
+        content_height = (max(all_y) - min(all_y)) + 2 * pad_y + 80
+        fig.update_layout(height=max(400, int(content_height)))
+
+    return fig
+
+
 
 
 

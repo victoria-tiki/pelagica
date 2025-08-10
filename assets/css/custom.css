@@ -1254,3 +1254,35 @@ helper text size matches the sideways labels
     display: block;
 }
 
+@media (hover: none), (pointer: coarse) {
+  .tooltip,
+  .bs-tooltip-auto,
+  .popover {
+    display: none !important;
+  }
+  
+/* Mobile: make the image wrapper a bit narrower + left-align the column */
+@media (max-width: 768px) {
+
+  /* stop centering the middle column so there's extra room on the right */
+  #page-centre-flex{
+    align-items: flex-start;
+    margin-left: 1rem; /* tiny gutter so it doesn't hug the edge */
+  }
+
+  /* narrower wrapper so the side tabs don't overlap visually */
+  #image-wrapper {
+    width: clamp(260px, 82vw, 480px); /* was nearly full width—now a bit slimmer */
+    margin: 0;                        /* left-aligned on mobile */
+  }
+
+  /* height scales naturally; width can shrink to preserve aspect ratio */
+  #species-img {
+    max-height: 58vh;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+}
+

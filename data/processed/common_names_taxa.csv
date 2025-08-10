@@ -14,6 +14,7 @@ Chondrichthyes, Sharks and rays
 Rajidae, Skates
 Carcharhinidae, Requiem sharks
 Lamnidae, Mackerel sharks 
+Lamniformes, mackerel sharks
 Octopodidae, Octopuses
 Octopoda, Octopuses
 Teuthida, Squids
@@ -46,9 +47,139 @@ Perciformes, perch-like fishes
 Gadiformes, cods
 Anseriformes, waterfowl
 Lophiiformes, anglerfish
-Anatidae, (eg ducks/geese/swans)
+Anatidae, eg ducks/geese/swans
 Nudibranchia, certain sea slugs
 Myopsida, squids
 Oegopsida, squids
 Siluriformes, catfish
 Carcharhiniformes, ground sharks
+Animalia, Animals
+Plantae, Plants
+Fungi, Fungi
+Protista, Protists
+Monera, Bacteria
+Chordata, Vertebrates and close relatives
+Arthropoda, Arthropods
+Mammalia, Mammals
+Mollusca, Mollusks
+Annelida, Segmented worms
+Cnidaria, Jellyfish and corals
+Porifera, Sponges
+Actinopterygii, Ray-finned fishes
+Chondrichthyes, Cartilaginous fishes (sharks/rays/chimaeras)
+Amphibia, Amphibians
+Reptilia, Reptiles (incl. turtles/snakes/iguanas)
+Mammalia, Mammals (incl. whales/dolphins/humans)
+Cephalopoda, Cephalopods (squids/octopuses/cuttlefish)
+Bivalvia, Bivalves (clams/oysters/mussels)
+Gastropoda, Gastropods (snails/limpets/sea slugs)
+Hydrozoa, Hydrozoans
+Scyphozoa, True jellyfish
+Asteroidea, Sea stars
+Echinoidea, Sea urchins
+Polychaeta, Bristle worms
+Malacostraca, Crustaceans (crabs/lobsters/shrimp)
+Maxillopoda, Barnacles and copepods
+Echinodermata, Sea stars and relatives
+Porifera, Sponges
+Bryophyta, Mosses
+Chlorophyta, Green algae
+Rhodophyta, Red algae
+Phaeophyta, Brown algae
+Reptilia, Reptiles (incl. sea turtles/sea snakes)
+Ascidiacea, Sea squirts
+Cephalopoda, Squids/octopuses/cuttlefish
+Bivalvia, Clams/mussels/oysters
+Gastropoda, Snails and slugs
+Polychaeta, Bristle worms
+Scyphozoa, True jellyfish
+Hydrozoa, Hydroids
+Anthozoa, Corals and sea anemones
+Asteroidea, Sea stars
+Echinoidea, Sea urchins
+Holothuroidea, Sea cucumbers
+Platyhelminthes, Flatworms
+Nemertea, Ribbon worms
+Sipuncula, Peanut worms
+Brachiopoda, Lamp shells
+Rotifera, Rotifers
+Chaetognatha, Arrow worms
+Priapulida, Penis worms
+Tardigrada, Water bears
+Foraminifera, Forams
+Radiolaria, Radiolarians
+Dinoflagellata, Dinoflagellates
+Ctenophora, Comb jellies
+Myxini, Hagfish
+Petromyzontida, Lampreys
+Clupeiformes, Herrings and anchovies
+Salmoniformes, Salmon and trout
+Cypriniformes, Carps and minnows
+Beloniformes, Needlefish and flying fish
+Pleuronectiformes, Flatfish (flounders/halibut/soles)
+Atheriniformes, Silversides
+Synbranchiformes, Swamp eels
+Notacanthiformes, Spiny eels
+Gymnotiformes, Knifefish (includes electric knifefish)
+Cartilaginous fishes (Chondrichthyes)
+Heterodontiformes, Bullhead sharks
+Hexanchiformes, Cow sharks
+Squatiniformes, Angel sharks
+Rhinopristiformes, Guitar- and sawfish
+Trichechidae, Manatees
+Dugongidae, Dugongs
+Otariidae, Eared seals (sea lions and fur seals)
+Phocidae, True seals
+Mustelidae, Otters (includes sea otter)
+Patellogastropoda, True limpets
+Littorinidae, Periwinkles
+Trochidae, Top snails
+Nautilida, Nautiluses
+Sepiolidae, Bobtail squids
+Euphausiacea, Krill
+Stomatopoda, Mantis shrimp
+Leptostraca, Primitive shrimp
+Mysida, Opossum shrimp
+Isopoda, Isopods 
+Amphipoda, Amphipods
+Staurozoa, Stalked jellyfish
+Crinoidea, Feather stars and sea lilies
+Echiura, Spoon worms
+Bacillariophyta, Diatoms
+Chrysophyta, Golden algae
+Haptophyta, Coccolithophores
+Scorpaenidae, Scorpionfishes
+Synanceiidae, Stonefishes
+Tetraodontidae, Pufferfishes
+Diodontidae, Porcupinefishes
+Monacanthidae, Filefishes
+Balistidae, Triggerfishes
+Acanthuridae, Surgeonfishes
+Siganidae, Rabbitfishes
+Labridae, Wrasses
+Antennariidae, Frogfishes
+Lophiidae, Goosefishes
+Uranoscopidae, Stargazers
+Platycephalidae, Flatheads
+Pataecidae, Prowfishes
+Siluridae, Sheatfishes
+Ariidae, Sea catfishes
+Ictaluridae, Catfishes
+Plotosidae, Eeltail catfishes
+Pimelodidae, Long-whiskered catfishes
+Ophidiidae, Cusk-eels
+Chauliodontidae, Viperfishes
+Melanocetidae, Seadevils
+Macrouridae, Grenadiers
+Opisthoproctidae, Barreleyes
+Stomiidae, Dragonfishes
+Elopidae, Ladyfishes
+Channidae, Snakeheads
+Albulidae, Bonefishes
+Muraenidae, Morays
+Gymnuridae, Butterfly rays
+Aves, Birds
+Scorpaeniformes, scorpionfishes and flatheads
+Thaliacea, salps/pyrosomes/doliolids
+Blenniidae, BlenniesCarapidae
+Carapidae, pearlfishes
