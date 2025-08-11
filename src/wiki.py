@@ -143,7 +143,8 @@ def clean_html(raw: str) -> str:
 WIKI_NAME_EQUIVALENTS = {
     "Lutra felina": "Lontra felina",   
     "Magnapinna pacifica": "Bigfin squid",
-    "Hydrophis platura" : "Hydrophis platurus"
+    "Hydrophis platura" : "Hydrophis platurus",
+    #"Aliger gigas": "queen conch"
 }
 
 

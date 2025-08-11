@@ -29,7 +29,9 @@ from src.wiki import get_blurb, get_commons_thumb
 from src.utils import assign_random_depth
 from src.taxonomic_tree import build_taxonomy_elements
 
-
+from src.fav_utils.routes_fav import register_fav_routes
+from src.fav_utils.scoring import top_species, record_weekly_winner_if_missing
+from src.fav_utils.utils_time import utcnow, next_monday_start
 
 cyto.load_extra_layouts()
 print(f"BOOT: __name__={__name__} USE_DEV_SERVER={os.getenv('USE_DEV_SERVER')}")
@@ -112,6 +114,8 @@ def serve_viewer_file(filename):
 def serve_favicon():
     return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'favicon.ico')
     
+register_fav_routes(app) 
+
 # ─── TOP BAR ───────────────────────────────────────────────
 
 units_toggle = dbc.Switch(
@@ -152,7 +156,16 @@ top_bar = html.Div(
 
         # 2. spacer
         html.Div(style={"flex": "1"}),
+        
+        html.Div(
+            ["🕪", html.Span("", className="sound-label")],
+            id="depth-sound-btn",
+            className="top-sound",
+            style={"cursor": "pointer", "fontSize": ".9rem", "marginRight": "0.0rem", "opacity": 0.5},
+        ),
 
+        html.Div("|", style={"opacity": .4, "margin": "0 1rem"}),
+        
         html.Div([
         html.Span("♡",  className="fav-icon"),
         html.Span(" Favourites", className="fav-label")   ],
@@ -231,6 +244,29 @@ search_stack = html.Div(id="search-stack", children=[
 ])
 
 
+# --- Species of the Week/Hour card (UI) ---
+species_of_week_card = html.Div(
+    id="sow-card",
+    className="glass-panel",
+    style={"marginTop": "0.6rem", "cursor": "pointer"},  # ← always rendered
+    children=[
+        html.Div(id="sow-title", children="Species of the Hour",
+                 style={"fontWeight": 600, "marginBottom": "0.25rem"}),
+        html.Div(
+            id="sow-body",
+            style={"display": "flex", "alignItems": "center", "gap": "0.6rem"},
+            children=[
+                html.Img(id="sow-thumb",
+                         style={"width": "64px", "height": "64px", "objectFit": "cover", "borderRadius": "6px"}),
+                html.Div([
+                    html.Div(id="sow-common",     style={"fontSize": "0.95rem", "fontWeight": 600}),
+                    html.Div(id="sow-scientific", style={"fontSize": "0.9rem", "opacity": 0.85}),
+                    html.Small(id="sow-note",     style={"opacity": 0.7})
+                ])
+            ]
+        )
+    ]
+)
 
 
 
@@ -317,6 +353,11 @@ advanced_filters = html.Div([           # collapsible area
         dbc.Col(html.Button("jump to largest",  id="largest-btn",
                             className="btn btn-outline-light btn-sm w-100"), width=6),
     ], className="gx-1"),
+    
+    # ↓ add this immediately after your two Quick jump rows
+    species_of_week_card,
+
+
 ],
 id="adv-box",
 style={"display": "none"})
@@ -713,6 +754,8 @@ feedback_link=html.A("give feedback", href="https://forms.gle/YuUFrYPmDWsqyHdt7"
 #  Assemble Layout
 app.layout = dbc.Container([
     dcc.Location(id="url", refresh=False),
+    dcc.Interval(id="sow-refresh", interval=60_000, n_intervals=0),  # 60s
+
     search_panel,
     invisible_toggles, 
     search_handle,
@@ -720,11 +763,20 @@ app.layout = dbc.Container([
     
     top_bar,
     
+    dbc.Tooltip("Toggle ambient depth sound", target="depth-sound-btn",placement="bottom"),
+    dcc.Store(id="sound-on", data=False, storage_type="session"),
+    # hidden audio elements (looping)
+    html.Audio(id="snd-surface",     src="/assets/sound/surface.mp3",     preload="auto", loop=True, style={"display":"none"}),
+    html.Audio(id="snd-epi2meso",    src="/assets/sound/epi_to_meso.mp3", preload="auto", loop=True, style={"display":"none"}),
+    html.Audio(id="snd-bathy2abyss", src="/assets/sound/bathy_to_abyss.mp3", preload="auto", loop=True, style={"display":"none"}),
+    html.Audio(id="snd-abyss2hadal", src="/assets/sound/abyss_to_hadal.mp3", preload="auto", loop=True, style={"display":"none"}),
+    html.Div(id="js-audio-sink", style={"display": "none"}),
+
+
+    
     fav_modal,
 
-    #settings_panel,
 
-    # -- side tabs, rendered once and slid by callbacks --
     html.Div("citations",      id="citations-tab", className="side-tab"),
     html.Div(feedback_link,   id="bug-tab",       className="side-tab"),
 
@@ -732,7 +784,7 @@ app.layout = dbc.Container([
     center_message,
     
     nav_panel,
-    dcc.Store(id="order-lock-state", data=False, storage_type="session"),
+    dcc.Store(id="order-lock-state", data=False, storage_type="memory"),
     
     html.Iframe(id="depth-iframe",src="/viewer/index.html",
             style={"width": "100%", "height": "100vh", "border": "none"},
@@ -1822,44 +1874,54 @@ def push_depth(gs_name, depth_map):
 # ──────────────────────────────────────────────────────────────
 # A) Client‑side toggle (runs in the browser)
 # ──────────────────────────────────────────────────────────────
+# Client-side: toggle favourite, persist locally AND log anonymously to server
 app.clientside_callback(
     """
-    function(n_clicks, favs_json, species_id) {
-        // safety: ignore first load or missing species
-        if (n_clicks === undefined || !species_id) {
+    function(n, favs_json, species_id) {
+        if (n === undefined || !species_id) {
             return window.dash_clientside.no_update;
         }
 
+        // local fav set
         const favs = new Set(JSON.parse(favs_json || "[]"));
         const wasFav = favs.has(species_id);
-
-        // flip state
-        if (wasFav) { favs.delete(species_id); }
-        else        { favs.add(species_id);   }
+        if (wasFav) { favs.delete(species_id); } else { favs.add(species_id); }
 
         const filled   = !wasFav;
-        const newClass = filled ? "heart-icon filled"
-                                : "heart-icon";
+        const newClass = filled ? "heart-icon filled" : "heart-icon";
         const newGlyph = filled ? "♥" : "♡";
+
+        // GDPR-safe anonymous session id in localStorage
+        try {
+            let sid = localStorage.getItem("pelagica_sid");
+            if (!sid) {
+                sid = (crypto && crypto.randomUUID) ? crypto.randomUUID()
+                                                    : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+                localStorage.setItem("pelagica_sid", sid);
+            }
+            fetch("/fav/toggle", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ sid: sid, species: species_id, state: filled ? 1 : 0 })
+            }).catch(()=>{ /* best-effort; ignore network errors */ });
+        } catch (_) { /* ignore */ }
 
         return [JSON.stringify([...favs]), newClass, newGlyph];
     }
     """,
-    # outputs (must match the 3‑item return)
     [
         Output("favs-store", "data"),
         Output("fav-handle", "className", allow_duplicate=True),
         Output("fav-handle", "children",  allow_duplicate=True),
     ],
-    # input
     Input("fav-handle", "n_clicks"),
-    # state
     [
         State("favs-store",     "data"),
         State("selected-species","data"),
     ],
     prevent_initial_call=True
 )
+
 
 
 
@@ -2378,11 +2440,12 @@ app.index_string = '''
 </html>
 '''
 
-from dash import Output, Input, State, no_update, ctx
 
+# change the decorator to include compare-store
 @app.callback(
     Output("tree-panel", "style"),
     Output("tree-plot",  "figure"),
+    Output("compare-store", "data", allow_duplicate=True),   # NEW
     Input("tree-handle",      "n_clicks"),    # toggle button
     Input("selected-species", "data"),        # species picker
     State("tree-panel",       "style"),
@@ -2398,18 +2461,30 @@ def toggle_or_update_tree(n_clicks, species, style):
     # User clicked the 🧬 handle
     if triggered == "tree-handle":
         if is_open:                           # ── close panel ──
-            return {**style, "display": "none"}, no_update
+            return {**(style or {}), "display": "none"}, no_update, no_update
         # ── open panel ──
         fig = make_tree_figure(df_full, species)
-        return {**style, "display": "block"}, fig
+        # closing the size-compare overlay when opening the tree
+        return {**(style or {}), "display": "block"}, fig, False   # ← NEW
 
-    # Species changed while panel already open
+    # Species changed while panel already open: refresh figure only
     if is_open and triggered == "selected-species":
         fig = make_tree_figure(df_full, species)
-        return no_update, fig
+        return no_update, fig, no_update
 
     raise PreventUpdate
 
+@app.callback(
+    Output("tree-panel", "style", allow_duplicate=True),
+    Input("compare-store", "data"),
+    State("tree-panel", "style"),
+    prevent_initial_call=True
+)
+def hide_tree_when_comparing(is_on, style):
+    # If size-compare is ON and the tree is visible, hide the tree.
+    if is_on and style and style.get("display") != "none":
+        return {**style, "display": "none"}
+    raise PreventUpdate
 
 
 def make_tree_figure(df, target_species):
@@ -2650,6 +2725,115 @@ def make_tree_figure(df, target_species):
     return fig
 
 
+SOW_PINNED_SPECIES = os.getenv("SOW_PINNED_SPECIES", "Mobula birostris")  # Oarfish
+
+@app.callback(
+    Output("sow-thumb","src"),
+    Output("sow-common","children"),
+    Output("sow-scientific","children"),
+    Output("sow-note","children"),
+    Output("sow-title","children"),
+    Input("sow-refresh","n_intervals"),
+    prevent_initial_call=False
+)
+def update_species_of_week(_):
+    # Production mode: weekly window (Mon–Sun, UTC)
+    now = utcnow()
+    cutoff = next_monday_start(now)
+
+    # Until next Monday → show pinned pick
+    if now < cutoff and SOW_PINNED_SPECIES:
+        sp = SOW_PINNED_SPECIES
+        genus, species = sp.split(" ", 1)
+        skip_bg = sp in transp_set
+        thumb, *_ = get_commons_thumb(genus, species, remove_bg=not skip_bg)
+        thumb = thumb or "/assets/img/placeholder_fish.webp"
+        common = COMMON_NAMES.get(sp, "")
+        rollout_note = f"Inaugural pick — live weekly rotation starts {cutoff.date().isoformat()} (UTC) based on your votes"
+        return (f"{thumb}?sow={genus}_{species}", common, sp, rollout_note, "Species of the Week")
+
+    # Live weekly favourite w/ suppression + tie-breakers
+    record_weekly_winner_if_missing()  # harmless idempotent call
+    sp, _scores = top_species(debug=False, option="ever_favved")  # production
+
+    if not sp:
+        return ("/assets/img/placeholder_fish.webp", "", "—", "No favourites recorded last week", "Species of the Week")
+
+    genus, species = sp.split(" ", 1)
+    skip_bg = sp in transp_set
+    thumb, *_ = get_commons_thumb(genus, species, remove_bg=not skip_bg)
+    thumb = thumb or "/assets/img/placeholder_fish.webp"
+    common = COMMON_NAMES.get(sp, "")
+    note = "Most favourited last week (Mon–Sun, UTC)"
+    return (f"{thumb}?sow={genus}_{species}", common, sp, note, "Species of the Week")
+
+
+
+@app.callback(
+    Output("selected-species", "data", allow_duplicate=True),
+    Input("sow-card", "n_clicks"),
+    State("sow-scientific", "children"),
+    prevent_initial_call=True
+)
+def pick_sow(n, gs):
+    if not n or not gs or gs == "—":
+        raise PreventUpdate
+    return gs
+
+
+app.clientside_callback(
+    """
+    function(n, cur) {
+        if (typeof n === "undefined") return cur || false;
+        return !cur;
+    }
+    """,
+    Output("sound-on", "data"),
+    Input("depth-sound-btn", "n_clicks"),
+    State("sound-on", "data"),
+    prevent_initial_call=True
+)
+
+# Button toggle -> play/pause + initial mix
+app.clientside_callback(
+    """
+    function(on) {
+        const btn = document.getElementById("depth-sound-btn");
+        if (btn) btn.style.opacity = on ? "1" : "0.5";
+
+        const ids = ["snd-surface","snd-epi2meso","snd-bathy2abyss","snd-abyss2hadal"];
+        const tracks = ids.map(id => document.getElementById(id)).filter(Boolean);
+
+        // 1) Immediately mute EVERYTHING so we never hear multiple tracks
+        tracks.forEach(t => { if (t) t.volume = 0; });
+
+        // Expose toggle state to the bridge
+        window.pelagicaSoundOn = !!on;
+
+        if (!on) {
+            tracks.forEach(t => { if (t && !t.paused) t.pause(); });
+            return "";
+        }
+
+        // 2) Choose a SINGLE band based on the last known depth (no blend here)
+        const d = (typeof window.pelagicaLastDepth === "number") ? window.pelagicaLastDepth : 0;
+        let idx = 0;
+        if (d >= 3000) idx = 3;
+        else if (d >= 200) idx = 2;
+        else if (d >= 50) idx = 1;
+
+        // Start all (keeps them buffered/phase-stable), but volumes are still 0
+        tracks.forEach(t => { if (t && t.paused) t.play().catch(()=>{}); });
+
+        // Now “snap” to the single active band
+        tracks.forEach((t,i) => { if (t) t.volume = (i === idx) ? 1 : 0; });
+
+        return "";
+    }
+    """,
+    Output("js-audio-sink", "children"),
+    Input("sound-on", "data")
+)
 
 
 
