@@ -65,6 +65,7 @@ body {
 #layer9-view   { z-index: 8; }
 #view          { z-index: 10; }
 #ui            { z-index: 100; }
+#layer9p5-view { z-index: 10; }
 
 /* UI */
 #ui {
@@ -123,11 +124,11 @@ body.ready .parallax-layer{
   left:50%;
   transform:translateX(-50%);   /* centre, so left/right crop symmetrically */
 
-  top:1100px;                  /* vertical anchor */
+  top:1150px;                  /* vertical anchor */
   width:3400px;                /* ⬅︎ SAME width as your front tile         */
   max-width:none;              /* prevent it from shrinking on small screens */
 
-  height:100px;                /* stretches from 100 → 500 px in JS */
+  height:50px;                /* stretches from 100 → 500 px in JS */
   object-fit:fill;             /* vertical squish/expand, no horizontal scaling */
   object-position:top center;
 
@@ -241,4 +242,67 @@ body.paused *{
 }
 
 
+/* Blackout state for the foreground layer */
+#front-view.front-blackout {
+  background: #000;   /* solid black background */
+}
+
+
+
+/* ─── glitter layer ─────────────────────────────────────── */
+#glitter-layer{
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9;
+  overflow: hidden;
+  --topClip: 50%;
+  clip-path: inset(var(--topClip) 0 0 0 round 0);
+  opacity: 0;
+  transition: clip-path .5s ease, opacity .5s ease;
+}
+
+
+
+.sparkle{
+  position:absolute;
+  width: var(--size, 2px);
+  height: var(--size, 2px);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,255,255,.2) 70%, rgba(255,255,255,0) 100%);
+  filter: drop-shadow(0 0 2px rgba(255,255,255,.5));
+  opacity: .0;                    /* animated in */
+  animation: sparkleTwinkle var(--twinkleDur, 3.2s) ease-in-out infinite,
+             sparkleDrift   var(--driftDur,   12s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
+}
+
+
+
+@keyframes sparkleTwinkle{
+  0%, 100% { opacity: 0.0; transform: scale(0.8); }
+  10%      { opacity: 0.35; }
+  50%      { opacity: 0.7;  transform: scale(1); }
+  90%      { opacity: 0.35; }
+}
+
+@keyframes sparkleDrift{
+  0%   { transform: translateY(0)      translateX(0); }
+  100% { transform: translateY(-6vh)   translateX(2vw); }
+}
+
+
+
+/* optional: keep the stronger layer a hair brighter */
+#glitter-layer-strong { z-index: 10; }  /* above the subtle layer’s 9 */
+
+
+#glitter-layer-strong .sparkle{
+  filter: drop-shadow(0 0 3px rgba(255,255,255,.6));
+}
 

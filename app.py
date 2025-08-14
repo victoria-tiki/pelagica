@@ -191,7 +191,7 @@ top_bar = html.Div(
 search_stack = html.Div(id="search-stack", children=[
     html.Div(
         dcc.Dropdown(id="common-dd", options=[],
-                     placeholder="Common name…", className="dash-dropdown",clearable=True, searchable=True, persistence=True,persistence_type="session")
+                     placeholder="Common name…", className="dash-dropdown",clearable=True, searchable=True)
     ),
     
     html.Div(                    # hidden unless the toggle is ON
@@ -764,12 +764,16 @@ app.layout = dbc.Container([
     top_bar,
     
     dbc.Tooltip("Toggle ambient depth sound", target="depth-sound-btn",placement="bottom"),
+
     dcc.Store(id="sound-on", data=False, storage_type="session"),
-    # hidden audio elements (looping)
-    html.Audio(id="snd-surface",     src="/assets/sound/surface.mp3",     preload="auto", loop=True, style={"display":"none"}),
-    html.Audio(id="snd-epi2meso",    src="/assets/sound/epi_to_meso.mp3", preload="auto", loop=True, style={"display":"none"}),
-    html.Audio(id="snd-bathy2abyss", src="/assets/sound/bathy_to_abyss.mp3", preload="auto", loop=True, style={"display":"none"}),
-    html.Audio(id="snd-abyss2hadal", src="/assets/sound/abyss_to_hadal.mp3", preload="auto", loop=True, style={"display":"none"}),
+    html.Audio(id="snd-surface-a",     src="/assets/sound/surface.mp3",     preload="auto", style={"display":"none"}),
+    html.Audio(id="snd-surface-b",     src="/assets/sound/surface.mp3",     preload="auto", style={"display":"none"}),
+    html.Audio(id="snd-epi2meso-a",    src="/assets/sound/epi_to_meso.mp3", preload="auto", style={"display":"none"}),
+    html.Audio(id="snd-epi2meso-b",    src="/assets/sound/epi_to_meso.mp3", preload="auto", style={"display":"none"}),
+    html.Audio(id="snd-abyss2hadal-a", src="/assets/sound/abyss_to_hadal.mp3", preload="auto", style={"display":"none"}),
+    html.Audio(id="snd-abyss2hadal-b", src="/assets/sound/abyss_to_hadal.mp3", preload="auto", style={"display":"none"}),
+
+
     html.Div(id="js-audio-sink", style={"display": "none"}),
 
 
@@ -1046,8 +1050,9 @@ def toggle_info(_, __, card_style):
 
 # --- push citation text when species changes -------------------------------
 @app.callback(Output("citation-box", "children"),
-              Input("selected-species", "data"))
-def fill_citation(gs_name):
+              Input("selected-species", "data"),
+              State("sound-on", "data")  )
+def fill_citation(gs_name, sound_on):
     if not gs_name:
         raise PreventUpdate
 
@@ -1208,9 +1213,17 @@ def fill_citation(gs_name):
 
     taxonomy_block=[html.Br(), html.Br(),  html.Span("Taxonomic information (kingdoms/phyla/classes/orders/families): Derived dataset GBIF.org (7 August 2025) Filtered export of GBIF occurrence data.  "), html.A('DOI', href="https://doi.org/10.15468/dd.wbjqgn", target="_blank"),]
     
+    soundtrack_block = []
+    if sound_on:
+        soundtrack_block = [
+            html.Br(), html.Br(),
+            html.Span(
+                "Ambient soundtrack: mix from C0 sound effects retrieved from Pixabay. "
+                "uploaded by users freesound_community, TanwerAman, Prem_Adhikary")]
+    
     victoria_block=[html.Br(), html.Br(), html.Span("All other content, including code, background images, animations, and UI design: © 2025 Victoria Tiki"),]
 
-    return image_block + wiki_block + data_block + taxonomy_block + sound_block + victoria_block
+    return image_block + wiki_block + data_block + taxonomy_block + sound_block + soundtrack_block+ victoria_block
 
 
 # --- populate image + overlay + titles whenever species or units change ----------
@@ -1856,9 +1869,10 @@ def build_depth_map(seed):
 
 
 @app.callback(
-    Output("depth-store", "data"),
+    Output("depth-store", "data", allow_duplicate=True),
     Input("selected-species", "data"),
     State("rand-depth-map", "data"),
+    prevent_initial_call="initial_duplicate"
 )
 def push_depth(gs_name, depth_map):
     if not gs_name:
@@ -1985,8 +1999,19 @@ app.clientside_callback(
            When the box is checked   → ["on"]  (play)
            When the box is unchecked → []      (skip)
         */
-        const skip = !(Array.isArray(flag) && flag.length);  
+        const skip = !(Array.isArray(flag) && flag.length);
 
+        // 🔊 Pre-fade the audio TOWARD the target band immediately,
+        // so the multi-second fade is already underway during the visual tween.
+        try {
+          const last = (typeof window.pelagicaLastDepth === "number") ? window.pelagicaLastDepth : 0;
+          const band = d => (d >= 2000 ? "deep" : (d >= 20 ? "mid" : "surf"));
+          if (window.pelagicaAudio && band(last) !== band(depth)) {
+            window.pelagicaAudio.preFadeToward(depth);
+          }
+        } catch (e) {}
+
+        // ▶️ now kick off the visual tween in the iframe
         if (window.dash_clientside?.bridge?.sendDepth) {
             window.dash_clientside.bridge.sendDepth(depth, skip);
         }
@@ -1997,6 +2022,7 @@ app.clientside_callback(
     Input("depth-store",    "data"),
     State("instant-toggle", "value"),
 )
+
 
 
 
@@ -2780,6 +2806,30 @@ def pick_sow(n, gs):
         raise PreventUpdate
     return gs
 
+app.clientside_callback(
+    """
+    function (href) {
+      if (!href) return window.dash_clientside.no_update;
+
+      const hasSpecies = new URL(href).searchParams.has("species");
+      if (hasSpecies) {
+        // Don’t touch anything if a species is explicitly requested
+        return [
+          window.dash_clientside.no_update,
+          window.dash_clientside.no_update,
+          window.dash_clientside.no_update
+        ];
+      }
+      // Clean restart defaults
+      return [0, {}, false];  // depth-store, rand-depth-map, compare-store
+    }
+    """,
+    Output("depth-store",    "data", allow_duplicate=True),
+    Output("rand-depth-map", "data", allow_duplicate=True),
+    Output("compare-store",  "data", allow_duplicate=True),
+    Input("url", "href"),
+    prevent_initial_call="initial_duplicate"
+)
 
 app.clientside_callback(
     """
@@ -2794,47 +2844,50 @@ app.clientside_callback(
     prevent_initial_call=True
 )
 
-# Button toggle -> play/pause + initial mix
+# Merge toggle + depth, but only touch audio on TOGGLE
 app.clientside_callback(
     """
-    function(on) {
+    function(on, depth) {
+        const ctx = dash_clientside && dash_clientside.callback_context;
+        const trig = (ctx && ctx.triggered && ctx.triggered[0] && ctx.triggered[0].prop_id) || "";
+        const byToggle = trig.indexOf("sound-on.") === 0;
+
+        // cache depth for the bridge
+        if (typeof depth === "number") window.pelagicaLastDepth = depth;
+
+        // publish toggle state for the bridge
+        window.pelagicaSoundOn = !!on;
+
+        // UI affordance
         const btn = document.getElementById("depth-sound-btn");
         if (btn) btn.style.opacity = on ? "1" : "0.5";
 
-        const ids = ["snd-surface","snd-epi2meso","snd-bathy2abyss","snd-abyss2hadal"];
-        const tracks = ids.map(id => document.getElementById(id)).filter(Boolean);
+        // audio elements
+        const ids = [
+          "snd-surface-a","snd-surface-b",
+          "snd-epi2meso-a","snd-epi2meso-b",
+          "snd-abyss2hadal-a","snd-abyss2hadal-b"
+        ];
+        const els = ids.map(id => document.getElementById(id)).filter(Boolean);
+        if (!els.length) return "";
 
-        // 1) Immediately mute EVERYTHING so we never hear multiple tracks
-        tracks.forEach(t => { if (t) t.volume = 0; });
-
-        // Expose toggle state to the bridge
-        window.pelagicaSoundOn = !!on;
-
-        if (!on) {
-            tracks.forEach(t => { if (t && !t.paused) t.pause(); });
+        // ⬇️ Only on TOGGLE do we mute/play. On depth changes, do NOTHING here.
+        if (byToggle) {
+          if (!on) {
+            els.forEach(a => { if (a){ a.volume = 0; if (!a.paused) a.pause(); }});
             return "";
+          }
+          // turn ON: start all at volume 0 (bridge will fade)
+          els.forEach(a => { if (a){ a.volume = 0; if (a.paused) a.play().catch(()=>{}); }});
         }
-
-        // 2) Choose a SINGLE band based on the last known depth (no blend here)
-        const d = (typeof window.pelagicaLastDepth === "number") ? window.pelagicaLastDepth : 0;
-        let idx = 0;
-        if (d >= 3000) idx = 3;
-        else if (d >= 200) idx = 2;
-        else if (d >= 50) idx = 1;
-
-        // Start all (keeps them buffered/phase-stable), but volumes are still 0
-        tracks.forEach(t => { if (t && t.paused) t.play().catch(()=>{}); });
-
-        // Now “snap” to the single active band
-        tracks.forEach((t,i) => { if (t) t.volume = (i === idx) ? 1 : 0; });
 
         return "";
     }
     """,
     Output("js-audio-sink", "children"),
-    Input("sound-on", "data")
+    Input("sound-on", "data"),
+    Input("depth-store", "data"),
 )
-
 
 
 

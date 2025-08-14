@@ -232,12 +232,12 @@ behaviorHooks.layer3 = (() => {
 
 
 /* Wave / boat overlay hooks (retained) */
-const WAVE_LAYERS=['front','layer6','layer7','layer8','layer9','underwater', 'ruler'];
+const WAVE_LAYERS=['front','layer6','layer7','layer8','layer9','underwater', 'ruler', 'layer9p5'];
 const SWAY_LAYER='layer5';
-const BASE={ wave:{ampX:4,ampY:20,ampSX:0.02,freq:0.15}, boat:{ampX:4,ampY:5,freq:1.2/5} };
+const BASE={ wave:{ampX:5,ampY:15,ampSX:0.02,freq:0.2}, boat:{ampX:4,ampY:5,freq:1.2/5} };
 const waveParams={};
-const orderedWaveLayers=['front','layer9','layer8','layer7','layer6'];
-const AMP_DECAY=.7, FREQ_DECAY=.99;
+const orderedWaveLayers=['front','layer9p5','layer9','layer8','layer7','layer6'];
+const AMP_DECAY=.9, FREQ_DECAY=.9;
 orderedWaveLayers.forEach((name,i)=>{
   const ampMult = AMP_DECAY**i, freqMult = FREQ_DECAY**i;
   waveParams[name]={
@@ -253,8 +253,9 @@ orderedWaveLayers.forEach((name,i)=>{
   };
 });
 // make the overlay use *exactly* the same phases & amps as 'front'
-waveParams.underwater = waveParams.front;
+waveParams.underwater = waveParams.layer6;
 waveParams.ruler=waveParams.front;
+//waveParams.layer9p5=waveParams.front;
 
 const boatParam={ phase:Math.random()*2*Math.PI, ampX:BASE.boat.ampX, ampY:BASE.boat.ampY, freq:BASE.boat.freq };
 
@@ -281,6 +282,122 @@ const behaviorHooksOverlay = name=>{
   }
   return null;
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ─── World-anchored glitter: depths −150 m … 0 m ─────────────── */
+(() => {
+  const RANGE_MIN = 5, RANGE_MAX = 200;
+
+  function buildWorldGlitter(layerId, opts){
+    const layer = document.getElementById(layerId);
+    if (!layer) return null;
+
+    const {
+      count   = 160,
+      sizeMin = 2.0,  // tweak per layer
+      sizeMax = 2.6,
+      opacity = 0.55  // steady opacity (no depth gating needed)
+    } = opts || {};
+
+    const rng = (a,b)=>Math.random()*(b-a)+a;
+    const frag = document.createDocumentFragment();
+
+    for (let i=0;i<count;i++){
+      const d  = rng(RANGE_MIN, RANGE_MAX);  // fixed world depth
+      const x  = rng(0, 100);                // spread across width
+      const yP = depthToPixelMemo(d);        // world Y (px)
+
+      const s = document.createElement('span');
+      s.className = 'sparkle';
+      s.style.left = x.toFixed(2) + 'vw';
+      s.style.top  = yP.toFixed(1) + 'px';   // ← world-anchored
+      s.style.setProperty('--size',      rng(sizeMin, sizeMax).toFixed(2) + 'px');
+      s.style.setProperty('--delay',     rng(0, 4).toFixed(2) + 's');
+      s.style.setProperty('--twinkleDur',rng(2.4, 3.8).toFixed(2) + 's');
+      s.style.setProperty('--driftDur',  rng(9, 14).toFixed(2) + 's');
+      frag.appendChild(s);
+    }
+
+    layer.appendChild(frag);
+    layer.style.pointerEvents = 'none';
+    layer.style.opacity = String(opacity);
+
+    return layer;
+  }
+
+  // Build subtle + strong using your existing IDs
+  buildWorldGlitter('glitter-layer', {
+    count: 160, sizeMin: 2.0, sizeMax: 2.6, opacity: 0.55
+  });
+  buildWorldGlitter('glitter-layer-strong', {
+    count: 90,  sizeMin: 3.5, sizeMax: 4.6, opacity: 0.80
+  });
+
+  // Move with the world camera via behavior hooks (picked up in raf())
+  behaviorHooks.glitterWorldA = (el, _depth, yLayer) => {
+    el.style.transform = `translate3d(-50%, ${-yLayer}px, 0)`;
+  };
+  behaviorHooks.glitterWorldB = (el, _depth, yLayer) => {
+    el.style.transform = `translate3d(-50%, ${-yLayer}px, 0)`;
+  };
+
+  // Keep old calls harmless if they still exist
+  window.updateGlitterForDepth = window.updateGlitterForDepth || function(){};
+})();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* ───── user‑controlled pause / resume ───── */
 
@@ -320,6 +437,7 @@ function pauseAllMotion () {
     const baseY = y0 + (y1 - y0) * eased;
 
     currentDepth = baseYToDepth(baseY);   // lock camera here
+    updateGlitterForDepth(currentDepth);
     depthMode    = false;                 // cancel tween
   }
 
@@ -478,56 +596,68 @@ let underwaterImg;
 let underwaterHeightPx = 0;
 
 
+// global state
+let overlayState = 'none';        // 'none' | 'mid' | 'deep'
+let lastOverlayChange = 0;
 let overlayShown = false;
+let deepShown    = false;   // NEW
+
 
 function updateBackOverlay(depth) {
-  const backImg  = document.getElementById('back-img');
-  const back     = document.getElementById('back-view');
-  //const layer3   = document.getElementById('layer3-view');
-  //const birds    = document.getElementById('birds-view');
-
-  //if (!backImg || !back || !layer3 || !birds) return;
+  const backImg = document.getElementById('back-img');
+  const back    = document.getElementById('back-view');
   if (!backImg || !back) return;
-  
-  const hide = depth >= 40;
 
-  // ─── Image swap ───
-  if (hide && !overlayShown) {
-    backImg.src = 'back_overlay.webp';
-    overlayShown = true;
-  } else if (!hide && overlayShown) {
-    backImg.src = 'tiles/back_0.webp';
-    overlayShown = false;
+  const hide = depth >= 43;              // keep your original cutoff
+  const deep = depth > 200;              // NEW: deep starts after 100 m
+
+  // ─── Image swap (base ↔ mid ↔ deep) ───
+  if (deep) {
+    if (!deepShown) {
+      backImg.src = 'back_overlay_deeper.webp';  // ← use your *_deeper.webp filename
+      deepShown = true;
+      overlayShown = true;
+    }
+  } else if (hide) {
+    if (deepShown || !overlayShown) {
+      backImg.src = 'back_overlay.webp';
+      deepShown = false;
+      overlayShown = true;
+    }
+  } else {
+    if (overlayShown || deepShown) {
+      backImg.src = 'tiles/back_0.webp';
+      overlayShown = false;
+      deepShown = false;
+    }
   }
 
-  // ─── Show/hide birds + layer3 ───
-  //layer3.style.display = hide ? 'none' : '';
-  //birds.style.display  = hide ? 'none' : '';
-
-  // ─── z-index swap ───
-  back.style.zIndex = hide ? '5' : '0';  // layer8 is z=7
+  // keep your existing z-index behavior exactly as-is
+  back.style.zIndex = hide ? '5' : '0';
 }
+
 
 
 
 /* persistent across frames */
-let currentH = 100;                 // matches the 100 px CSS default
+/*let currentH = 50;                
 
-/* wrapper that eases height but leaves your mapping untouched */
 function updateUnderwaterEased(depth){
-  const targetH = updateUnderwater(depth);   // the height your logic already returns
-  const SPEED   = 0.05;                      // 0.1 = very slow, 0.3 = snappier
+  const targetH = updateUnderwater(depth);  
+  const SPEED   = 0.05;                      
 
-  currentH += (targetH - currentH) * SPEED;  // one‑line lerp
+  currentH += (targetH - currentH) * SPEED;  
   underwaterImg.style.height = currentH + 'px';
-}
+}*/
 
 
 
 function updateUnderwater(depthMeters) {
   if (!underwaterImg || typeof depthMeters !== 'number') return;
+  
+  const d = Math.max(0, depthMeters);
 
-  const depthPx = depthToPixelMemo(depthMeters); // meters → px
+  const depthPx = depthToPixelMemo(d); // meters → px
   const baseY = depthPx - innerHeight / 2;
 
   const topY = 1150;
@@ -586,7 +716,8 @@ function goToDepth(){
     if (animPausedByUser) {
       /* no tween – just teleport */
       depthMode    = false;
-      currentDepth = v;          
+      currentDepth = v;      
+      updateGlitterForDepth(currentDepth);
       window.parent.postMessage({ type: "animationDone" }, "*");
       return;
     }
@@ -601,6 +732,8 @@ function goToDepth(){
       dur      : 900                                         // ms – tweak to taste
     };
     pendingDepth = v;        // remember the user’s real request
+    updateGlitterForDepth(0);
+
     return;                  // <- normal depth tween waits
   }
 
@@ -625,8 +758,14 @@ function goToDepth(){
   startDepth = prev;
   targetDepth = v;
   moveStart = performance.now();
-  moveDur   = T * 1000 * 2;
+  moveDur   = T * 1000 * 2.2;
   depthMode = true;
+  
+  window.parent.postMessage({
+  type: "animationStart",
+  fromDepth: startDepth,
+  toDepth:   targetDepth,
+  duration:  moveDur  }, "*");
 
 
     if (moveDur >= 2000 && direction) {
@@ -773,6 +912,8 @@ function raf(ts) {
     const t      = Math.min(1, (ts - start) / dur);
     const eased  = 0.5 * (1 - Math.cos(Math.PI * t));
     const baseY  = baseFrom + (baseTo - baseFrom) * eased;
+    
+    updateUnderwater(0);
 
     layers.forEach(layer => {
       const yLayer = baseY * layer.depthFactor;
@@ -799,6 +940,7 @@ function raf(ts) {
 
     if (t >= 1) {                      // intro finished – hand off to depth tween
       currentDepth = 0;
+      updateGlitterForDepth(0);        
       introTween   = null;
       if (pendingDepth !== null) { goToDepth(pendingDepth); pendingDepth = null; }
     }
@@ -812,6 +954,7 @@ function raf(ts) {
     const frac = (ts - moveStart) / moveDur;
     if (frac >= 1) {
       currentDepth = targetDepth;
+      updateGlitterForDepth(0);        
       depthMode = false;
       
       //console.log("[viewer] tween finished – sending animationDone");
@@ -827,9 +970,16 @@ function raf(ts) {
 
   /* -------- steady‑state paint -------- */
   const hasDepth = typeof currentDepth === 'number';
+  
+  if (hasDepth && currentDepth !== lastFrameDepth) {
+  updateGlitterForDepth(currentDepth);
+  lastFrameDepth = currentDepth;}
+
   if (hasDepth) {
     updateDepthDependentAssets(currentDepth);
     updateBackOverlay(currentDepth);
+  } else {
+    updateUnderwater(0);
   }
   const baseY = hasDepth ? depthToPixelMemo(currentDepth) - innerHeight / 2 : 0;
 
@@ -920,6 +1070,8 @@ function preloadTile(prefix, n, cache){
 window.addEventListener('DOMContentLoaded', () => {
   wireUpButtons();
   underwaterImg = document.getElementById('underwater-img');
+  if (underwaterImg) updateUnderwater(0);
+
 
   // ✅ Create preload zone first
   const preloadZone = document.createElement('div');
@@ -934,6 +1086,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const preloadOverlay = new Image();
     preloadOverlay.src = 'back_overlay.webp';
     preloadZone.appendChild(preloadOverlay);
+
+    const preloadDeep = new Image();
+    preloadDeep.src = 'back_overlay_deeper.webp'; 
+    preloadZone.appendChild(preloadDeep);
 
 
 

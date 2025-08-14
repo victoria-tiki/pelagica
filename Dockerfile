@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Build-time toggle (added *after* apt so cache is preserved) ----
-ARG ENABLE_BG_REMOVAL=1
+ARG ENABLE_BG_REMOVAL=0
 ENV ENABLE_BG_REMOVAL=${ENABLE_BG_REMOVAL}
 
 # ---- Python deps (same as before, but without rembg) ----

@@ -11,7 +11,8 @@
 
 
 
-
+<!--<img src="back_overlay_deeper.webp" alt="" aria-hidden="true" style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;">
+-->
 
 <!-- 🌅 0 m – sky / sea surface -->
 <div id="back-view" class="layer-view parallax-layer"
@@ -80,30 +81,54 @@
        data-prefix="tiles/layer9" data-tiles="29"  alt="">
 </div>
 
+<!-- 🐠 72–80 m (between 9 and front) -->
+<div id="layer9p5-view" class="layer-view parallax-layer"
+     data-layer="layer9p5" data-depth="0.95" style="z-index:9">
+  <img id="layer9p5-img" class="layer-img"
+       src="tiles/layer9p5_0.webp"
+       data-prefix="tiles/layer9p5" data-tiles="2" alt="">
+</div>
+
 <!-- 🌊 under‑surface caustics (depth‑sensitive) -->
 <div id="underwater-view" class="layer-view parallax-layer"
-     data-layer="underwater" data-depth="1.00" style="z-index:9">
+     data-layer="underwater" data-depth="1.00" style="z-index:10">
   <img id="underwater-img" class="layer-img underwater-img"
      src="underwater_0.webp"
+     style="height:50px"
+     width="3400" height="50"            
      data-prefix="tiles/underwater"
      data-tiles="1"
      alt="caustics overlay">
 </div>
 
-
-
 <!-- 🪸 100 m – foreground coral -->
 <div id="front-view" class="layer-view parallax-layer"
-     data-layer="front" data-depth="1.00" style="z-index:10">
+     data-layer="front" data-depth="1.00" style="z-index:11">
   <img id="front-img" class="layer-img"
        src="tiles/front_0.webp"
        data-prefix="tiles/front" data-tiles="32"  alt="">
 </div>
 
+<!-- ✨ world-anchored glitter (lives at depths −150 m … 0 m) -->
+<div id="glitter-layer"
+     class="layer-view parallax-layer"
+     data-layer="glitterWorldA"
+     data-depth="1.00"
+     style="z-index:10"
+     aria-hidden="true"></div>
+
+<div id="glitter-layer-strong"
+     class="layer-view parallax-layer"
+     data-layer="glitterWorldB"
+     data-depth="1.00"
+     style="z-index:11"
+     aria-hidden="true"></div>
+
+
 <!-- 📏 Right-side ruler (follows scroll like 'front' but anchored right) -->
 <div id="ruler-view"
      class="layer-view parallax-layer"
-     data-layer="ruler" data-depth="1.00" style="z-index:11; pointer-events:none">
+     data-layer="ruler" data-depth="1.00" style="z-index:12; pointer-events:none">
   <img id="ruler-img" class="layer-img layer-ruler"
        src="tiles/ruler_0.webp"
        data-prefix="tiles/ruler"

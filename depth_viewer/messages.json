@@ -16,11 +16,11 @@
   { "min": 40, "max": 50, "descend": ["Most of the world’s lakes are no deeper than this."], "ascend": ["Most of the world’s lakes are no deeper than this."] },
   { "min": 30, "max": 50, "descend": ["Pressure here is just beginning to rise. Each 10 meters adds another atmosphere."]},
   { "min": 0, "max": 5, "descend": ["Even shallow water can feel endless when you look down."], "ascend": ["Even shallow water can feel endless when you look down."] },
-  { "min": 10, "max": 40, "descend": ["Light bends and scatters. Colors begin to fade with depth."]},
+  { "min": 10, "max": 40, "descend": ["Light bends and scatters. Colours begin to fade with depth."]},
   { "min": 0, "max": 10, "descend": ["The first few meters teem with energy."], "ascend": ["The first few meters teem with energy."] },
   { "min": 1, "max": 20, "descend": ["In many lakes, this is the mixing zone where surface and deeper waters swap places."], "ascend": ["In many lakes, this is the mixing zone where surface and deeper waters swap places."] },
   { "min": 0, "max": 20, "descend": ["Do you ever wonder what’s under your feet, even when it looks like nothing at all?"], "ascend": ["Do you ever wonder what’s under your feet, even when it looks like nothing at all?"] },
-  { "min": 30, "max": 40, "descend": ["Below 30 m, colors begin to vanish. Reds disappear first."]},
+  { "min": 30, "max": 40, "descend": ["Below 30 m, colours begin to vanish. Reds disappear first."]},
   { "min": 30, "max": 70, "descend": ["Sunlight only penetrates so far. Darkness is coming."]},
   { "min": 0, "max": 10, "descend": ["You're in the epilimnion, the lake's sunlit, churning skin."], "ascend": ["You're in the epilimnion, the lake's sunlit, churning skin."] },
   { "min": 0, "max": 20, "descend": ["Shallow water hides more mystery than you think."], "ascend": ["Shallow water hides more mystery than you think."] },
@@ -139,7 +139,7 @@
     "ascend":  ["Passing the depth of deepest human breath‑hold"] },
 
   { "min": 180, "max": 220,
-    "descend": ["Epipelagic→mesopelagic transition begins"],
+    "descend": ["Epipelagic to mesopelagic transition begins"],
     "ascend":  ["Re‑entering upper mesopelagic"] },
 
   {"min": 30, "max": 45,
@@ -244,6 +244,9 @@
   { "min": 3700, "max": 3800,
     "descend": ["Approaching RMS Titanic resting depth (3800 m)"],
     "ascend":  ["Passing the grave of RMS Titanic"] },
+    
+   { "min": 2000, "max": 3000,
+    "ascend":  ["Pressure drops from impossible to merely extreme."] },
 
   {"min": 9800,"max": 10000,
   "descend": ["Descending into depth where the ROV Nereus met its end (~9,990 m)"],
@@ -262,7 +265,7 @@
   "ascend":  ["Deep‑sea storms may churn sediment here. Strong currents resuspend the seabed"]},
 
   { "min": 5900, "max": 6200,
-    "descend": ["Abyss→hadal transition; trench walls appear"],
+    "descend": ["Abyssal to hadal transition; trench walls appear"],
     "ascend":  ["Rising into abyssal open plains from the trenches"] },
 
   { "min": 6000, "max": 6100,
@@ -307,7 +310,7 @@
 
   { "min": 10, "max": 20,
     "descend": ["Red light fades first; only blues and greens follow you down."],
-    "ascend":  ["Rising where red colors start to glow again."] },
+    "ascend":  ["Rising where red colours start to glow again."] },
 
   { "min": 20, "max": 30,
     "descend": ["Sea‑turtles often dive to this depth for tasty jellyfish."],
@@ -443,6 +446,11 @@
     "descend": ["Glass sponges have been found perched on trench walls here."],
     "ascend":  ["Glass sponges have been found perched on trench walls here."] },
 
+  { "min": 3000, "max": 3200,
+    "descend": ["A dumbo octopus flaps past like a living umbrella, vanishing into the haze before you can blink."] },
+
+  { "min": 6000, "max": 6200,
+    "descend": ["You pass an ancient whale skeleton, ribs draped with white crabs feasting in the dark."] },
 
   { "min": 7900, "max": 8200,
     "descend": ["Scientists filmed snailfish swimming happily at these depths."],
@@ -454,16 +462,16 @@
     "ascend":  ["Now deeper than Everest is tall. Welcome below the world’s highest mountain flip!"] },
 
   { "min": 7000, "max": 9000,
-    "descend": ["Microplastics have been found even in trench cores here."],
-    "ascend":  ["Microplastics have been found even in trench cores here."] },
+    "descend": ["Microplastics have been found in trench cores even down here."],
+    "ascend":  ["Microplastics have been found in trench cores even down here."] },
 
   { "min": 9000, "max": 9500,
     "descend": ["Very few living cells work this deep; energy is incredibly scarce."],
     "ascend":  ["Very few living cells work this deep; energy is incredibly scarce."] },
 
   { "min": 10200, "max": 10400,
-    "descend": ["Only a handful of people have ever been this deep!"],
-    "ascend":  ["Only a handful of people have ever been this deep!"] },
+    "descend": ["Only a handful of people have ever been this deep"],
+    "ascend":  ["Only a handful of people have ever been this deep"] },
 
   { "min": 10800, "max": 10900,
     "descend": ["Almost at Challenger Deep, the lowest point on Earth’s surface."],
@@ -482,15 +490,13 @@
     "ascend":  ["Colours begin to return; reds are still the last to reappear."] },
 
   { "min": 250, "max": 350,
-    "descend": ["Twilight deepens. Many animals here migrate up and down with the day–night cycle."],
-    "ascend":  ["Leaving the range of daily vertical migrations; daylight strengthens above."] },
+    "descend": ["Twilight deepens. Many animals here migrate up and down with the day–night cycle."]},
     
      { "min": 1000, "max": 1100,
     "descend": ["The last trace of sunlight died hundreds of meters above. Darkness here is absolute."],
     "ascend":  ["You leave the midnight zone; faint twilight lies above."] },
 
   { "min": 1100, "max": 1300,
-    "descend": ["The weight of the ocean above is over 100 times atmospheric pressure — enough to crush unprotected steel."],
     "ascend":  ["Pressure eases slightly, but remains immense."] },
 
   { "min": 1200, "max": 1500,
@@ -540,7 +546,7 @@
     "ascend":  ["Benthic storms fade as you climb."] },
 
   { "min": 3200, "max": 3500,
-    "descend": ["Some of the oldest water in the ocean circulates here — over a thousand years since it last saw the surface."],
+    "descend": ["Some of the oldest water in the ocean circulates here: over a thousand years since it last saw the surface."],
     "ascend":  ["Water becomes younger above; last renewed centuries, not millennia, ago."] },
     
     { "min": 3400, "max": 3700,
@@ -556,13 +562,13 @@
     "ascend":  ["The abyss loosens its grip; light and warmth are still far away."] },
     
   {"min": 1600,"max": 1700,
-    "descend": ["Lake Baikal’s max depth (~1 642 m) lies here—the deepest continental lake, holding 20% of Earth's unfrozen fresh water. "]},
+    "descend": ["Lake Baikal’s max depth (~1 642 m) lies here — the deepest continental lake, holding 20% of Earth's unfrozen fresh water. "]},
     
-  {"min": 1400,"max": 1500,"descend": ["Lake Tanganyika's max depth, the longest lake on Earth and the second deepest—its ancient depths cradle uniquely evolved fish."] },
+  {"min": 1400,"max": 1500,"descend": ["Lake Tanganyika's max depth, the longest lake on Earth and the second deepest. Its ancient depths cradle uniquely evolved fish."] },
     
-  {"min": 600,"max": 650,"ascend": ["Great Slave Lake dives to ~614 m at its deepest point—North America’s abyss. Even the CN Tower would disappear beneath its waves."]  },
+  {"min": 600,"max": 650,"ascend": ["Great Slave Lake dives to to North America’s lowest freshwater point here. Even the CN Tower would disappear beneath its waves."]  },
     
-  {"min": 400,"max": 500,"descend": ["Quesnel Lake’s depths hit ~511 m. A glacial fjord lake—cold, deep, and eerily quiet, carved by ice and shadow."]  
+  {"min": 400,"max": 500,"descend": ["Quesnel Lake’s depths hit ~511 m. A glacial fjord lake, cold, deep, and eerily quiet, carved by ice and shadow."]  
   },
   
   {"min": 3646,"max": 3926,
@@ -574,9 +580,9 @@
     "ascend": ["Cross into the Pacific's mean depths (~4,280 m)."]
   },
   
-  {"min": 1500,"max": 5267,
-    "descend": ["The Mediterranean Sea stretches deep — average ~1,500 m, but dive into the Ionian and find Calypso Deep’s ~5,267 m abyss."],
-    "ascend": ["The Mediterranean Sea stretches deep — average ~1,500 m, but dive into the Ionian and find Calypso Deep’s ~5,267 m abyss."]},
+  {"min": 5100,"max": 5300,
+    "descend": ["Dive into the Ionian and find Calypso Deep’s ~5,267 m abyss."],
+    "ascend": ["Dive into the Ionian and find Calypso Deep’s ~5,267 m abyss."]},
     
     
     {"min": 80,"max": 85,
@@ -606,8 +612,8 @@
 
 
 {"min": 4000, "max": 6000,
-  "descend": ["A whale’s final plunge — its corpse becoming a multi-year feast for other marine species."],
-  "ascent": ["A whale’s final plunge — its corpse becoming a multi-year feast for other marine species."] 
+  "descend": ["A whale’s final plunge. Its corpse becoming a multi-year feast for other marine species."],
+  "ascent": ["A whale’s final plunge. Its corpse becoming a multi-year feast for other marine species."] 
 },
 
 {"min": 0,"max": 30,
@@ -626,24 +632,24 @@
 
 
   {"min": 4100,"max": 4300,
-    "descend": ["The abyss covers 60 % of our planet—an unseen ocean under an unseen sky."] 
+    "descend": ["The abyss covers 60 % of our planet: an unseen ocean under an unseen sky."] 
   },
   
   
   {"min": 4200,"max": 4400,
-    "descend": ["At this pressure, ~600 atm squeezes down—your lungs would collapse instantly."] 
+    "descend": ["At this pressure, ~600 atm squeezes down. Your lungs would collapse instantly."] 
   },
 
     
    {"min": 4400,"max": 4600,
-    "descend": ["Microbial life here blooms—unknown forests of bacteria under crushing weight."] },
+    "descend": ["Microbial life here blooms; unknown forests of bacteria under crushing weight."] },
     
   {"min": 4500,"max": 5700,
-    "descend": ["Xenophyophores, build homes that host deep-sea communities."] },
+    "descend": ["Here, Xenophyophores build homes that host deep-sea communities."] },
     
     
    {"min": 6500,"max": 8000,
-    "descend": ["Pressure here melts steel minds—over 1,000 times the surface pressure."] },
+    "descend": ["Pressure here melts steel minds at over 1,000 times the surface pressure."] },
   
   {"min": 7000,"max": 8000,
     "descend": ["Some fish and invertebrates eke out life where few could survive."] },
@@ -677,9 +683,9 @@
    "descend": ["Sharks prowl here in dim twilight, following the scent of the dying from above."],
    "ascend": ["Predators from the twilight follow you upward, their eyes unblinking."]},
    
-   [
+   
   { "min": 4000, "max": 4500,
-    "descend": ["Light from the surface has been gone for millennia-old water that drifts here."],
+    "descend": ["Millennia-old water drifts here."],
     "ascend": ["Leaving the depths where ancient water lingers in the dark."] },
 
   { "min": 4500, "max": 5000,
@@ -690,12 +696,12 @@
     "descend": ["This is the realm where abyssal plains give way to trench walls plunging further down."]},
 
   { "min": 5500, "max": 6000,
-    "descend": ["The last abyssal lightless slopes — beyond here lies the hadal zone."],
+    "descend": ["The last abyssal lightless slopes. Beyond here lies the hadal zone."],
     "ascend": ["Leaving the hadal zone’s brink for the abyssal plains."] },
 
   { "min": 6000, "max": 6500,
-    "descend": ["Pressure here would crush most submersibles — yet amphipods swim as if weightless."],
-    "ascend": ["Pressure here would crush most submersibles — yet amphipods swim as if weightless."] },
+    "descend": ["Pressure here would crush most submersibles, yet amphipods swim as if weightless."],
+    "ascend": ["Pressure here would crush most submersibles, yet amphipods swim as if weightless."] },
 
   { "min": 6500, "max": 7000,
     "descend": ["Trenches slice deeper than Everest is tall, inverting the world."],
@@ -706,17 +712,76 @@
     "ascend": ["The seabed is jagged, shrouded in silt, and untouched by sunlight since its birth."] },
 
   { "min": 8000, "max": 9000,
-    "descend": ["Here, only gelatinous, slow-moving predators endure — their world a silent vacuum of black water."],
-    "ascend": ["Here, only gelatinous, slow-moving predators endure — their world a silent vacuum of black water."] },
+    "descend": ["Here, only gelatinous, slow-moving predators endure; their world a silent vacuum of black water."],
+    "ascend": ["Here, only gelatinous, slow-moving predators endure; their world a silent vacuum of black water."] },
 
   { "min": 9000, "max": 10000,
     "descend": ["You are deeper than the wreck of any ship."],
     "ascend": ["Even the deepest wrecks lie above these waters."] },
 
   { "min": 10000, "max": 11000,
-    "descend": ["At the hadal floor, the weight of several kilometers of rock rests upon you — in water form."],
-    "ascend": ["Rising from the very bottom, where water weighs like mountains."] }
-]
+    "descend": ["At the hadal floor, the weight of several kilometers of rock rests upon you."],
+    "ascend": ["Rising from the very bottom, where water weighs like mountains."] },
+
+
+{"min": 9000,"max": 11000,
+  "descend": [
+    "From here, the surface is as far away as the ground looks from a cruising plane."
+  ],"ascend": [
+    "From here, the surface is as far away as the ground looks from a cruising plane."
+  ]
+},
+
+
+{"min": 5000,"max": 5200,
+  "descend": ["A pale shape drifts just ahead, then vanishes, as if the dark swallowed it whole."],
+  "ascend":  ["A pale shape drifts just ahead, then vanishes, as if the dark swallowed it whole."]
+},
+
+{"min": 7000,"max": 7200,
+  "descend": ["Your lights catch a sudden glitter, like stars scattered in the trench. Then they blink back at you."],
+  "ascend":  ["Your lights catch a sudden glitter, like stars scattered in the trench. Then they blink back at you."]
+},
+
+  {"min": 4000,"max": 4200,
+    "descend": ["A shadow crosses your path, moving far faster than anything this deep should."],
+    "ascend":  ["A shadow crosses your path, moving far faster than anything this deep should."]},
+  
+  {"min": 50,
+    "max": 70,
+    "descend": ["Something brushes past your leg; soft, deliberate, and gone before you turn."],
+    "ascend":  ["Something brushes past your leg; soft, deliberate, and gone before you turn."]},
+  
+  {"min": 5600,"max": 5800,
+    "descend": ["A distant thud echoes through the hull; too deep for waves, too regular for chance."],
+    "ascend":  ["A distant thud echoes through the hull; too deep for waves, too regular for chance."]
+  },
+  
+  
+  {"min": 6500,"max": 6700,
+    "descend": ["A flicker far below resolves into two points of green light, hovering motionless."],
+    "ascend":  ["A flicker far below resolves into two points of green light, hovering motionless."]
+  },
+  
+  {"min": 7000,"max": 7200,
+    "descend": ["From the corner of your eye, something impossibly long slides into the trench wall crevice."],
+    "ascend":  ["From the corner of your eye, something impossibly long slides into the trench wall crevice."]
+  },
+  
+  
+  {"min": 5000,"max": 6000,
+    "descend": ["Your instruments spike for a second. Something massive just passed behind you."],
+    "ascend":  ["Your instruments spike for a second. Something massive just passed behind you."]
+  },
+  
+  
+  {"min": 9000,"max": 9200,
+    "descend": ["A low, resonant sound hums through the hull: no origin, no end, just vibration."],
+    "ascend":  ["A low, resonant sound hums through the hull: no origin, no end, just vibration."]
+  }
+
+
+
 
 ]
 

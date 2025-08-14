@@ -1289,3 +1289,112 @@ helper text size matches the sideways labels
   }
 }
 
+/* Slider container: sits under the button */
+#sound-wrap:hover #sound-vol-wrap,
+#sound-vol-wrap:focus-within {
+  display: block !important;
+}
+
+#sound-vol-wrap {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 1.6rem;             /* just under the button */
+  width: 140px;            /* tweak as you like */
+  padding: .4rem .6rem;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  z-index: 10;
+}
+
+/* Minimal horizontal track + round thumb */
+#sound-vol .rc-slider-rail   { height: 3px; }
+#sound-vol .rc-slider-track  { height: 3px; }
+#sound-vol .rc-slider-handle {
+  width: 12px; height: 12px; margin-top: -4.5px; border: 0;
+  box-shadow: 0 0 0 4px rgba(255,255,255,.25);
+}
+
+/* Positioning */
+#sound-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+#depth-sound-btn {
+  line-height: 1;
+  user-select: none;
+}
+
+/* The popover panel */
+#vol-pop {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  top: 100%;
+  width: 160px;
+  padding: 8px 10px;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(6px);
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.25);
+  z-index: 9999;
+
+  /* hidden by default */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+
+/* Show on hover OR when the slider has focus */
+#sound-wrap:hover #vol-pop,
+#vol-pop:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Minimal horizontal track + round thumb for native range */
+#vol-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;   /* provides enough room for the thumb to drag */
+  background: transparent;
+  margin: 0;
+}
+
+/* Track */
+#vol-range::-webkit-slider-runnable-track {
+  height: 3px;
+  background: rgba(255,255,255,.35);
+  border-radius: 2px;
+}
+#vol-range::-moz-range-track {
+  height: 3px;
+  background: rgba(255,255,255,.35);
+  border-radius: 2px;
+}
+
+/* Thumb */
+#vol-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  margin-top: -4.5px; /* center thumb on 3px track */
+  box-shadow: 0 0 0 4px rgba(255,255,255,.25);
+}
+#vol-range::-moz-range-thumb {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(255,255,255,.25);
+  border: none;
+}
+
+/* Optional: hover affordance on the button */
+#depth-sound-btn:hover { opacity: 1; }
+
