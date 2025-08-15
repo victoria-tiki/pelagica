@@ -19,7 +19,15 @@
 }
 
 .glass-panel {
-  background: rgba(0, 0, 0, 0.2);
+  background: linear-gradient(
+    to bottom,
+    rgba(50, 70, 110, 0.32), /* same hue, less opacity */
+    rgba(30, 45, 75, 0.38)   /* slightly lighter + less opacity */
+  );
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  
   border-radius: 0.5rem;
   color: #fff;
   pointer-events: auto;
@@ -159,17 +167,16 @@ h5,
 /* ─── Search Handle ─────────────────────────────── */
 .search-handle {
   position: fixed;
-  top: 128px;
-  left: calc(-10px + 450px);
+  top: 126px;
+  left: calc(-11px + 450px);
   width: 100px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius:  0rem 0rem 0.4rem 0.4rem;
-  background: rgba(0, 0, 0, 0.2);
-  color: #fff;
-  backdrop-filter: blur(6px);
+  background:var(--glass-bg); border:var(--glass-brd);
+  backdrop-filter:var(--blur-md); 
   pointer-events: auto;
   font-size: 0.75rem;
   cursor: pointer;
@@ -314,8 +321,8 @@ body.search-open .search-handle {
   position: fixed;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  background: rgba(0, 0, 0, 0.2);
-  border: var(--glass-brd);
+  background:var(--glass-bg); border:var(--glass-brd);
+  backdrop-filter:var(--blur-md); 
   border-radius: 0rem 0.4rem 0.4rem 0rem;
   color: #fff;
   backdrop-filter: blur(6px);
@@ -1397,4 +1404,17 @@ helper text size matches the sideways labels
 
 /* Optional: hover affordance on the button */
 #depth-sound-btn:hover { opacity: 1; }
+
+
+/* in assets/tree.css */
+#tree-plot .hoverlayer text {
+    cursor: pointer;      /* makes hover text show link cursor */
+    fill: #1a0dab !important; /* Google blue link color */
+    text-decoration: underline;
+}
+
+.nav-icon.greyed {
+  filter: grayscale(100%);
+  opacity: 0.55;
+}
 

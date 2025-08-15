@@ -161,7 +161,7 @@ function randomDepthMsg(depth, direction) {
 
 /* greet on first load */
 window.addEventListener('load', ()=>
-  showMessage('Welcome to Pelagica!\nChoose a species to get started', Infinity)
+  showMessage('Welcome to Pelagica!\nChoose one of 70,000 species to get started', Infinity)
 );
 
    
@@ -364,6 +364,57 @@ const behaviorHooksOverlay = name=>{
   window.updateGlitterForDepth = window.updateGlitterForDepth || function(){};
 })();
 
+
+/* ─── Bioluminescence layer: depths 200 m … 3000 m ────────────── */
+(() => {
+  const RANGE_MIN = 400, RANGE_MAX = 3000;
+  const COUNT = 150;                 // ~half as many as the shallow glitter
+  const SIZE_MIN = 2.5, SIZE_MAX = 6.2;
+  const OPACITY = 0.60;              // subtle but visible in the dark
+
+  const layer = document.getElementById('glitter-bio');
+  if (!layer) return;
+
+  const rng = (a,b)=>Math.random()*(b-a)+a;
+  const frag = document.createDocumentFragment();
+
+  for (let i = 0; i < COUNT; i++) {
+    const d   = rng(RANGE_MIN, RANGE_MAX);     // fixed world depth
+    const xvw = rng(0, 100);                   // spread across width
+    const yPx = depthToPixelMemo(d);           // world Y in px
+
+    // pick a hue between green→teal→blue (approx 160°–220°)
+    const h   = rng(160, 220);
+    const c1  = `hsla(${h}, 100%, 65%, 0.95)`;  // bright core
+    const c2  = `hsla(${h}, 100%, 50%, 0.25)`;  // colored halo
+
+    const s = document.createElement('span');
+    s.className = 'sparkle';
+    s.style.left = xvw.toFixed(2) + 'vw';
+    s.style.top  = yPx.toFixed(1) + 'px';
+
+    // per-particle look
+    s.style.setProperty('--size', rng(SIZE_MIN, SIZE_MAX).toFixed(2) + 'px');
+    s.style.setProperty('--delay',      rng(0, 4).toFixed(2) + 's');
+    s.style.setProperty('--twinkleDur', rng(2.6, 4.0).toFixed(2) + 's');
+    s.style.setProperty('--driftDur',   rng(10, 16).toFixed(2) + 's');
+
+    // green→blue glow (overrides default white)
+    s.style.background = `radial-gradient(circle, ${c1} 0%, ${c2} 70%, rgba(0,0,0,0) 100%)`;
+    s.style.filter     = `drop-shadow(0 0 3px ${c1})`;
+
+    frag.appendChild(s);
+  }
+
+  layer.appendChild(frag);
+  layer.style.pointerEvents = 'none';
+  layer.style.opacity = String(OPACITY);
+
+  // Move with the world camera (same pattern as your other world-anchored layers)
+  behaviorHooks.glitterBio = (el, _depth, yLayer) => {
+    el.style.transform = `translate3d(-50%, ${-yLayer}px, 0)`;
+  };
+})();
 
 
 
@@ -609,7 +660,7 @@ function updateBackOverlay(depth) {
   if (!backImg || !back) return;
 
   const hide = depth >= 43;              // keep your original cutoff
-  const deep = depth > 200;              // NEW: deep starts after 100 m
+  const deep = depth > 150;              // NEW: deep starts after 100 m
 
   // ─── Image swap (base ↔ mid ↔ deep) ───
   if (deep) {

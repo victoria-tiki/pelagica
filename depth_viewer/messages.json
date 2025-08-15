@@ -22,7 +22,7 @@
   { "min": 0, "max": 20, "descend": ["Do you ever wonder what’s under your feet, even when it looks like nothing at all?"], "ascend": ["Do you ever wonder what’s under your feet, even when it looks like nothing at all?"] },
   { "min": 30, "max": 40, "descend": ["Below 30 m, colours begin to vanish. Reds disappear first."]},
   { "min": 30, "max": 70, "descend": ["Sunlight only penetrates so far. Darkness is coming."]},
-  { "min": 0, "max": 10, "descend": ["You're in the epilimnion, the lake's sunlit, churning skin."], "ascend": ["You're in the epilimnion, the lake's sunlit, churning skin."] },
+  { "min": 0, "max": 10, "descend": ["You're in the epilimnion, the lake's sunlit, churning top layer."], "ascend": ["You're in the epilimnion, the lake's sunlit, churning top layer."] },
   { "min": 0, "max": 20, "descend": ["Shallow water hides more mystery than you think."], "ascend": ["Shallow water hides more mystery than you think."] },
   { "min": 0, "max": 50, "descend": ["To most life, these top layers are everything. But you’re going deeper."] },
   { "min": 0, "max": 20, "descend": ["It starts here, with a little light, a little pressure, and a lot of questions."] }, 
@@ -128,7 +128,7 @@
   {"min": 60,"max": 100,
   "descend": ["You leave behind most of the sun’s light. The world dims quickly now"]},
   
-  {"min": 60,"max": 100,
+  {"min": 80,"max": 110,
   "descend": ["In clearer seas, this is where light becomes too faint for most plants to survive"]},
 
   { "min": 70, "max": 100,
@@ -151,8 +151,8 @@
   "descend": ["In tropical seas, this often marks the chlorophyll maximum layer"]},
 
   {"min": 300, "max": 500,
-  "descend": ["Entering a low‑oxygen zone where life slows. Oxygen may dip < 2 mg/L"],
-  "ascend":  ["Entering a low‑oxygen zone where life slows. Oxygen may dip < 2 mg/L"]},
+  "descend": ["Entering a low‑oxygen zone where life slows."],
+  "ascend":  ["Entering a low‑oxygen zone where life slows."]},
 
   { "min": 130, "max": 140,
     "descend": ["Blue light dominates; other colours absorbed"],
@@ -178,8 +178,8 @@
   "ascend":  ["Thanks to light, plants may barely survive above this layer"]},
 
   {"min": 900,"max": 1100,
-  "descend": ["Entering the SOFAR sound channel. A blue whale’s call rolls through this corridor, its low notes carrying across entire ocean basins"],
-  "ascend": ["Entering the SOFAR sound channel. Somewhere in the darkness, a whale’s song begins its journey across the world."]},
+  "descend": ["A blue whale’s call rolls through this corridor, its low notes carrying across entire ocean basins"],
+  "ascend": ["Somewhere in the darkness, a whale’s song begins its journey across the world."]},
 
   {"min": 900,"max": 1100,
   "descend": ["Entering the SOFAR channel. Sound speed hits its minimum here, allowing low-frequency sound to travel far"],
@@ -314,7 +314,7 @@
 
   { "min": 20, "max": 30,
     "descend": ["Sea‑turtles often dive to this depth for tasty jellyfish."],
-    "ascend":  ["Turtles and snorkelers meet just above."] },
+    "ascend":  ["Turtles and snorkelers meet just above you."] },
 
   { "min": 30, "max": 40,
     "descend": ["Below most surf waves. You now glide in calmer water."],
@@ -345,7 +345,7 @@
     "ascend":  ["You are swimming above the deepest human breath‑hold record."] },
 
   { "min": 190, "max": 230,
-    "descend": ["Leaving the Sun‑lit ‘epipelagic’ layer. Welcome to the twilight zone."]},
+    "descend": ["Leaving the sunlit ‘epipelagic’ layer. Welcome to the twilight zone."]},
 
   { "min": 150, "max": 200,
     "descend": ["Light here is dim blue; many fish have huge eyes to catch it."],
@@ -383,7 +383,7 @@
   "ascend": ["Entering Mid‑Atlantic Ridge terrain. Rugged volcanic valleys lie ahead"]},
 
   { "min": 2200, "max": 2400,
-    "descend": ["Some deep‑sea creatures grow extra large."],
+    "descend": ["Some deep‑sea creatures grow extra large. It's the deep sea gigantism effect"],
     "ascend":  ["Giant isopods and amphipods will become rarer above."] },
 
   { "min": 2600, "max": 2800,
@@ -458,8 +458,8 @@
 
 
   { "min": 8600, "max": 8800,
-    "descend": ["Now deeper than Everest is tall. Welcome below the world’s highest mountain flip."],
-    "ascend":  ["Now deeper than Everest is tall. Welcome below the world’s highest mountain flip!"] },
+    "descend": ["Now deeper than Everest is tall."],
+    "ascend":  ["Now deeper than Everest is tall."] },
 
   { "min": 7000, "max": 9000,
     "descend": ["Microplastics have been found in trench cores even down here."],
@@ -523,15 +523,16 @@
     "ascend":  ["In some regions, methane seeps from the seabed, feeding unique bacterial mats."] },
 
   { "min": 2000, "max": 2200,
-    "descend": ["Hydrothermal vent fields can dot mid-ocean ridges here, teeming with tube worms and blind crabs."],
-    "ascend":  ["Hydrothermal vent fields can dot mid-ocean ridges here, teeming with tube worms and blind crabs."] },
+    "descend": ["Hydrothermal vent teem with tube worms and blind crabs."],
+    "ascend":  ["Hydrothermal vent teem with tube worms and blind crabs."] },
 
   { "min": 2300, "max": 2600,
     "descend": ["Currents slow to a near standstill; sediment settles like dust in a still room."],
     "ascend":  ["Currents quicken as you rise, stirring sediment into suspension."] },
     
     { "min": 2000, "max": 2800,
-    "descend": ["Many deep-sea creatures grow to unusual sizes. it's the deep-sea giantism effect."]},
+    "descend": ["Many deep-sea creatures grow to unusual sizes. It's the deep-sea giantism effect."],
+    "ascend": ["Many deep-sea creatures grow to unusual sizes. It's the deep-sea giantism effect."]},
     
      { "min": 2700, "max": 3000,
     "descend": ["Few species here see more than a handful of meals each year."],
@@ -564,11 +565,11 @@
   {"min": 1600,"max": 1700,
     "descend": ["Lake Baikal’s max depth (~1 642 m) lies here — the deepest continental lake, holding 20% of Earth's unfrozen fresh water. "]},
     
-  {"min": 1400,"max": 1500,"descend": ["Lake Tanganyika's max depth, the longest lake on Earth and the second deepest. Its ancient depths cradle uniquely evolved fish."] },
+  {"min": 1400,"max": 1500,"descend": ["Lake Tanganyika's max depth, the longest lake on Earth. Its ancient depths cradle uniquely evolved fish."] },
     
   {"min": 600,"max": 650,"ascend": ["Great Slave Lake dives to to North America’s lowest freshwater point here. Even the CN Tower would disappear beneath its waves."]  },
     
-  {"min": 400,"max": 500,"descend": ["Quesnel Lake’s depths hit ~511 m. A glacial fjord lake, cold, deep, and eerily quiet, carved by ice and shadow."]  
+  {"min": 400,"max": 500,"descend": ["Quesnel Lake’s deepest point. A glacial fjord lake: old, deep, and eerily quiet."]  
   },
   
   {"min": 3646,"max": 3926,
@@ -738,12 +739,12 @@
   "ascend":  ["A pale shape drifts just ahead, then vanishes, as if the dark swallowed it whole."]
 },
 
-{"min": 7000,"max": 7200,
+{"min": 7000,"max": 10200,
   "descend": ["Your lights catch a sudden glitter, like stars scattered in the trench. Then they blink back at you."],
   "ascend":  ["Your lights catch a sudden glitter, like stars scattered in the trench. Then they blink back at you."]
 },
 
-  {"min": 4000,"max": 4200,
+  {"min": 4000,"max": 5200,
     "descend": ["A shadow crosses your path, moving far faster than anything this deep should."],
     "ascend":  ["A shadow crosses your path, moving far faster than anything this deep should."]},
   
@@ -752,7 +753,7 @@
     "descend": ["Something brushes past your leg; soft, deliberate, and gone before you turn."],
     "ascend":  ["Something brushes past your leg; soft, deliberate, and gone before you turn."]},
   
-  {"min": 5600,"max": 5800,
+  {"min": 5600,"max": 6800,
     "descend": ["A distant thud echoes through the hull; too deep for waves, too regular for chance."],
     "ascend":  ["A distant thud echoes through the hull; too deep for waves, too regular for chance."]
   },
@@ -763,7 +764,7 @@
     "ascend":  ["A flicker far below resolves into two points of green light, hovering motionless."]
   },
   
-  {"min": 7000,"max": 7200,
+  {"min": 7000,"max": 8000,
     "descend": ["From the corner of your eye, something impossibly long slides into the trench wall crevice."],
     "ascend":  ["From the corner of your eye, something impossibly long slides into the trench wall crevice."]
   },
@@ -775,10 +776,35 @@
   },
   
   
-  {"min": 9000,"max": 9200,
-    "descend": ["A low, resonant sound hums through the hull: no origin, no end, just vibration."],
-    "ascend":  ["A low, resonant sound hums through the hull: no origin, no end, just vibration."]
-  }
+  {"min": 8000,"max": 9200,
+    "descend": ["A low, resonant sound hums through the hull; no origin, no end, just vibration."],
+    "ascend":  ["A low, resonant sound hums through the hull; no origin, no end, just vibration."]
+  }, 
+  
+  
+  {"min": 30,"max": 100,
+    "descend": ["Your lungs shrink dramatically, yet thanks to blood-shift, your chest doesn’t collapse."  ],"ascend": ["As you climb upward, your lungs re-inflate - but too fast and you're flirting with barotrauma." ]},
+    
+   
+  {"min": 30,"max": 60,
+    "descend": ["Nitrogen narcosis kicks in. Slight buzz turns into potential hallucinations deeper down."],"ascend": ["Headin’ up? Ascend too quickly and you get the dreaded bends." ]},
+    
+  {"min": 50,"max": 70,
+    "descend": [
+      "Below this point, you usually need special gas mixes to avoid oxygen toxicity." ] },
+      
+  {"min": 600,"max": 701,"ascend": ["Coming off these depths isn’t just swimming up; it’s hours of decompression protocols." ]},
+
+
+{"min": 220,"max": 250,
+  "descend": ["Your lungs get squeezed so tight that all the air leaves; your lungs collapse and breathing just stops."]},
+
+
+{"min": 2000,"max": 11000,"descend": [  "Pressure locks DNA strands tight. Some creatures evolve special proteins to pry them open."],"ascend": [  "Pressure locks DNA strands tight. Some creatures evolve special proteins to pry them open."]}, 
+
+{"min": 8500,"max": 9500,
+  "descend": [
+    "Trieste’s porthole cracked around this depth during the first Challenger Deep dive. Hope your sub’s stronger!"]}
 
 
 

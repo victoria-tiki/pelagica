@@ -116,6 +116,33 @@ def serve_favicon():
     
 register_fav_routes(app) 
 
+# _____ compute extremes _____________________________
+
+def compute_extremes(df):
+    shallow_col = df["DepthRangeComShallow"].where(df["DepthRangeComShallow"].notna(),
+                                                   df["DepthRangeShallow"])
+    deep_col    = df["DepthRangeComDeep"].where(df["DepthRangeComDeep"].notna(),
+                                                df["DepthRangeDeep"])
+    size_col    = df["Length_cm"]
+
+    shallowest_idx = shallow_col.dropna().idxmin() if shallow_col.notna().any() else None
+    deepest_idx    = deep_col.dropna().idxmax()    if deep_col.notna().any()    else None
+    smallest_idx   = size_col.dropna().idxmin()    if size_col.notna().any()    else None
+    largest_idx    = size_col.dropna().idxmax()    if size_col.notna().any()    else None
+
+    def gs_at(idx):
+        return None if idx is None else f"{df.iloc[idx].Genus} {df.iloc[idx].Species}"
+
+    return {
+        "shallowest": gs_at(shallowest_idx),
+        "deepest":    gs_at(deepest_idx),
+        "smallest":   gs_at(smallest_idx),
+        "largest":    gs_at(largest_idx),
+    }
+
+EXTREMES = compute_extremes(df_full)
+
+
 # ─── TOP BAR ───────────────────────────────────────────────
 
 units_toggle = dbc.Switch(
@@ -325,7 +352,7 @@ advanced_filters = html.Div([           # collapsible area
 
     ], className="settings-group"),
     
-    html.Div("Limits the list to over 1,500 curated species (faster loading, more relevant images).", className="settings-note"),
+    html.Div("1,500+ species with approved images and faster loading", className="settings-note"),
     
     html.Br(),
 
@@ -409,118 +436,6 @@ citations_panel = dbc.Offcanvas(
 
 
 
-# -------------- taxonomic tree ----------------
-
-'''taxonomic_tree = html.Div(
-    id="tree-panel",
-    className="glass-panel",
-    style={
-    "display": "none",
-    "position": "absolute",
-    "inset": "0",          # fill the image wrapper width exactly
-    "zIndex": 1,           # above image/handles
-    "padding": "0rem",
-    "boxSizing": "border-box",
-    },
-    children=[
-        cyto.Cytoscape(
-            id="tree-graph",
-            elements=[],
-
-
-            stylesheet = [
-                # Base node: tiny dot + white label below (larger font)
-                {"selector": "node", "style": {
-                    "width": 8, "height": 8,
-                    "background-opacity": 0.95,
-                    "border-width": 0,
-                    "label": "data(label)",
-                    "color": "#fff",
-                    "font-size": 17,  
-                    "min-zoomed-font-size":15,
-                    "font-weight": 600,# larger, as requested
-                    "text-outline-width": 2,
-                    "text-outline-color": "rgba(0,0,0,.55)",
-                    "text-halign": "center",
-                    "text-valign": "top",         # label below the dot
-                    "text-margin-y": 8,
-                    "text-wrap": "wrap",
-                    "text-max-width": 170,
-                    "text-outline-width": 2,      # soft glow for contrast
-                    "text-outline-color": "rgba(0,0,0,0.45)"
-                }},
-                
-
-                # Focus species
-                {"selector": '[kind = "focus"]', "style": {
-                    "background-color": "#ffd166",
-                    "color" : "#ffd166",
-                    "font-weight": 700,
-                    "color": "#ffd166",          # label *also* gold
-                    "width": 10, "height": 10
-                }},
-                # Example species
-                {"selector": '[kind = "example"]', "style": {
-                    "background-color": "#64d2ff",
-                    "color": "#64d2ff",
-                    "color": "#64d2ff"
-                }},
-
-
-                # Lineage taxon nodes (genus/family/order/class/phylum/kingdom)
-                {"selector": '[kind = "taxon"]', "style": {
-                    "background-color": "#bfbfbf"
-                }},
-
-                # Optional rank tints (subtle)
-                {"selector": '[rank = "family"]',  "style": {"background-color": "#a6a6a6"}},
-                {"selector": '[rank = "order"]',   "style": {"background-color": "#8c8c8c"}},
-                {"selector": '[rank = "class"]',   "style": {"background-color": "#737373"}},
-                {"selector": '[rank = "phylum"]',  "style": {"background-color": "#595959"}},
-                {"selector": '[rank = "kingdom"]', "style": {"background-color": "#404040"}},
-
-                # Edges
-                {"selector": "edge", "style": {
-                    "curve-style": "bezier",
-                    "width": 1.6,
-                    "line-color": "rgba(255,255,255,0.65)"
-                }},],
-
-
-            style={"width": "100%", "height": "min(65vh, 700px)", "display": "block", "margin": "0 auto"}  # will wrapper width
-        )
-    ]
-)'''
-
-
-# -------------- simple “tree” panel ----------------
-'''taxonomic_tree = html.Div(
-    id="tree-panel",
-    className="glass-panel",
-    style={
-        "display": "none",
-        "position": "absolute",
-        "inset": "0",          # fill the wrapper
-        "zIndex": 1,
-        "padding": "0",
-        "boxSizing": "border-box",
-    },
-    children=[
-        # centred horizontal line – adjust thickness / colour to taste
-        html.Div(
-            style={
-                "position": "absolute",
-                "top": "50%",
-                "left": 0,
-                "width": "100%",
-                "height": "3px",
-                "background": "white",
-                "opacity": .8,
-                "transform": "translateY(-50%)",
-            }
-        )
-    ],
-)'''
 
 
 taxonomic_tree = html.Div(
@@ -772,6 +687,12 @@ app.layout = dbc.Container([
     html.Audio(id="snd-epi2meso-b",    src="/assets/sound/epi_to_meso.mp3", preload="auto", style={"display":"none"}),
     html.Audio(id="snd-abyss2hadal-a", src="/assets/sound/abyss_to_hadal.mp3", preload="auto", style={"display":"none"}),
     html.Audio(id="snd-abyss2hadal-b", src="/assets/sound/abyss_to_hadal.mp3", preload="auto", style={"display":"none"}),
+    
+    html.Audio(id="snd-meso2bath-a",   src="/assets/sound/meso_to_bath.mp3", preload="auto", style={"display":"none"}),
+    html.Audio(id="snd-meso2bath-b",   src="/assets/sound/meso_to_bath.mp3", preload="auto", style={"display":"none"}),
+    html.Audio(id="snd-bath2abyss-a",  src="/assets/sound/bath_to_abyss.mp3", preload="auto", style={"display":"none"}),
+    html.Audio(id="snd-bath2abyss-b",  src="/assets/sound/bath_to_abyss.mp3", preload="auto", style={"display":"none"}),
+
 
 
     html.Div(id="js-audio-sink", style={"display": "none"}),
@@ -786,6 +707,7 @@ app.layout = dbc.Container([
 
     html.Div(centre_flex, id="main-content", style={"display": "none"}),
     center_message,
+    html.Div(id="tree-click-trigger", style={"display": "none"}),
     
     nav_panel,
     dcc.Store(id="order-lock-state", data=False, storage_type="memory"),
@@ -2222,6 +2144,7 @@ def step_depth(n_up, n_down,
 
 
 
+
 # -------------------------------------------------------------------
 # Quick‑jump buttons (deepest / shallowest / largest / smallest)
 # -------------------------------------------------------------------
@@ -2490,6 +2413,8 @@ def toggle_or_update_tree(n_clicks, species, style):
             return {**(style or {}), "display": "none"}, no_update, no_update
         # ── open panel ──
         fig = make_tree_figure(df_full, species)
+        
+        
         # closing the size-compare overlay when opening the tree
         return {**(style or {}), "display": "block"}, fig, False   # ← NEW
 
@@ -2775,7 +2700,7 @@ def update_species_of_week(_):
         thumb, *_ = get_commons_thumb(genus, species, remove_bg=not skip_bg)
         thumb = thumb or "/assets/img/placeholder_fish.webp"
         common = COMMON_NAMES.get(sp, "")
-        rollout_note = f"Inaugural pick — live weekly rotation starts {cutoff.date().isoformat()} (UTC) based on your votes"
+        rollout_note = f"Inaugural pick — live weekly rotation starts {cutoff.date().isoformat()} (UTC) based on your most favourited species"
         return (f"{thumb}?sow={genus}_{species}", common, sp, rollout_note, "Species of the Week")
 
     # Live weekly favourite w/ suppression + tie-breakers
@@ -2888,6 +2813,42 @@ app.clientside_callback(
     Input("sound-on", "data"),
     Input("depth-store", "data"),
 )
+
+
+app.clientside_callback(
+    """
+    function(clickData, currentSpecies) {
+        if (!clickData) return window.dash_clientside.no_update;
+
+        let label = (clickData.points?.[0]?.text || "").toString();
+        label = label.replace(/<br\\s*\\/?>(?!$)/gi, " ")
+                     .replace(/<[^>]+>/g, "")
+                     .trim();
+
+        const parts = label.split(/\\s+/);
+        if (parts.length < 2) return window.dash_clientside.no_update;
+
+        const gs   = parts.slice(0, 2).join(" "); // "Genus species"
+        const slug = gs.replace(/\\s+/g, "_");
+
+        // If we're already on this species, do nothing
+        if (currentSpecies && currentSpecies.trim() === gs) {
+            return window.dash_clientside.no_update;
+        }
+
+        const url = new URL(window.location);
+        url.searchParams.set("species", slug);
+        window.history.replaceState({}, "", url);
+        window.dispatchEvent(new Event("popstate"));
+        return "";
+    }
+    """,
+    Output("tree-click-trigger", "children"),  
+    Input("tree-plot", "clickData"),
+    State("selected-species", "data"),        
+    prevent_initial_call=True
+)
+
 
 
 

@@ -12,7 +12,7 @@ html, body {
 body {
   margin: 0;
   font-family: "Inter", sans-serif;
-  background-image: url('tiles/back_0.webp'); /* adjust path as needed */
+  background-image: #000; /*url('tiles/back_0.webp'); /* adjust path as needed */
   background-size: cover; /* makes the image fill the screen */
   background-repeat: no-repeat;
   background-position: center;
