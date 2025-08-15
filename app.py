@@ -99,7 +99,16 @@ external_stylesheets = [
     dbc.themes.LUX,
     "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
 ]
-app = Dash(__name__, external_stylesheets=external_stylesheets)
+app = Dash(
+    __name__,
+    external_stylesheets=external_stylesheets,
+    title="Pelagica — The Aquatic Life Atlas",
+    meta_tags=[
+        {"name": "description", "content": "Explore 69,000+ marine species by depth, size, and taxonomy. Ambient soundscapes, smooth descent animation, and curated images."},
+        {"name": "viewport", "content": "width=device-width, initial-scale=1"}
+    ]
+)
+
 server = app.server
 
 @app.server.route('/cached-images/<path:filename>')
@@ -1141,7 +1150,7 @@ def fill_citation(gs_name, sound_on):
             html.Br(), html.Br(),
             html.Span(
                 "Ambient soundtrack: mix from C0 sound effects retrieved from Pixabay. "
-                "uploaded by users freesound_community, TanwerAman, Prem_Adhikary")]
+                "uploaded by users freesound_community, TanwerAman, Prem_Adhikary, CalenethLysariel07, DRAGON-STUDIO")]
     
     victoria_block=[html.Br(), html.Br(), html.Span("All other content, including code, background images, animations, and UI design: © 2025 Victoria Tiki"),]
 

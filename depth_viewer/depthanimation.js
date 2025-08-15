@@ -367,8 +367,8 @@ const behaviorHooksOverlay = name=>{
 
 /* ─── Bioluminescence layer: depths 200 m … 3000 m ────────────── */
 (() => {
-  const RANGE_MIN = 400, RANGE_MAX = 3000;
-  const COUNT = 150;                 // ~half as many as the shallow glitter
+  const RANGE_MIN = 200, RANGE_MAX = 3000;
+  const COUNT = 300;                 // ~half as many as the shallow glitter
   const SIZE_MIN = 2.5, SIZE_MAX = 6.2;
   const OPACITY = 0.60;              // subtle but visible in the dark
 

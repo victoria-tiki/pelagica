@@ -507,7 +507,7 @@
     "descend": ["Some fish here have eyes so sensitive they can detect single photons."] },
 
   { "min": 1400, "max": 1800,
-    "descend": ["Food is scarce; many creatures wait motionless for something to drift by."],
+    "descend": ["Food is scarce; many creatures wait motionlessly for something to drift by."],
     "ascend":  ["Life becomes more active above, where food is more abundant."] },
 
   { "min": 1500, "max": 2000,
@@ -804,7 +804,20 @@
 
 {"min": 8500,"max": 9500,
   "descend": [
-    "Trieste’s porthole cracked around this depth during the first Challenger Deep dive. Hope your sub’s stronger!"]}
+    "Trieste’s porthole cracked around this depth during the first Challenger Deep dive. Hope your sub’s stronger!"]},
+
+{"min": 6000,"max": 11000,
+  "descend": [
+    "Your GPS went silent long ago. Down here, the only voices are echoes."], 
+   "ascend": ["At this depth, every sound is precious — and every silence, a little heavier."]},
+
+{"min": 6000,"max": 11000,
+  "descend": [
+    "Beyond this point, replies from the surface take longer to return… if they return at all."], 
+   "descend": ["You’ve left the reach of radio. Now, the sea decides what messages pass through."]}
+
+
+
 
 
 

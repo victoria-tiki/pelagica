@@ -1,26 +1,82 @@
+// --- keep ambient <audio> out of Dash re-renders ---
+(function () {
+  function hoistAmbient() {
+    // 🔎 Make sure this matches the ids you render in app.py
+    const ids = [
+      "snd-surface-a","snd-surface-b",
+      "snd-epi2meso-a","snd-epi2meso-b",
+      "snd-meso2bath-a","snd-meso2bath-b",
+      "snd-bath2abyss-a","snd-bath2abyss-b",
+      "snd-abyss2hadal-a","snd-abyss2hadal-b" // if you use these
+    ];
+
+    // Create a static host outside Dash layouts
+    let host = document.getElementById("ambient-audio-host");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "ambient-audio-host";
+      host.style.position = "fixed";
+      host.style.left = "-9999px"; // off-screen but in the DOM
+      host.style.top = "0";
+      document.body.appendChild(host);
+    }
+
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.parentElement !== host) {
+        host.appendChild(el);  // re-parent the existing node (don’t clone)
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", hoistAmbient, { once: true });
+  } else {
+    hoistAmbient();
+  }
+})();
+
+
 // assets/z_depth_audio_bridge.js
 (function () {
   // ---------- CONFIG ----------
-  const SURFACE_MAX   = 20;    // meters
-  const MID_MAX       = 2000;  // meters
+  const CUT1 = 20;    // default view → 20 m
+  const CUT2 = 100;   // 20 → 200 m
+  const CUT3 = 1500;  // 200 → 1500 m
+  const CUT4 = 6000;  // 1500 → 6000 m
   const LOOP_FADE_MS  = 3000;  // per-stem seamless loop crossfade
 
   // two <audio> per stem in your Dash layout
+  // (Add the new ids you created in app.py)
   const AUDIO_IDS = [
-    "snd-surface-a","snd-surface-b",
-    "snd-epi2meso-a","snd-epi2meso-b",
-    "snd-abyss2hadal-a","snd-abyss2hadal-b"
+    "snd-surface-a","snd-surface-b",         // default view → 20 m (reuse)
+    "snd-epi2meso-a","snd-epi2meso-b",       // 20 → 200 m (reuse)
+    "snd-meso2bath-a","snd-meso2bath-b",     // 200 → 1500 m (new)
+    "snd-bath2abyss-a","snd-bath2abyss-b",   // 1500 → 6000 m (new)
+    "snd-abyss2hadal-a","snd-abyss2hadal-b"  // 6000 m → end (reuse)
   ];
 
   // ---------- small helpers ----------
   const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
   const lerp = (a, b, t) => a + (b - a) * t;
-  const bandFor = d => (d >= MID_MAX ? "deep" : (d >= SURFACE_MAX ? "mid" : "surf"));
-  const weightsForBand = b => (
-    b === "deep" ? { surf: 0, mid: 0, deep: 1 } :
-    b === "mid"  ? { surf: 0, mid: 1, deep: 0 } :
-                   { surf: 1, mid: 0, deep: 0 }
-  );
+
+  // 5-band classifier
+  // returns one of: "surf", "mid1", "mid2", "mid3", "deep"
+  const bandFor = (d) => {
+    if (d >= CUT4) return "deep";   // 6000 → end
+    if (d >= CUT3) return "mid3";   // 1500 → 6000
+    if (d >= CUT2) return "mid2";   // 200 → 1500
+    if (d >= CUT1) return "mid1";   // 20 → 200
+    return "surf";                  // default → 20
+  };
+
+  // a simple one-hot weight for each band
+  const ALL_BANDS = ["surf","mid1","mid2","mid3","deep"];
+  const weightsForBand = (b) => {
+    const w = { surf:0, mid1:0, mid2:0, mid3:0, deep:0 };
+    if (w.hasOwnProperty(b)) w[b] = 1;
+    return w;
+  };
 
   function waitForEls(ids, cb){
     function check(){
@@ -147,10 +203,15 @@
 
   function init(){
     const stems = {
-      surf: new Stem("snd-surface-a","snd-surface-b"),
-      mid:  new Stem("snd-epi2meso-a","snd-epi2meso-b"),
-      deep: new Stem("snd-abyss2hadal-a","snd-abyss2hadal-b"),
+      // keep original ids for reused ranges
+      surf: new Stem("snd-surface-a","snd-surface-b"),          // default → 20
+      mid1: new Stem("snd-epi2meso-a","snd-epi2meso-b"),        // 20 → 200
+      mid2: new Stem("snd-meso2bath-a","snd-meso2bath-b"),      // 200 → 1500 (NEW)
+      mid3: new Stem("snd-bath2abyss-a","snd-bath2abyss-b"),    // 1500 → 6000 (NEW)
+      deep: new Stem("snd-abyss2hadal-a","snd-abyss2hadal-b"),  // 6000 → end
     };
+
+    const stemList = Object.values(stems);
 
     // current animation plan; used to finalize correctly
     let plan = null; // {startAt, endAt, toBand}
@@ -158,9 +219,7 @@
     function setBandImmediate(depthOrBand){
       const band = typeof depthOrBand === "string" ? depthOrBand : bandFor(depthOrBand);
       const w = weightsForBand(band);
-      stems.surf.snapTo(w.surf);
-      stems.mid .snapTo(w.mid);
-      stems.deep.snapTo(w.deep);
+      for (const k of ALL_BANDS) stems[k].snapTo(w[k] || 0);
     }
 
     function scheduleMidToEndRamp(toDepth, durationMs){
@@ -170,9 +229,7 @@
       const endAt   = now + durationMs;      // end of animation
       const w = weightsForBand(toBand);
 
-      stems.surf.scheduleExtRamp(w.surf, startAt, endAt);
-      stems.mid .scheduleExtRamp(w.mid,  startAt, endAt);
-      stems.deep.scheduleExtRamp(w.deep, startAt, endAt);
+      for (const k of ALL_BANDS) stems[k].scheduleExtRamp(w[k] || 0, startAt, endAt);
 
       plan = { startAt, endAt, toBand };     // remember final band decisively
     }
@@ -181,12 +238,10 @@
     (function loop(){
       const now = performance.now();
       const on = !!window.pelagicaSoundOn;
-      stems.surf.ensurePlay(on);
-      stems.mid .ensurePlay(on);
-      stems.deep.ensurePlay(on);
-      stems.surf.tick(now);
-      stems.mid .tick(now);
-      stems.deep.tick(now);
+      for (const s of stemList) {
+        s.ensurePlay(on);
+        s.tick(now);
+      }
       requestAnimationFrame(loop);
     })();
 
