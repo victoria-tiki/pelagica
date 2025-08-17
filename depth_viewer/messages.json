@@ -222,7 +222,7 @@
   "descend": ["Approaching global mean ocean depth (~3700 m)"] },
   
   { "min": 3700, "max": 3900,
-  "descend": ["Approaching global mean ocean depth (~3700 m)"] },
+  "ascend": ["Approaching global mean ocean depth (~3700 m)"] },
 
 
   { "min": 3800, "max": 4100,
@@ -447,10 +447,10 @@
     "ascend":  ["Glass sponges have been found perched on trench walls here."] },
 
   { "min": 3000, "max": 3200,
-    "descend": ["A dumbo octopus flaps past like a living umbrella, vanishing into the haze before you can blink."] },
+    "descend": ["A dumbo octopus flaps past like a living umbrella, vanishing into the haze before you can blink."],"ascend": ["A dumbo octopus flaps past like a living umbrella, vanishing into the haze before you can blink."] },
 
   { "min": 6000, "max": 6200,
-    "descend": ["You pass an ancient whale skeleton, ribs draped with white crabs feasting in the dark."] },
+    "descend": ["You pass an ancient whale skeleton, ribs draped with white crabs feasting in the dark."],"ascend": ["You pass an ancient whale skeleton, ribs draped with white crabs feasting in the dark."] },
 
   { "min": 7900, "max": 8200,
     "descend": ["Scientists filmed snailfish swimming happily at these depths."],
@@ -563,7 +563,7 @@
     "ascend":  ["The abyss loosens its grip; light and warmth are still far away."] },
     
   {"min": 1600,"max": 1700,
-    "descend": ["Lake Baikal’s max depth (~1 642 m) lies here — the deepest continental lake, holding 20% of Earth's unfrozen fresh water. "]},
+    "descend": ["Lake Baikal’s max depth lies here — the deepest continental lake, holding 20% of Earth's unfrozen fresh water. "]},
     
   {"min": 1400,"max": 1500,"descend": ["Lake Tanganyika's max depth, the longest lake on Earth. Its ancient depths cradle uniquely evolved fish."] },
     
@@ -623,40 +623,40 @@
 
 
   {"min": 4700,"max": 5000,
-    "descend": ["Tripod fish perch here on stilts, waiting motionless for ghostly plankton to drift by."] 
+    "descend": ["Tripod fish perch here on stilts, waiting motionless for ghostly plankton to drift by."] ,"ascend": ["Tripod fish perch here on stilts, waiting motionless for ghostly plankton to drift by."] 
   },
   
   
     {"min": 4500,"max": 5000,
-    "descend": ["Under these pressures, survival demands outrageously tough adaptations."] 
+    "descend": ["Under these pressures, survival demands outrageously tough adaptations."] ,"ascend": ["Under these pressures, survival demands outrageously tough adaptations."] 
   },
 
 
   {"min": 4100,"max": 4300,
-    "descend": ["The abyss covers 60 % of our planet: an unseen ocean under an unseen sky."] 
+    "descend": ["The abyss covers 60 % of our planet: an unseen ocean under an unseen sky."] ,"ascend": ["The abyss covers 60 % of our planet: an unseen ocean under an unseen sky."] 
   },
   
   
   {"min": 4200,"max": 4400,
-    "descend": ["At this pressure, ~600 atm squeezes down. Your lungs would collapse instantly."] 
+    "descend": ["At this pressure, ~600 atm squeezes down. Your lungs would collapse instantly."] ,"ascend": ["At this pressure, ~600 atm squeezes down. Your lungs would collapse instantly."] 
   },
 
     
    {"min": 4400,"max": 4600,
-    "descend": ["Microbial life here blooms; unknown forests of bacteria under crushing weight."] },
+    "descend": ["Microbial life here blooms; unknown forests of bacteria under crushing weight."],"ascend": ["Microbial life here blooms; unknown forests of bacteria under crushing weight."] },
     
   {"min": 4500,"max": 5700,
-    "descend": ["Here, Xenophyophores build homes that host deep-sea communities."] },
+    "descend": ["Here, Xenophyophores build homes that host deep-sea communities."] ,"ascend": ["Here, Xenophyophores build homes that host deep-sea communities."] },
     
     
    {"min": 6500,"max": 8000,
-    "descend": ["Pressure here melts steel minds at over 1,000 times the surface pressure."] },
+    "descend": ["Pressure here melts steel minds at over 1,000 times the surface pressure."],"ascend": ["Pressure here melts steel minds at over 1,000 times the surface pressure."]  },
   
   {"min": 7000,"max": 8000,
-    "descend": ["Some fish and invertebrates eke out life where few could survive."] },
+    "descend": ["Some fish and invertebrates eke out life where few could survive."] ,"ascend": ["Some fish and invertebrates eke out life where few could survive."] },
     
       {"min": 9000,"max": 10000,
-    "descend": ["Chemosynthetic communities feed off methane and sulfide, not sunlight."] },
+    "descend": ["Chemosynthetic communities feed off methane and sulfide, not sunlight."],"ascend": ["Chemosynthetic communities feed off methane and sulfide, not sunlight."] },
     
     
     {"min": 190,"max": 210,"descend": [
@@ -694,7 +694,7 @@
     "ascend": ["Only pressure-loving microbes thrive in sediments that have never felt a wave."] },
 
   { "min": 5000, "max": 5500,
-    "descend": ["This is the realm where abyssal plains give way to trench walls plunging further down."]},
+    "descend": ["This is the realm where abyssal plains give way to trench walls plunging further down."],"ascend": ["You've made it out of the trenches!"]},
 
   { "min": 5500, "max": 6000,
     "descend": ["The last abyssal lightless slopes. Beyond here lies the hadal zone."],
@@ -753,30 +753,30 @@
     "descend": ["Something brushes past your leg; soft, deliberate, and gone before you turn."],
     "ascend":  ["Something brushes past your leg; soft, deliberate, and gone before you turn."]},
   
-  {"min": 5600,"max": 6800,
+  {"min": 4600,"max": 6800,
     "descend": ["A distant thud echoes through the hull; too deep for waves, too regular for chance."],
     "ascend":  ["A distant thud echoes through the hull; too deep for waves, too regular for chance."]
   },
   
   
-  {"min": 6500,"max": 6700,
+  {"min": 6500,"max": 8000,
     "descend": ["A flicker far below resolves into two points of green light, hovering motionless."],
     "ascend":  ["A flicker far below resolves into two points of green light, hovering motionless."]
   },
   
-  {"min": 7000,"max": 8000,
+  {"min": 7000,"max": 9000,
     "descend": ["From the corner of your eye, something impossibly long slides into the trench wall crevice."],
     "ascend":  ["From the corner of your eye, something impossibly long slides into the trench wall crevice."]
   },
   
   
-  {"min": 5000,"max": 6000,
+  {"min": 5000,"max": 7000,
     "descend": ["Your instruments spike for a second. Something massive just passed behind you."],
     "ascend":  ["Your instruments spike for a second. Something massive just passed behind you."]
   },
   
   
-  {"min": 8000,"max": 9200,
+  {"min": 87000,"max": 9200,
     "descend": ["A low, resonant sound hums through the hull; no origin, no end, just vibration."],
     "ascend":  ["A low, resonant sound hums through the hull; no origin, no end, just vibration."]
   }, 
@@ -797,7 +797,7 @@
 
 
 {"min": 220,"max": 250,
-  "descend": ["Your lungs get squeezed so tight that all the air leaves; your lungs collapse and breathing just stops."]},
+  "descend": ["Without your submarine, your lungs get squeezed so tight that all the air leaves; your lungs collapse and breathing just stops."]},
 
 
 {"min": 2000,"max": 11000,"descend": [  "Pressure locks DNA strands tight. Some creatures evolve special proteins to pry them open."],"ascend": [  "Pressure locks DNA strands tight. Some creatures evolve special proteins to pry them open."]}, 

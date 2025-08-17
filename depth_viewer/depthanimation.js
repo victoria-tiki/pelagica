@@ -161,7 +161,7 @@ function randomDepthMsg(depth, direction) {
 
 /* greet on first load */
 window.addEventListener('load', ()=>
-  showMessage('Welcome to Pelagica!\nChoose one of 70,000 species to get started', Infinity)
+  showMessage('Welcome to Pelagica!\nChoose one of 69,000 species to get started', Infinity)
 );
 
    

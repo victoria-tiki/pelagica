@@ -339,7 +339,7 @@ body.search-open .search-handle {
 #citations-tab {
   right: 0;
   top: 70%;
-  z-index: 2
+  z-index: 4
 }
 
 #bug-tab {

@@ -1,0 +1,26 @@
+app = "pelagica"            # choose your app name
+primary_region = "ord"      # e.g. Chicago (US) or "fra" (EU)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8050"             # matches gunicorn bind above
+
+[http_service]
+  internal_port = 8050
+  force_https = true
+  auto_start_machines = true
+  auto_stop_machines = false
+  min_machines_running = 1
+  processes = ["app"]
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 50
+    hard_limit = 60
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"          # bump to "1024mb" if needed
+
+

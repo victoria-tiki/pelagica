@@ -21,6 +21,8 @@ plotly = "^5.20"
 dash-cytoscape = "^1.0.0"
 networkx = "^3.2"
 pygraphviz = "^1.11"
+flask-compress = "^1.14"
+
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

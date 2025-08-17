@@ -30,6 +30,9 @@ ENABLE_BG_REMOVAL = os.getenv("ENABLE_BG_REMOVAL", "1") == "1"
 _BG_MAX_SIDE = int(os.getenv("BG_MAX_SIDE", "800"))
 _REMBG_SEM = threading.BoundedSemaphore(int(os.getenv("REMBG_MAX_CONCURRENCY", "1")))
 
+# Toggle for cache writes: "1" = allow writes, "0" = read-only
+CACHE_WRITE = os.getenv("CACHE_WRITE", "1") == "1"
+
 # Internal: these are set only if/when ENABLE_BG_REMOVAL=True
 _REMBG_SESSION = None
 _REMBG_LOCK = threading.Lock()
@@ -181,10 +184,15 @@ def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None,
             summary, page_url = try_fetch(alt.replace(" ", "_"))
 
     if summary:
-        save_cached_blurb(stem, {"summary": summary, "page_url": page_url})
-        gc.collect()
+        if CACHE_WRITE:
+            save_cached_blurb(stem, {"summary": summary, "page_url": page_url})
+            gc.collect()
+        else:
+            # read-only mode: serve result but don't persist it
+            pass
     else:
         print(f"[blurb] Failed to fetch summary for {genus} {species}")
+
 
     return summary, page_url
 
@@ -339,6 +347,30 @@ def get_commons_thumb(genus: str,
         with requests.get(raw_thumb_url, headers=HEADERS, timeout=10) as response:
             response.raise_for_status()
             img_bytes = response.content
+            
+        # --- SAFETY A: hard cap per-image payload (default 1 MB) ---
+        MAX_IMAGE_KB = int(os.getenv("MAX_IMAGE_KB", "1024"))
+        if len(img_bytes) > MAX_IMAGE_KB * 1024:
+            try:
+                # Re-encode smaller (prefer WEBP; fall back to JPEG if WEBP unsupported)
+                from PIL import Image
+                import io
+                with Image.open(io.BytesIO(img_bytes)) as im:
+                    im = im.convert("RGB")
+                    buf = io.BytesIO()
+                    quality = int(os.getenv("WEBP_QUALITY", "80"))
+                    try:
+                        im.save(buf, format="WEBP", quality=quality, method=6)  # WEBP path
+                    except Exception:
+                        im.save(buf, format="JPEG", quality=85, optimize=True) # fallback
+                    img_bytes = buf.getvalue()
+                if len(img_bytes) > MAX_IMAGE_KB * 1024:
+                    # Still too large? Bail to avoid unexpected egress.
+                    return (None,) * 6
+            except Exception as e:
+                print(f"[safety] shrink failed: {e}")
+                return (None,) * 6
+
 
         if effective_remove and img_bytes:
             img_bytes = _maybe_remove_bg(img_bytes)
@@ -373,17 +405,45 @@ def get_commons_thumb(genus: str,
             except Exception:
                 pass
 
-        save_image_to_cache(stem, img_bytes)
-        save_metadata_to_cache(stem, {
-            "author": author,
-            "licence": licence,
-            "licence_url": licence_url,
-            "upload_date": upload_date,
-            "retrieval_date": retrieval_date,
-            "thumb_url": raw_thumb_url
-        })
-        enforce_cache_limit()
-        gc.collect()
+        if CACHE_WRITE:
+        
+            # --- SAFETY B: re-check after any processing (BG removal / resize) ---
+            MAX_IMAGE_KB = int(os.getenv("MAX_IMAGE_KB", "1024"))
+            if len(img_bytes) > MAX_IMAGE_KB * 1024:
+                try:
+                    from PIL import Image
+                    import io
+                    with Image.open(io.BytesIO(img_bytes)) as im:
+                        im = im.convert("RGB")
+                        buf = io.BytesIO()
+                        quality = int(os.getenv("WEBP_QUALITY", "80"))
+                        try:
+                            im.save(buf, format="WEBP", quality=quality, method=6)
+                        except Exception:
+                            im.save(buf, format="JPEG", quality=85, optimize=True)
+                        img_bytes = buf.getvalue()
+                    if len(img_bytes) > MAX_IMAGE_KB * 1024:
+                        return (None,) * 6
+                except Exception as e:
+                    print(f"[safety] shrink failed (post-process): {e}")
+                    return (None,) * 6
+
+
+            save_image_to_cache(stem, img_bytes)
+            save_metadata_to_cache(stem, {
+                "author": author,
+                "licence": licence,
+                "licence_url": licence_url,
+                "upload_date": upload_date,
+                "retrieval_date": retrieval_date,
+                "thumb_url": raw_thumb_url
+            })
+            enforce_cache_limit()
+            gc.collect()
+            
+            
+    # else: read-only mode → skip persisting
+
 
         return (
             f"/cached-images/{os.path.basename(get_cached_image_path(stem))}",

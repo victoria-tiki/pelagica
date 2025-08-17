@@ -9,12 +9,14 @@
 from dash.exceptions import PreventUpdate
 from dash import Dash, dcc, html, Input, Output, State, ctx, no_update
 import dash_bootstrap_components as dbc
-from flask import send_from_directory
+from flask import send_from_directory, redirect
+from flask_compress import Compress
+
 
 import pandas as pd, random, datetime
 from urllib.parse import parse_qs
-import dash_cytoscape as cyto
-import networkx as nx
+#import dash_cytoscape as cyto
+#import networkx as nx
 import plotly.graph_objects as go
 import numpy as np 
 import json, base64   
@@ -33,7 +35,44 @@ from src.fav_utils.routes_fav import register_fav_routes
 from src.fav_utils.scoring import top_species, record_weekly_winner_if_missing
 from src.fav_utils.utils_time import utcnow, next_monday_start
 
-cyto.load_extra_layouts()
+
+# --- media base switch (simple) ---
+import os, mimetypes
+
+#------------------- R2 Media path ---------------------
+# Detect Fly; on Fly we always use R2
+IS_FLY = any(k in os.environ for k in ("FLY_APP_NAME", "FLY_ALLOC_ID", "FLY_REGION"))
+
+# You can flip this in local dev by setting USE_R2=true in your environment
+USE_R2 = IS_FLY or os.getenv("USE_R2", "").strip().lower() in ("1", "true", "yes", "on")
+
+R2_BASE = "https://pub-197edf068b764f1c992340f063f4f4f1.r2.dev"
+
+def media_url(path: str) -> str:
+    path = path.lstrip("/")
+    return f"{R2_BASE}/{path}" if USE_R2 else f"/{path}"
+
+def to_cdn(url: str) -> str:
+    if not USE_R2 or not isinstance(url, str) or not url:
+        return url
+    if url.startswith("/cached-images/"):
+        # /cached-images/<file>  ->  image_cache/<file> on R2
+        fname = url.split("/cached-images/", 1)[1]
+        return media_url(f"image_cache/{fname}")
+    if url.startswith("/assets/"):
+        # if you also store some assets in R2
+        return media_url(url.lstrip("/"))
+    return url
+
+
+mimetypes.add_type("audio/ogg", ".ogg")
+mimetypes.add_type("audio/mpeg", ".mp3")
+mimetypes.add_type("audio/wav", ".wav")
+mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("image/avif", ".avif")
+
+
+
 print(f"BOOT: __name__={__name__} USE_DEV_SERVER={os.getenv('USE_DEV_SERVER')}")
 
 
@@ -42,9 +81,9 @@ def with_session_depth(df_use, depth_map):
     
 # --- Pre‑index scale images ------------------------------------
 _scale_db = []
-_pat = re.compile(r'(.+?)_(\d+(?:p\d+)?)(cm|m)\.png$')
+_pat = re.compile(r'(.+?)_(\d+(?:p\d+)?)(cm|m)\.webp$')
 
-for p in glob.glob("assets/species/scale/*.png"):
+for p in glob.glob("assets/species/scale/*.webp"):
     name = os.path.basename(p)
     m = _pat.match(name)
     if not m:
@@ -53,10 +92,11 @@ for p in glob.glob("assets/species/scale/*.png"):
     num = float(num.replace('p', '.'))
     length_cm = num if unit == "cm" else num * 100
     _scale_db.append({
-        "path": f"/assets/species/scale/{name}",
-        "desc": desc.replace('_', ' '),
-        "length_cm": length_cm
+    "path": media_url(f"assets/species/scale/{name}"),  # ← was "/assets/species/scale/{name}"
+    "desc": desc.replace('_', ' '),
+    "length_cm": length_cm
     })
+
 
 
 # ---------- Load & prep dataframe ---------------------------------------------------
@@ -101,6 +141,7 @@ external_stylesheets = [
 ]
 app = Dash(
     __name__,
+    compress=True,serve_locally=False,
     external_stylesheets=external_stylesheets,
     title="Pelagica — The Aquatic Life Atlas",
     meta_tags=[
@@ -111,13 +152,41 @@ app = Dash(
 
 server = app.server
 
-@app.server.route('/cached-images/<path:filename>')
-def serve_cached_images(filename):
-    return send_from_directory('image_cache', filename)
+
+server.config.update(
+    COMPRESS_MIMETYPES=[
+        "text/html", "text/css", "application/json",
+        "application/javascript", "image/svg+xml"
+    ],
+    COMPRESS_LEVEL=6,        # safe default
+    COMPRESS_MIN_SIZE=1024   # don’t waste CPU on tiny payloads
+)
+Compress(server)
+
+app.server.config["COMPRESS_ALGORITHM"] = ["br", "gzip"]
+app.server.config["COMPRESS_BR_LEVEL"] = 5  # reasonable default
+
     
 @app.server.route("/viewer/<path:filename>")
 def serve_viewer_file(filename):
-    return send_from_directory("depth_viewer", filename)
+    resp = send_from_directory("depth_viewer", filename, conditional=True)
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return resp
+
+    
+    
+@server.route("/cached-images/<path:filename>")
+def cached_images(filename):
+    # If using R2 (prod or when you set USE_R2=true locally), 302 to the bucket
+    if USE_R2:
+        return redirect(media_url(f"image_cache/{filename}"), code=302)
+
+    # Otherwise serve from local disk (dev default)
+    resp = send_from_directory("image_cache", filename, conditional=True)
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return resp
+    
+
 
 @app.server.route('/favicon.ico')
 def serve_favicon():
@@ -482,7 +551,7 @@ centre_flex = html.Div(id="page-centre-flex", children=[
         # this div now contains the image AND the up/down buttons
         html.Div(id="image-inner", children=[
             html.Img(id="species-img"),
-            html.Img( id="arrow-img",src="/assets/species/scale/arrow.png",style={
+            html.Img( id="arrow-img",src="/assets/species/scale/arrow.webp",style={
               "position": "absolute",
               "left": "50%", "top": "50%",
               "transform": "translate(-50%, -50%)",
@@ -688,23 +757,19 @@ app.layout = dbc.Container([
     top_bar,
     
     dbc.Tooltip("Toggle ambient depth sound", target="depth-sound-btn",placement="bottom"),
-
     dcc.Store(id="sound-on", data=False, storage_type="session"),
-    html.Audio(id="snd-surface-a",     src="/assets/sound/surface.mp3",     preload="auto", style={"display":"none"}),
-    html.Audio(id="snd-surface-b",     src="/assets/sound/surface.mp3",     preload="auto", style={"display":"none"}),
-    html.Audio(id="snd-epi2meso-a",    src="/assets/sound/epi_to_meso.mp3", preload="auto", style={"display":"none"}),
-    html.Audio(id="snd-epi2meso-b",    src="/assets/sound/epi_to_meso.mp3", preload="auto", style={"display":"none"}),
-    html.Audio(id="snd-abyss2hadal-a", src="/assets/sound/abyss_to_hadal.mp3", preload="auto", style={"display":"none"}),
-    html.Audio(id="snd-abyss2hadal-b", src="/assets/sound/abyss_to_hadal.mp3", preload="auto", style={"display":"none"}),
-    
-    html.Audio(id="snd-meso2bath-a",   src="/assets/sound/meso_to_bath.mp3", preload="auto", style={"display":"none"}),
-    html.Audio(id="snd-meso2bath-b",   src="/assets/sound/meso_to_bath.mp3", preload="auto", style={"display":"none"}),
-    html.Audio(id="snd-bath2abyss-a",  src="/assets/sound/bath_to_abyss.mp3", preload="auto", style={"display":"none"}),
-    html.Audio(id="snd-bath2abyss-b",  src="/assets/sound/bath_to_abyss.mp3", preload="auto", style={"display":"none"}),
-
-
-
+    html.Audio(id="snd-surface-a", preload="none", style={"display":"none"}),
+    html.Audio(id="snd-surface-b", preload="none", style={"display":"none"}),
+    html.Audio(id="snd-epi2meso-a",preload="none", style={"display":"none"}),
+    html.Audio(id="snd-epi2meso-b",preload="none", style={"display":"none"}),
+    html.Audio(id="snd-abyss2hadal-a",preload="none", style={"display":"none"}),
+    html.Audio(id="snd-abyss2hadal-b",preload="none", style={"display":"none"}),
+    html.Audio(id="snd-meso2bath-a",preload="none", style={"display":"none"}),
+    html.Audio(id="snd-meso2bath-b",preload="none", style={"display":"none"}),
+    html.Audio(id="snd-bath2abyss-a",preload="none", style={"display":"none"}),
+    html.Audio(id="snd-bath2abyss-b", preload="none", style={"display":"none"}),
     html.Div(id="js-audio-sink", style={"display": "none"}),
+    dcc.Store(id="audio-src-sink", data=None, storage_type="memory"),  
 
 
     
@@ -1279,6 +1344,8 @@ def _sound_paths(genus: str, species: str):
 
 
 # NEW: sound – show/hide icon and set audio src when species changes
+# Species sound: keep your existing filename/extension detection,
+# only rewrite the base to R2 when USE_R2=True.
 @app.callback(
     Output("sound-handle",  "style"),
     Output("species-audio", "src"),
@@ -1288,15 +1355,20 @@ def _sound_paths(genus: str, species: str):
 def update_sound_controls(gs_name):
     if not gs_name:
         raise PreventUpdate
-    genus, species = gs_name.split(" ", 1)
-    mp3_rel, txt_rel, mp3_url = _sound_paths(genus, species)
 
-    if os.path.exists(mp3_rel):
-        # visible icon + primed audio source
-        return ({"display": "block"}, mp3_url)
-    else:
-        # hide icon, clear src
-        return ({"display": "none"}, "")
+    genus, species = gs_name.split(" ", 1)
+
+    # your original resolver (unchanged)
+    audio_rel, txt_rel, rel_url = _sound_paths(genus, species)
+
+    # if no local match → hide, exactly like before
+    if not rel_url:
+        return {"display": "none"}, ""
+
+    # minimal change: when R2 is on, just change the base
+    url = media_url(rel_url.lstrip("/")) if USE_R2 else rel_url
+    return {"display": "block"}, url
+
 
 
 # sound – client-side click handler to play the audio
@@ -1601,7 +1673,7 @@ def update_image(gs_name, units_bool):
     # unique per species so <img src> actually *changes* between picks.
     # ---- build img_src -------------------------------------------------
     slug      = f"{genus}_{species}".replace(" ", "_")
-    base_src  = thumb or "/assets/img/placeholder_fish.webp"
+    base_src = to_cdn(thumb or "/assets/img/placeholder_fish.webp")
 
     # add ? or & so the bitmap stays cached but the URL is unique per species
     sep       = "&" if "?" in base_src else "?"
@@ -2685,7 +2757,7 @@ def make_tree_figure(df, target_species):
     return fig
 
 
-SOW_PINNED_SPECIES = os.getenv("SOW_PINNED_SPECIES", "Mobula birostris")  # Oarfish
+SOW_PINNED_SPECIES = os.getenv("SOW_PINNED_SPECIES", "Grimpoteuthis discoveryi")  # Oarfish
 
 @app.callback(
     Output("sow-thumb","src"),
@@ -2699,7 +2771,7 @@ SOW_PINNED_SPECIES = os.getenv("SOW_PINNED_SPECIES", "Mobula birostris")  # Oarf
 def update_species_of_week(_):
     # Production mode: weekly window (Mon–Sun, UTC)
     now = utcnow()
-    cutoff = next_monday_start(now)
+    cutoff = next_monday_start(now) + datetime.timedelta(days=7)
 
     # Until next Monday → show pinned pick
     if now < cutoff and SOW_PINNED_SPECIES:
@@ -2722,7 +2794,7 @@ def update_species_of_week(_):
     genus, species = sp.split(" ", 1)
     skip_bg = sp in transp_set
     thumb, *_ = get_commons_thumb(genus, species, remove_bg=not skip_bg)
-    thumb = thumb or "/assets/img/placeholder_fish.webp"
+    thumb = to_cdn(thumb or "/assets/img/placeholder_fish.webp")
     common = COMMON_NAMES.get(sp, "")
     note = "Most favourited last week (Mon–Sun, UTC)"
     return (f"{thumb}?sow={genus}_{species}", common, sp, note, "Species of the Week")
@@ -2822,6 +2894,48 @@ app.clientside_callback(
     Input("sound-on", "data"),
     Input("depth-store", "data"),
 )
+
+
+
+app.clientside_callback(
+    f"""
+    function(on) {{
+      const CDN = "{R2_BASE if USE_R2 else ''}";   // empty→local, R2 base→prod
+      const map = {{
+        "snd-surface-a":     (CDN||"") + "/assets/sound/surface.mp3",
+        "snd-surface-b":     (CDN||"") + "/assets/sound/surface.mp3",
+        "snd-epi2meso-a":    (CDN||"") + "/assets/sound/epi_to_meso.mp3",
+        "snd-epi2meso-b":    (CDN||"") + "/assets/sound/epi_to_meso.mp3",
+        "snd-abyss2hadal-a": (CDN||"") + "/assets/sound/abyss_to_hadal.mp3",
+        "snd-abyss2hadal-b": (CDN||"") + "/assets/sound/abyss_to_hadal.mp3",
+        "snd-meso2bath-a":   (CDN||"") + "/assets/sound/meso_to_bath.mp3",
+        "snd-meso2bath-b":   (CDN||"") + "/assets/sound/meso_to_bath.mp3",
+        "snd-bath2abyss-a":  (CDN||"") + "/assets/sound/bath_to_abyss.mp3",
+        "snd-bath2abyss-b":  (CDN||"") + "/assets/sound/bath_to_abyss.mp3"
+      }};
+      Object.keys(map).forEach(id => {{
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (on) {{
+          if (!el.dataset.srcset) {{
+            el.src = map[id];
+            el.dataset.srcset = "1";
+            el.load();
+          }}
+        }} else {{
+          try {{ el.pause(); }} catch(e) {{}}
+          el.removeAttribute("src");
+          el.load();
+          delete el.dataset.srcset;
+        }}
+      }});
+      return on ? "on" : "off";
+    }}
+    """,
+    Output("audio-src-sink", "data"),
+    Input("sound-on", "data"),
+)
+
 
 
 app.clientside_callback(

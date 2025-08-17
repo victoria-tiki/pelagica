@@ -22,8 +22,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Build-time toggle (added *after* apt so cache is preserved) ----
-ARG ENABLE_BG_REMOVAL=1
+ARG ENABLE_BG_REMOVAL=0
 ENV ENABLE_BG_REMOVAL=${ENABLE_BG_REMOVAL}
+
+# NEW: allow/deny writes to caches (1 = write, 0 = read-only)
+ARG CACHE_WRITE=0
+ENV CACHE_WRITE=${CACHE_WRITE}
 
 # ---- Python deps (same as before, but without rembg) ----
 RUN pip install --upgrade pip && pip install poetry gunicorn pillow
@@ -44,7 +48,18 @@ RUN poetry install --no-interaction --no-ansi
 # ---- Run with one worker (unchanged) ----
 #CMD ["poetry", "run", "gunicorn", "app:server", "-b", "0.0.0.0:8050", "--workers", "1", "--worker-class", "gthread", "--threads", "4", "--timeout", "120", "--max-requests", "200", "--max-requests-jitter", "50"]
 
-CMD ["poetry", "run", "gunicorn", "app:server","-b", "0.0.0.0:8050","--preload", "--workers", "1","--worker-class", "gthread","--threads", "4","--timeout", "300", "--max-requests", "0"]        
+#CMD ["poetry", "run", "gunicorn", "app:server","-b", "0.0.0.0:8050","--preload", "--workers", "1","--worker-class", "gthread","--threads", "4","--timeout", "300", "--max-requests", "0"]        
 
 
+# optional: ensure the cache dirs exist (safe no-ops if they already do)
+RUN mkdir -p /pelagica/image_cache /pelagica/text_cache /pelagica/data/processed
 
+# Start: if CACHE_WRITE=0, make caches read-only, then run gunicorn
+CMD ["sh","-c", "\
+  if [ \"${CACHE_WRITE:-1}\" != \"1\" ]; then \
+    chmod -R a-w /pelagica/image_cache /pelagica/text_cache || true; \
+  fi; \
+  exec poetry run gunicorn app:server -b 0.0.0.0:8050 \
+    --workers 1 --worker-class gthread --threads 4 --timeout 300 --preload \
+    --max-requests 200 --max-requests-jitter 50 \
+"]
