@@ -6,21 +6,26 @@ primary_region = "ord"      # e.g. Chicago (US) or "fra" (EU)
 
 [env]
   PORT = "8050"             # matches gunicorn bind above
+  CACHE_WRITE = "0"
+  USE_R2   = "1"                # explicit: use R2 on Fly
+  R2_PREFIX = "image_cache"     # or whatever you used when uploading
 
 [http_service]
   internal_port = 8050
   force_https = true
   auto_start_machines = true
-  auto_stop_machines = false
-  min_machines_running = 1
+  auto_stop_machines = "suspend"
+  min_machines_running = 0
   processes = ["app"]
   [http_service.concurrency]
     type = "requests"
-    soft_limit = 50
-    hard_limit = 60
+    soft_limit = 8
+    hard_limit = 16
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "512mb"          # bump to "1024mb" if needed
+  memory = "768mb"          # bump to "1024mb" if needed
+  #cpu_kind = "shared"
+  #cpus = 1
 
 

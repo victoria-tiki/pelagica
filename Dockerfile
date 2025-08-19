@@ -10,6 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     OPENBLAS_NUM_THREADS=1 \
     MKL_NUM_THREADS=1 \
     MALLOC_ARENA_MAX=2 \
+    NUMEXPR_NUM_THREADS=1 \
     REMBG_MODEL=u2netp \
     REMBG_MAX_CONCURRENCY=1 \
     BG_MAX_SIDE=800
@@ -59,7 +60,7 @@ CMD ["sh","-c", "\
   if [ \"${CACHE_WRITE:-1}\" != \"1\" ]; then \
     chmod -R a-w /pelagica/image_cache /pelagica/text_cache || true; \
   fi; \
-  exec poetry run gunicorn app:server -b 0.0.0.0:8050 \
-    --workers 1 --worker-class gthread --threads 4 --timeout 300 --preload \
+  exec poetry run gunicorn app:server -b 0.0.0.0:${PORT:-8050} \
+    --workers 1 --worker-class gthread --threads 4 --timeout 180 --keep-alive 75 \
     --max-requests 200 --max-requests-jitter 50 \
 "]

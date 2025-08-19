@@ -261,7 +261,7 @@ OVERRIDE_DEPTH = {
     "Tursiops truncatus"
 }
 
-def assign_random_depth(df: pd.DataFrame, seed: int) -> pd.DataFrame:
+'''def assign_random_depth(df: pd.DataFrame, seed: int) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     out = df.copy()
 
@@ -303,6 +303,51 @@ def assign_random_depth(df: pd.DataFrame, seed: int) -> pd.DataFrame:
         depths.append(biased_depth(s, d, bias))
 
     out["RandDepth"] = depths
-    return out
+    return out'''
+    
+    
+def assign_random_depth(df: pd.DataFrame, seed: int) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+
+    # 1) bounds (prefer commercial, else generic)
+    s = df["DepthRangeComShallow"].fillna(df["DepthRangeShallow"]).astype(float).to_numpy(copy=False)
+    d = df["DepthRangeComDeep"   ].fillna(df["DepthRangeDeep"   ]).astype(float).to_numpy(copy=False)
+
+    # 2) overrides 0–5 m
+    gs = df["Genus_Species"].astype(str).to_numpy(copy=False)
+    ov = np.isin(gs, list(OVERRIDE_DEPTH))
+    s = np.where(ov, 0.0, s)
+    d = np.where(ov, 5.0, d)
+
+    # 3) invalid mask
+    invalid = np.isnan(s) | np.isnan(d) | (s == d)
+
+    # 4) bias masks
+    shallow_mask = (s < 200)
+    medium_mask  = (~shallow_mask) & (s < 2000)
+    deep_mask    = (s >= 2000)
+
+    # 5) sample once, then shape by bias
+    u = rng.random(len(df))
+    depth = np.empty_like(s, dtype=float)
+
+    # shallow: s + (u**1.3)*(d-s)
+    depth[shallow_mask] = s[shallow_mask] + (u[shallow_mask] ** 1.3) * (d[shallow_mask] - s[shallow_mask])
+
+    # medium: s + u*(d-s)
+    depth[medium_mask]  = s[medium_mask]  + u[medium_mask] * (d[medium_mask] - s[medium_mask])
+
+    # deep: s + (1 - (1-u)**2)*(d-s)
+    depu = 1.0 - (1.0 - u[deep_mask]) ** 2.0
+    depth[deep_mask]    = s[deep_mask]    + depu * (d[deep_mask] - s[deep_mask])
+
+    # invalid: just use s
+    depth[invalid] = s[invalid]
+
+    # return minimal frame to keep your existing app callback happy
+    return pd.DataFrame({
+        "Genus_Species": gs,
+        "RandDepth": depth
+    })
 
 

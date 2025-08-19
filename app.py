@@ -9,7 +9,7 @@
 from dash.exceptions import PreventUpdate
 from dash import Dash, dcc, html, Input, Output, State, ctx, no_update
 import dash_bootstrap_components as dbc
-from flask import send_from_directory, redirect
+from flask import send_from_directory, redirect, request, abort
 from flask_compress import Compress
 
 
@@ -25,12 +25,15 @@ import gc
 import re
 import time
 import os
+import requests
+import secrets
 
 from src.process_data import load_species_data, load_homo_sapiens, load_name_table, cm_to_in,load_species_with_taxonomy
 from src.wiki import get_blurb, get_commons_thumb      
 from src.utils import assign_random_depth
 from src.taxonomic_tree import build_taxonomy_elements
-
+from src.image_cache import url_to_stem
+    
 from src.fav_utils.routes_fav import register_fav_routes
 from src.fav_utils.scoring import top_species, record_weekly_winner_if_missing
 from src.fav_utils.utils_time import utcnow, next_monday_start
@@ -55,10 +58,10 @@ def media_url(path: str) -> str:
 def to_cdn(url: str) -> str:
     if not USE_R2 or not isinstance(url, str) or not url:
         return url
-    if url.startswith("/cached-images/"):
-        # /cached-images/<file>  ->  image_cache/<file> on R2
-        fname = url.split("/cached-images/", 1)[1]
-        return media_url(f"image_cache/{fname}")
+    #if url.startswith("/cached-images/"):
+    #    # /cached-images/<file>  ->  image_cache/<file> on R2
+    #    fname = url.split("/cached-images/", 1)[1]
+    #    return media_url(f"image_cache/{fname}")
     if url.startswith("/assets/"):
         # if you also store some assets in R2
         return media_url(url.lstrip("/"))
@@ -152,19 +155,21 @@ app = Dash(
 
 server = app.server
 
+Compress(server)
 
 server.config.update(
     COMPRESS_MIMETYPES=[
         "text/html", "text/css", "application/json",
         "application/javascript", "image/svg+xml"
     ],
-    COMPRESS_LEVEL=6,        # safe default
+    COMPRESS_LEVEL=3,        # safe default
     COMPRESS_MIN_SIZE=1024   # don’t waste CPU on tiny payloads
 )
-Compress(server)
 
-app.server.config["COMPRESS_ALGORITHM"] = ["br", "gzip"]
-app.server.config["COMPRESS_BR_LEVEL"] = 5  # reasonable default
+
+app.server.config["COMPRESS_ALGORITHM"] = ["gzip"]
+app.server.config["COMPRESS_LEVEL"] = 4
+
 
     
 @app.server.route("/viewer/<path:filename>")
@@ -175,16 +180,84 @@ def serve_viewer_file(filename):
 
     
     
-@server.route("/cached-images/<path:filename>")
-def cached_images(filename):
-    # If using R2 (prod or when you set USE_R2=true locally), 302 to the bucket
-    if USE_R2:
-        return redirect(media_url(f"image_cache/{filename}"), code=302)
+R2_PUBLIC = R2_BASE.rstrip("/")
+CACHE_DIR = os.path.abspath("image_cache")
 
-    # Otherwise serve from local disk (dev default)
-    resp = send_from_directory("image_cache", filename, conditional=True)
-    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    return resp
+try:
+    from src.wiki import WIKI_NAME_EQUIVALENTS
+except Exception:
+    WIKI_NAME_EQUIVALENTS = {}
+
+
+def _canon_title(gs: str) -> str:
+    title = (gs or "").replace("_", " ").strip()
+    return WIKI_NAME_EQUIVALENTS.get(title, title)
+
+def _stems(gs: str, w: int):
+    title = _canon_title(gs)
+    return (
+        url_to_stem(f"{title}_{w}"),       # processed
+        url_to_stem(f"{title}_{w}_raw"),   # raw
+    )
+
+def _r2_has(name: str) -> bool:
+    try:
+        r = requests.head(f"{R2_PUBLIC}/image_cache/{name}", timeout=2)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+def _r2_has_path(rel_path: str) -> bool:
+    try:
+        r = requests.head(f"{R2_PUBLIC}/{rel_path.lstrip('/')}", timeout=2)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+@app.server.route("/cached-images/<path:fname>")
+def cached_images(fname: str):
+    gs = (
+        request.args.get("gs")
+        or request.args.get("sow")
+        or request.args.get("species")
+    )
+
+    try:
+        w = int(request.args.get("w", "640"))
+    except Exception:
+        w = 640
+
+    # Dev: serve from disk with same preference order
+    if not USE_R2:
+        if gs:
+            p, r = _stems(gs, w)
+            for stem in (p, r):
+                f = f"{stem}.webp"
+                if os.path.exists(os.path.join(CACHE_DIR, f)):
+                    return send_from_directory(CACHE_DIR, f)
+        # fallback to whatever was requested
+        return send_from_directory(CACHE_DIR, fname)
+
+    # Prod: redirect to whichever exists on R2 (processed → raw → requested)
+    candidates = []
+    if gs:
+        prefer = (request.args.get("variant") or "").lower()
+        p, r = _stems(gs, w)
+        candidates.extend([f"{r}.webp", f"{p}.webp"]) if prefer == "raw" else candidates.extend([f"{p}.webp", f"{r}.webp"])
+    if not fname.endswith(".webp"):
+        fname = f"{fname}.webp"
+    candidates.append(fname)
+
+    seen = set()
+    for name in [x for x in candidates if not (x in seen or seen.add(x))]:
+        if _r2_has(name):
+            resp = redirect(f"{R2_PUBLIC}/image_cache/{name}", code=302)
+            resp.headers["Cache-Control"] = "public, max-age=86400"
+            return resp
+
+    return abort(404)
+
     
 
 
@@ -1331,15 +1404,26 @@ def _sound_paths(genus: str, species: str):
 
     audio_rel = ""
     audio_url = ""
-    for fname in candidates:
-        rel = os.path.join(base_dir, fname)
-        if os.path.exists(rel):
-            audio_rel = rel
-            audio_url = f"/assets/species/sound/{fname}"
-            break
+
+    if USE_R2:
+        # Check R2 for whichever extension exists
+        for fname in candidates:
+            rel_path = f"assets/species/sound/{fname}"
+            if _r2_has_path(rel_path):
+                audio_url = "/" + rel_path        # keep leading slash; media_url() will rewrite
+                break
+    else:
+        # Local dev: use the filesystem like before
+        for fname in candidates:
+            rel = os.path.join(base_dir, fname)
+            if os.path.exists(rel):
+                audio_rel = rel
+                audio_url = f"/assets/species/sound/{fname}"
+                break
 
     txt_rel = os.path.join(base_dir, f"{base}.txt")
     return audio_rel, txt_rel, audio_url
+
 
 
 
@@ -1866,22 +1950,28 @@ def close_search_mobile(n, current_class):
 def build_depth_map(seed):
     if seed is None:
         raise PreventUpdate
+    seed=int(seed)
     tmp = assign_random_depth(df_full.copy(), seed)  # returns a frame with RandDepth
-    depth_map = dict(zip(tmp["Genus_Species"], tmp["RandDepth"]))
-    return depth_map
+    #depth_map = dict(zip(tmp["Genus_Species"], tmp["RandDepth"]))
+    #return depth_map
 
+    gs  = tmp["Genus_Species"].astype(str).tolist()
+    rds = pd.Series(tmp["RandDepth"]).astype(float).replace({np.nan: None}).tolist()
+    return {g: (None if v is None else float(v)) for g, v in zip(gs, rds)}
 
-@app.callback(
+app.clientside_callback(
+    """
+    function (gs, depthMap) {
+      if (!gs) { return window.dash_clientside.no_update; }
+      const d = depthMap ? depthMap[gs] : null;
+      return (d == null || isNaN(d)) ? 0 : (+d);
+    }
+    """,
     Output("depth-store", "data", allow_duplicate=True),
     Input("selected-species", "data"),
     State("rand-depth-map", "data"),
-    prevent_initial_call="initial_duplicate"
+    prevent_initial_call="initial_duplicate"   # ← add this line
 )
-def push_depth(gs_name, depth_map):
-    if not gs_name:
-        raise PreventUpdate
-    depth = (depth_map or {}).get(gs_name)
-    return 0 if depth is None or pd.isna(depth) else depth
 
 
 
@@ -1982,14 +2072,17 @@ def refresh_fav_icon(gs_name, favs_json):
 
 
 
+
+
 @app.callback(
     Output("rand-seed", "data"),
-    Input("rand-seed", "data")   
+    Input("rand-seed", "data"),          # triggers on first page load
+    prevent_initial_call=False,
 )
 def init_seed(cur):
-    if cur is None:
-        return random.randint(0, 2**32 - 1)
-    raise PreventUpdate
+    # If a seed already exists in *this tab*, keep it → map stays stable.
+    return cur if cur is not None else secrets.randbits(32)
+
 
 
 
@@ -2782,7 +2875,7 @@ def update_species_of_week(_):
         thumb = thumb or "/assets/img/placeholder_fish.webp"
         common = COMMON_NAMES.get(sp, "")
         rollout_note = f"Inaugural pick — live weekly rotation starts {cutoff.date().isoformat()} (UTC) based on your most favourited species"
-        return (f"{thumb}?sow={genus}_{species}", common, sp, rollout_note, "Species of the Week")
+        return (f"{thumb}?gs={genus}_{species}", common, sp, rollout_note, "Species of the Week")
 
     # Live weekly favourite w/ suppression + tie-breakers
     record_weekly_winner_if_missing()  # harmless idempotent call
@@ -2797,7 +2890,7 @@ def update_species_of_week(_):
     thumb = to_cdn(thumb or "/assets/img/placeholder_fish.webp")
     common = COMMON_NAMES.get(sp, "")
     note = "Most favourited last week (Mon–Sun, UTC)"
-    return (f"{thumb}?sow={genus}_{species}", common, sp, note, "Species of the Week")
+    return (f"{thumb}?gs={genus}_{species}", common, sp, note, "Species of the Week")
 
 
 

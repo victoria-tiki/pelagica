@@ -1,0 +1,36 @@
+cat > .dockerignore << 'EOF'
+# Python cruft
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+
+# Logs & captures
+*.log
+*.har
+
+# Git
+.git/
+.gitmodules
+.gitattributes
+.github/
+
+# Keep only JSON index files from image_cache (exclude big images)
+image_cache/**
+!image_cache/*.json
+!image_cache/**/*.json
+
+# Sounds: exclude audio bytes, keep any .txt notes
+assets/sound/**
+!assets/sound/*.txt
+!assets/sound/**/*.txt
+
+assets/species/sound/**
+!assets/species/sound/*.txt
+!assets/species/sound/**/*.txt
+
+# Virtual envs
+.venv/
+env/
+EOF
+

@@ -1,3 +1,4 @@
+
 """
 Lightweight helpers for Pelagica
 --------------------------------
@@ -243,8 +244,8 @@ def get_commons_thumb(genus: str,
         for candidate in (proc_key, url_to_stem(proc_key)):
             cached_path, cached_meta = load_cached_image_and_meta(candidate)
             if cached_path and os.path.exists(cached_path) and cached_meta:
-                return (
-                    f"/cached-images/{os.path.basename(cached_path)}",
+                    return (
+                    f"/cached-images/{os.path.basename(cached_path)}" + ("" if remove_bg else "?variant=raw"),
                     cached_meta.get("author"),
                     cached_meta.get("licence"),
                     cached_meta.get("licence_url"),
@@ -262,8 +263,8 @@ def get_commons_thumb(genus: str,
         cached_path, cached_meta = None, None
 
     if cached_path and cached_meta:
-        return (
-            f"/cached-images/{os.path.basename(cached_path)}",
+            return (
+            f"/cached-images/{os.path.basename(cached_path)}" + ("" if remove_bg else "?variant=raw"),
             cached_meta.get("author"),
             cached_meta.get("licence"),
             cached_meta.get("licence_url"),
@@ -446,7 +447,7 @@ def get_commons_thumb(genus: str,
 
 
         return (
-            f"/cached-images/{os.path.basename(get_cached_image_path(stem))}",
+            f"/cached-images/{os.path.basename(get_cached_image_path(stem))}" + ("" if remove_bg else "?variant=raw"),
             author, licence, licence_url, upload_date, retrieval_date
         )
     except Exception as e:
@@ -565,7 +566,6 @@ def remove_background_base64(image_url: str, headers: dict = None) -> str | None
     except Exception as e:
         print(f"[rembg] Failed to process image: {e}")
         return None
-
 
 
 
