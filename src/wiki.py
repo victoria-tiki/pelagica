@@ -34,6 +34,11 @@ _REMBG_SEM = threading.BoundedSemaphore(int(os.getenv("REMBG_MAX_CONCURRENCY", "
 # Toggle for cache writes: "1" = allow writes, "0" = read-only
 CACHE_WRITE = os.getenv("CACHE_WRITE", "1") == "1"
 
+#R2 toggle
+IS_FLY = any(k in os.environ for k in ("FLY_APP_NAME", "FLY_ALLOC_ID", "FLY_REGION"))
+USE_R2 = IS_FLY or os.getenv("USE_R2", "").strip().lower() in ("1", "true", "yes", "on")
+
+
 # Internal: these are set only if/when ENABLE_BG_REMOVAL=True
 _REMBG_SESSION = None
 _REMBG_LOCK = threading.Lock()
@@ -41,6 +46,7 @@ _rembg_remove = None
 _sessions_class = None
 _ort = None
 _Image = None  # <-- we'll set this lazily
+
 
 def _lazy_load_rembg_stack():
     """Load rembg + onnxruntime + Pillow only when the feature is enabled."""
@@ -152,7 +158,7 @@ WIKI_NAME_EQUIVALENTS = {
 }
 
 
-@lru_cache(maxsize=100)
+@lru_cache(maxsize=1000)
 def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None, str | None]:
     key_string = f"{genus.strip().lower()}_{species.strip().lower()}_{sentences}"
     stem = url_to_stem(key_string)
@@ -223,7 +229,7 @@ def get_blurb(genus: str, species: str, sentences: int = 2) -> tuple[str | None,
 # ---------- Image + attribution (robust) ---------------------------
 
 
-@lru_cache(maxsize=25)
+@lru_cache(maxsize=1000)
 def get_commons_thumb(genus: str,
                       species: str,
                       width: int = 640,
@@ -243,9 +249,11 @@ def get_commons_thumb(genus: str,
         # try both key forms in case cache stored by stem in the past
         for candidate in (proc_key, url_to_stem(proc_key)):
             cached_path, cached_meta = load_cached_image_and_meta(candidate)
-            if cached_path and os.path.exists(cached_path) and cached_meta:
-                    return (
-                    f"/cached-images/{os.path.basename(cached_path)}" + ("" if remove_bg else "?variant=raw"),
+            if cached_meta:  # JSON present == cached
+                stem_cand = url_to_stem(candidate)
+                fname = os.path.basename(get_cached_image_path(stem_cand))
+                return (
+                    f"/cached-images/{fname}" + ("" if remove_bg else "?variant=raw"),
                     cached_meta.get("author"),
                     cached_meta.get("licence"),
                     cached_meta.get("licence_url"),
@@ -253,24 +261,24 @@ def get_commons_thumb(genus: str,
                     cached_meta.get("retrieval_date"),
                 )
 
+
     # ORIGINAL flow resumes here:
     effective_remove = remove_bg and ENABLE_BG_REMOVAL
     key  = f"{title_plain}_{width}" if effective_remove else f"{title_plain}_{width}_raw"
     stem = url_to_stem(key)
 
-    cached_path, cached_meta = load_cached_image_and_meta(key)
-    if cached_path and not os.path.exists(cached_path):
-        cached_path, cached_meta = None, None
-
-    if cached_path and cached_meta:
-            return (
-            f"/cached-images/{os.path.basename(cached_path)}" + ("" if remove_bg else "?variant=raw"),
+    _cached_path, cached_meta = load_cached_image_and_meta(key)
+    if cached_meta:  # JSON present ⇒ cached
+        fname = os.path.basename(get_cached_image_path(stem))  # "<stem>.webp"
+        return (
+            f"/cached-images/{fname}" + ("" if effective_remove else "?variant=raw"),
             cached_meta.get("author"),
             cached_meta.get("licence"),
             cached_meta.get("licence_url"),
             cached_meta.get("upload_date"),
             cached_meta.get("retrieval_date"),
         )
+
 
     # ---- Try PageImages for lead image + thumbnail URL ----
     try:
@@ -345,17 +353,18 @@ def get_commons_thumb(genus: str,
 
     # ---- Download -> (optional) pre-resize -> (optional) remove-bg ----
     try:
+        import io
+        from PIL import Image
+
         with requests.get(raw_thumb_url, headers=HEADERS, timeout=10) as response:
             response.raise_for_status()
             img_bytes = response.content
-            
+
         # --- SAFETY A: hard cap per-image payload (default 1 MB) ---
         MAX_IMAGE_KB = int(os.getenv("MAX_IMAGE_KB", "1024"))
         if len(img_bytes) > MAX_IMAGE_KB * 1024:
             try:
                 # Re-encode smaller (prefer WEBP; fall back to JPEG if WEBP unsupported)
-                from PIL import Image
-                import io
                 with Image.open(io.BytesIO(img_bytes)) as im:
                     im = im.convert("RGB")
                     buf = io.BytesIO()
@@ -363,20 +372,17 @@ def get_commons_thumb(genus: str,
                     try:
                         im.save(buf, format="WEBP", quality=quality, method=6)  # WEBP path
                     except Exception:
-                        im.save(buf, format="JPEG", quality=85, optimize=True) # fallback
+                        im.save(buf, format="JPEG", quality=85, optimize=True)  # fallback
                     img_bytes = buf.getvalue()
-                if len(img_bytes) > MAX_IMAGE_KB * 1024:
-                    # Still too large? Bail to avoid unexpected egress.
-                    return (None,) * 6
             except Exception as e:
                 print(f"[safety] shrink failed: {e}")
                 return (None,) * 6
-
+            if len(img_bytes) > MAX_IMAGE_KB * 1024:
+                # Still too large? Bail to avoid unexpected egress.
+                return (None,) * 6
 
         if effective_remove and img_bytes:
-            img_bytes = _maybe_remove_bg(img_bytes)
-
-            # Pre-resize BEFORE model to cap ONNX intermediates
+            # Pre-resize BEFORE rembg to cap memory/latency
             try:
                 with Image.open(io.BytesIO(img_bytes)) as im:
                     im = im.convert("RGBA")
@@ -407,52 +413,33 @@ def get_commons_thumb(genus: str,
                 pass
 
         if CACHE_WRITE:
-        
-            # --- SAFETY B: re-check after any processing (BG removal / resize) ---
-            MAX_IMAGE_KB = int(os.getenv("MAX_IMAGE_KB", "1024"))
-            if len(img_bytes) > MAX_IMAGE_KB * 1024:
-                try:
-                    from PIL import Image
-                    import io
-                    with Image.open(io.BytesIO(img_bytes)) as im:
-                        im = im.convert("RGB")
-                        buf = io.BytesIO()
-                        quality = int(os.getenv("WEBP_QUALITY", "80"))
-                        try:
-                            im.save(buf, format="WEBP", quality=quality, method=6)
-                        except Exception:
-                            im.save(buf, format="JPEG", quality=85, optimize=True)
-                        img_bytes = buf.getvalue()
-                    if len(img_bytes) > MAX_IMAGE_KB * 1024:
-                        return (None,) * 6
-                except Exception as e:
-                    print(f"[safety] shrink failed (post-process): {e}")
-                    return (None,) * 6
+            # we actually wrote a file → safe to point at cached filename
+            return (
+                f"/cached-images/{os.path.basename(get_cached_image_path(stem))}" + ("" if effective_remove else "?variant=raw"),
+                author, licence, licence_url, upload_date, retrieval_date
+            )
 
+        # Read-only (no write happened):
+        # → Do NOT invent a cached filename on R2. Serve a real URL.
+        if effective_remove and img_bytes:
+            # background removed in-memory → return data: URL
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            return (f"data:image/png;base64,{b64}", author, licence, licence_url, upload_date, retrieval_date)
+        else:
+            # no BG removal → serve the real Commons/Wikipedia thumb URL
+            return (raw_thumb_url, author, licence, licence_url, upload_date, retrieval_date)
 
-            save_image_to_cache(stem, img_bytes)
-            save_metadata_to_cache(stem, {
-                "author": author,
-                "licence": licence,
-                "licence_url": licence_url,
-                "upload_date": upload_date,
-                "retrieval_date": retrieval_date,
-                "thumb_url": raw_thumb_url
-            })
-            enforce_cache_limit()
-            gc.collect()
-            
-            
-    # else: read-only mode → skip persisting
+        # Local (no R2): fall back to data: (if bg-removed) or the Commons thumb URL
+        if effective_remove and img_bytes:
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            return (f"data:image/png;base64,{b64}", author, licence, licence_url, upload_date, retrieval_date)
+        else:
+            return (raw_thumb_url, author, licence, licence_url, upload_date, retrieval_date)
 
-
-        return (
-            f"/cached-images/{os.path.basename(get_cached_image_path(stem))}" + ("" if remove_bg else "?variant=raw"),
-            author, licence, licence_url, upload_date, retrieval_date
-        )
     except Exception as e:
         print(f"[rembg/cache] Failed to process image for {genus} {species}: {e}")
         return (None,) * 6
+
 
 
 

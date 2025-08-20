@@ -29,10 +29,12 @@ def load_cached_image_and_meta(url: str) -> tuple[str | None, dict | None]:
     image_path = get_cached_image_path(stem)
     meta_path  = get_cached_metadata_path(stem)
 
-    if os.path.exists(image_path) and os.path.exists(meta_path):
+    # ✅ JSON presence alone counts as a cache hit
+    if os.path.exists(meta_path):
         with open(meta_path, "r", encoding="utf-8") as f:
             return image_path, json.load(f)
     return None, None
+
 
 def enforce_cache_limit():
     max_bytes = MAX_CACHE_SIZE_GB * 1024**3

@@ -58,14 +58,14 @@ def media_url(path: str) -> str:
 def to_cdn(url: str) -> str:
     if not USE_R2 or not isinstance(url, str) or not url:
         return url
-    #if url.startswith("/cached-images/"):
-    #    # /cached-images/<file>  ->  image_cache/<file> on R2
-    #    fname = url.split("/cached-images/", 1)[1]
-    #    return media_url(f"image_cache/{fname}")
+    if url.startswith("/cached-images/"):
+        # /cached-images/<file>  ->  image_cache/<file> on R2
+        fname = url.split("/cached-images/", 1)[1]
+        return media_url(f"image_cache/{fname}")
     if url.startswith("/assets/"):
-        # if you also store some assets in R2
         return media_url(url.lstrip("/"))
     return url
+
 
 
 mimetypes.add_type("audio/ogg", ".ogg")
@@ -251,6 +251,7 @@ def cached_images(fname: str):
 
     seen = set()
     for name in [x for x in candidates if not (x in seen or seen.add(x))]:
+
         if _r2_has(name):
             resp = redirect(f"{R2_PUBLIC}/image_cache/{name}", code=302)
             resp.headers["Cache-Control"] = "public, max-age=86400"
@@ -864,6 +865,8 @@ app.layout = dbc.Container([
         ),
     dcc.Store(id="anim-done", data=False, storage_type="session"),
     dcc.Store(id="rand-depth-map", storage_type="session"),
+    dcc.Store(id="depth-order-store", storage_type="session"),
+
     
     depth_store,
 
@@ -1756,15 +1759,20 @@ def update_image(gs_name, units_bool):
     # If no thumbnail was found, use the placeholder but make the URL
     # unique per species so <img src> actually *changes* between picks.
     # ---- build img_src -------------------------------------------------
-    slug      = f"{genus}_{species}".replace(" ", "_")
-    base_src = to_cdn(thumb or "/assets/img/placeholder_fish.webp")
+    slug     = f"{genus}_{species}".replace(" ", "_")
+    raw_src  = thumb or "/assets/img/placeholder_fish.webp"
+    base_src = to_cdn(raw_src)
 
-    # add ? or & so the bitmap stays cached but the URL is unique per species
-    sep       = "&" if "?" in base_src else "?"
-    img_src   = f"{base_src}{sep}gs={slug}"
+    if raw_src.startswith("/cached-images/"):
+        sep     = "&" if "?" in base_src else "?"
+        img_src = f"{base_src}{sep}gs={slug}"
+    else:
+        img_src = base_src
+
 
     gc.collect()
     return img_src, info_lines
+
 
 
 
@@ -2875,7 +2883,11 @@ def update_species_of_week(_):
         thumb = thumb or "/assets/img/placeholder_fish.webp"
         common = COMMON_NAMES.get(sp, "")
         rollout_note = f"Inaugural pick — live weekly rotation starts {cutoff.date().isoformat()} (UTC) based on your most favourited species"
-        return (f"{thumb}?gs={genus}_{species}", common, sp, rollout_note, "Species of the Week")
+        base = to_cdn(thumb or "/assets/img/placeholder_fish.webp")
+        if base.startswith("/cached-images/"):
+            base = f"{base}{'&' if '?' in base else '?'}gs={genus}_{species}"
+        return (base, common, sp, rollout_note, "Species of the Week")
+
 
     # Live weekly favourite w/ suppression + tie-breakers
     record_weekly_winner_if_missing()  # harmless idempotent call
@@ -2887,10 +2899,11 @@ def update_species_of_week(_):
     genus, species = sp.split(" ", 1)
     skip_bg = sp in transp_set
     thumb, *_ = get_commons_thumb(genus, species, remove_bg=not skip_bg)
-    thumb = to_cdn(thumb or "/assets/img/placeholder_fish.webp")
-    common = COMMON_NAMES.get(sp, "")
-    note = "Most favourited last week (Mon–Sun, UTC)"
-    return (f"{thumb}?gs={genus}_{species}", common, sp, note, "Species of the Week")
+    base = to_cdn(thumb or "/assets/img/placeholder_fish.webp")
+    if base.startswith("/cached-images/"):
+        base = f"{base}{'&' if '?' in base else '?'}gs={genus}_{species}"
+    return (base, common, sp, note, "Species of the Week")
+
 
 
 
