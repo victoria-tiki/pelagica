@@ -2762,7 +2762,8 @@ def make_tree_figure(df, target_species):
             return f"<b>{r.title()}</b><br>{sci}"
 
     def wrap(label, width=14):
-        return "<br>".join(textwrap.wrap(label, width=width)) if label else ""
+        return "<br>".join(textwrap.wrap(label, width=width, break_long_words=False)) if label else ""
+
 
     # ---- Build traces ----
     # Edges
@@ -2773,9 +2774,9 @@ def make_tree_figure(df, target_species):
             edge_y += [y_pos[u], y_pos[v], None]
 
     # Split nodes into three groups so text color can match marker color
-    species_focus = {"x": [], "y": [], "text": [], "hover": []}   # yellow
-    species_other = {"x": [], "y": [], "text": [], "hover": []}   # green
-    higher_taxa   = {"x": [], "y": [], "text": [], "hover": []}   # light gray
+    species_focus = {"x": [], "y": [], "text": [], "hover": [], "gs": []}
+    species_other = {"x": [], "y": [], "text": [], "hover": [], "gs": []}
+    higher_taxa   = {"x": [], "y": [], "text": [], "hover": [], "gs": []}
 
     for n, meta in node_meta.items():
         if n not in x_pos: continue
@@ -2788,16 +2789,20 @@ def make_tree_figure(df, target_species):
             species_focus["y"].append(y_pos[n])
             species_focus["text"].append(label)
             species_focus["hover"].append(hover_text(n, meta))
+            species_focus["gs"].append(sci)
         elif r == "species":
             species_other["x"].append(x_pos[n])
             species_other["y"].append(y_pos[n])
             species_other["text"].append(label)
             species_other["hover"].append(hover_text(n, meta))
+            species_other["gs"].append(sci)
         else:
             higher_taxa["x"].append(x_pos[n])
             higher_taxa["y"].append(y_pos[n])
             higher_taxa["text"].append(label)
             higher_taxa["hover"].append(hover_text(n, meta))
+            higher_taxa["gs"].append(None)
+
 
     # Common layout bits
     def nodes_trace(group, marker_color, text_color, text_size, name):
@@ -2808,13 +2813,14 @@ def make_tree_figure(df, target_species):
             hovertext=group["hover"],
             hoverinfo="text",
             text=group["text"],
-            # species labels should be below the dot; higher taxa also below for consistency
+            customdata=group.get("gs"),          # ← canonical "Genus species"
             textposition="bottom center",
             textfont=dict(color=text_color, size=text_size),
             marker=dict(size=10, color=marker_color),
-            cliponaxis=False,  # ← prevent text clipping at the axes
+            cliponaxis=False,
             showlegend=False,
         )
+
 
     fig = go.Figure(
         data=[
@@ -3048,33 +3054,49 @@ app.clientside_callback(
     """
     function(clickData, currentSpecies) {
         if (!clickData) return window.dash_clientside.no_update;
+        const pt = (clickData.points && clickData.points[0]) || null;
+        if (!pt) return window.dash_clientside.no_update;
 
-        let label = (clickData.points?.[0]?.text || "").toString();
-        label = label.replace(/<br\\s*\\/?>(?!$)/gi, " ")
-                     .replace(/<[^>]+>/g, "")
-                     .trim();
+        // 1) Prefer canonical sci name from customdata
+        let gs = pt.customdata;
+        if (Array.isArray(gs)) gs = gs[0];
 
-        const parts = label.split(/\\s+/);
-        if (parts.length < 2) return window.dash_clientside.no_update;
+        // 2) Fallback: extract from <b>...</b> in hovertext
+        if (typeof gs !== "string" || !gs.includes(" ")) {
+            const ht = (pt.hovertext || "").toString();
+            const m = ht.match(/<b>([^<]+)<\\/b>/i);
+            if (m) gs = m[1].trim();
+        }
 
-        const gs   = parts.slice(0, 2).join(" "); // "Genus species"
-        const slug = gs.replace(/\\s+/g, "_");
+        // 3) Last resort: parse the rendered label text
+        if (typeof gs !== "string" || !gs.includes(" ")) {
+            let label = (pt.text || "").toString()
+                .replace(/<br\\s*\\/?>(?!$)/gi, " ")  // undo wrap safely
+                .replace(/<[^>]+>/g, "")
+                .replace(/\\s+/g, " ")
+                .trim();
+            const parts = label.split(" ");
+            if (parts.length >= 2) {
+                gs = parts.slice(0, 2).join(" ");
+            } else {
+                return window.dash_clientside.no_update;
+            }
+        }
 
-        // If we're already on this species, do nothing
         if (currentSpecies && currentSpecies.trim() === gs) {
             return window.dash_clientside.no_update;
         }
 
         const url = new URL(window.location);
-        url.searchParams.set("species", slug);
+        url.searchParams.set("species", gs.replace(/\\s+/g, "_"));
         window.history.replaceState({}, "", url);
         window.dispatchEvent(new Event("popstate"));
         return "";
     }
     """,
-    Output("tree-click-trigger", "children"),  
+    Output("tree-click-trigger", "children"),
     Input("tree-plot", "clickData"),
-    State("selected-species", "data"),        
+    State("selected-species", "data"),
     prevent_initial_call=True
 )
 

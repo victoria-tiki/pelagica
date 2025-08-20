@@ -9,6 +9,8 @@
   const $ = (id) => document.getElementById(id);
 
   let overlayTimer = null;                     // one global timer
+  let imgWatchdog = null;  // fail-safe: never wait forever for <img> events
+
 
   function setOverlay(visible) {
     const msg = document.getElementById("load-message");
@@ -100,6 +102,17 @@
           pendingSrc = newSrc;
           imgGate = false;
           hidePanel("new image src");
+          
+          clearTimeout(imgWatchdog);
+          imgWatchdog = setTimeout(() => {
+          // If we're still waiting on the exact same URL, proceed without the event.
+          if (img.getAttribute("src") === pendingSrc && !imgGate) {
+            console.warn("[Pelagica] image watchdog fired; proceeding without <img> event.");
+            imgGate = true;
+            tryShowPanel();    // will also hide the overlay
+          }
+        }, 7000); // 7s is conservative; tune if you like
+
 
           // Only show overlay after animation has completed
           if (animGate) {
@@ -113,6 +126,7 @@
               imgGate = true;
               console.log("[Pelagica] image loaded:", pendingSrc);
               tryShowPanel();
+              clearTimeout(imgWatchdog);
             }
           };
           const onError = () => {
@@ -120,6 +134,7 @@
               imgGate = true; 
               console.error("[Pelagica] image failed to load; showing panel anyway.");
               tryShowPanel();
+              clearTimeout(imgWatchdog);
             }
           };
 
