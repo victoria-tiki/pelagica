@@ -78,13 +78,22 @@
   // viewer ➜ Dash: open the animation gate on "animationDone"
   // Show overlay *now* (not earlier) if we’re still waiting on the image.
   // ────────────────────────────────────────────────────────────────────
-  window.addEventListener("message", (e) => {
-    if (e?.data?.type !== "animationDone") return;
-    animGate = true;
-    console.log("[Pelagica] descent animation completed.");
-    if (!imgGate) setOverlay(true);  // overlay text is provided by Dash
-    tryShowPanel();
-  });
+    // viewer ➜ Dash: open the animation gate on "animationDone"
+    window.addEventListener("message", (e) => {
+      if (e?.data?.type !== "animationDone") return;
+      animGate = true;
+      console.log("[Pelagica] descent animation completed.");
+
+      // Show the overlay only if we are waiting on a NEW image to load.
+      // (Do not hide it here; tryShowPanel() will hide it when both gates are open.)
+      if (pendingSrc && !imgGate) {
+        setOverlay(true);
+      }
+
+      tryShowPanel();
+    });
+
+
 
   // ────────────────────────────────────────────────────────────────────
   // Image watcher: hide on new src; open image gate when that src loads
@@ -111,7 +120,7 @@
             imgGate = true;
             tryShowPanel();    // will also hide the overlay
           }
-        }, 7000); // 7s is conservative; tune if you like
+        }, 5000); // 7s is conservative; tune if you like
 
 
           // Only show overlay after animation has completed

@@ -1763,11 +1763,14 @@ def update_image(gs_name, units_bool):
     raw_src  = thumb or "/assets/img/placeholder_fish.webp"
     base_src = to_cdn(raw_src)
 
-    if raw_src.startswith("/cached-images/"):
+    # Add a species-specific key for cached images *and* for the placeholder
+    if raw_src.startswith("/cached-images/") or raw_src == "/assets/img/placeholder_fish.webp":
         sep     = "&" if "?" in base_src else "?"
         img_src = f"{base_src}{sep}gs={slug}"
     else:
         img_src = base_src
+
+
 
 
     gc.collect()
@@ -2341,12 +2344,13 @@ def step_depth(n_up, n_down,
     State("popular-toggle", "value"),
     State("favs-toggle",    "value"),
     State("favs-store",     "data"),
+    State("selected-species","data"),
     State("rand-depth-map", "data"),      # ← add this
     prevent_initial_call=True
 )
 def jump_to_extremes(n_deep, n_shallow, n_large, n_small,
                      wiki_val, pop_val, fav_val, favs_data,
-                     depth_map):
+                     current, depth_map):
 
     trig = ctx.triggered_id
     if trig is None:
@@ -2374,7 +2378,12 @@ def jump_to_extremes(n_deep, n_shallow, n_large, n_small,
         df_use = df_use.sort_values("RandDepth")
         row    = df_use.iloc[-1] if trig == "deepest-btn" else df_use.iloc[0]
 
-    return row["Genus_Species"]
+
+    new_gs = row["Genus_Species"]
+    if new_gs == (current or ""):
+        # already at that extreme → don't reload / re-arm image watcher
+        raise PreventUpdate
+    return new_gs
 
 
 
