@@ -30,6 +30,7 @@ ENV ENABLE_BG_REMOVAL=${ENABLE_BG_REMOVAL}
 ARG CACHE_WRITE=0
 ENV CACHE_WRITE=${CACHE_WRITE}
 
+
 # ---- Python deps (same as before, but without rembg) ----
 RUN pip install --upgrade pip && pip install poetry gunicorn pillow
 

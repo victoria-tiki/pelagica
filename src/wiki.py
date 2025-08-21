@@ -136,9 +136,9 @@ def _maybe_remove_bg(img_bytes: bytes) -> bytes:
 
  
 HEADERS = {
-    # Tell Wikimedia who you are (policy requirement)
-    "User-Agent": "Pelagica/0.1 (contact: victoria.t.tiki@gmail.com)"
+    "User-Agent": "Pelagica/0.1 (https://pelagica.victoriatiki.com; contact: victoria.t.tiki@gmail.com)"
 }
+
 
 
 TAGSTRIP = re.compile(r"<[^>]+>")  # remove any HTML tags
@@ -413,11 +413,34 @@ def get_commons_thumb(genus: str,
                 pass
 
         if CACHE_WRITE:
-            # we actually wrote a file → safe to point at cached filename
-            return (
-                f"/cached-images/{os.path.basename(get_cached_image_path(stem))}" + ("" if effective_remove else "?variant=raw"),
-                author, licence, licence_url, upload_date, retrieval_date
-            )
+            # Write image + metadata to the local cache, then serve /cached-images/...
+            meta = {
+                "author": author,
+                "licence": licence,
+                "licence_url": licence_url,
+                "upload_date": upload_date,
+                "retrieval_date": retrieval_date,
+            }
+            try:
+                save_image_to_cache(stem, img_bytes)         # write image file
+                save_metadata_to_cache(stem, meta)            # write JSON
+                enforce_cache_limit()                         # optional: evict if needed
+                fname = os.path.basename(get_cached_image_path(stem))
+                return (
+                    f"/cached-images/{fname}" + ("" if effective_remove else "?variant=raw"),
+                    author, licence, licence_url, upload_date, retrieval_date
+                )
+            except Exception as e:
+                # If writing fails for any reason, fall back to read-only behavior
+                print(f"[cache write] Failed to save {title_plain} ({width}px): {e}")
+                if effective_remove and img_bytes:
+                    b64 = base64.b64encode(img_bytes).decode("utf-8")
+                    return (f"data:image/png;base64,{b64}",
+                            author, licence, licence_url, upload_date, retrieval_date)
+                else:
+                    return (raw_thumb_url,
+                            author, licence, licence_url, upload_date, retrieval_date)
+
 
         # Read-only (no write happened):
         # → Do NOT invent a cached filename on R2. Serve a real URL.

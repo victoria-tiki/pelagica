@@ -218,11 +218,11 @@
   {"min": 3000,"max": 6000,
     "descend": ["Entering abyssal depths. Temperature stabilizes around 2 °C on vast ocean plains"]},
 
-  { "min": 3000, "max": 3700,
-  "descend": ["Approaching global mean ocean depth (~3700 m)"] },
+  { "min": 3500, "max": 3700,
+  "descend": ["Approaching global mean ocean depth"] },
   
   { "min": 3700, "max": 3900,
-  "ascend": ["Approaching global mean ocean depth (~3700 m)"] },
+  "ascend": ["Approaching global mean ocean depth"] },
 
 
   { "min": 3800, "max": 4100,
@@ -230,7 +230,7 @@
     "ascend":  ["Bathyal‑abyssal transition; benthic fauna sparse"] },
 
   { "min": 3600, "max": 4000,
-    "descend": ["Titanic’s bow sits at ~3800 m depth; still deeper ahead"],
+    "descend": ["Titanic’s bow sits around this depth; still deeper ahead"],
     "ascend":  ["Approaching depths of historic wrecks"] },
 
   { "min": 1500, "max": 2000,
@@ -242,23 +242,23 @@
   "ascend":  ["Passing hydrothermal vent territory. Chimney-like black smokers may rise here"]},
 
   { "min": 3700, "max": 3800,
-    "descend": ["Approaching RMS Titanic resting depth (3800 m)"],
+    "descend": ["Approaching RMS Titanic resting depth"],
     "ascend":  ["Passing the grave of RMS Titanic"] },
     
    { "min": 2000, "max": 3000,
     "ascend":  ["Pressure drops from impossible to merely extreme."] },
 
   {"min": 9800,"max": 10000,
-  "descend": ["Descending into depth where the ROV Nereus met its end (~9,990 m)"],
-  "ascend": ["Ascending from the depths where Nereus imploded (~9,990 m)"]},
+  "descend": ["Descending into depth where the ROV Nereus met its end"],
+  "ascend": ["Ascending from the depths where Nereus imploded"]},
 
   {"min": 700,"max": 800,
   "descend": ["In 1521, Magellan lowered a line and found no bottom, believing he'd hit the deepest ocean here"],
-  "ascend": ["Passing depths where Magellan once thought he'd measured ocean’s bottom (~730 m)"]},
+  "ascend": ["Reaching depths where Magellan once thought he'd measured ocean’s bottom"]},
 
   {"min": 4600,"max": 4800,
-  "descend": ["Approaching the depth of Atlantic abyssal plains (~4,600–4,800 m)"],
-  "ascend": ["Approaching the depth of Atlantic abyssal plains (~4,600–4,800 m)"]},
+  "descend": ["Approaching the depth of Atlantic abyssal plains"],
+  "ascend": ["Approaching the depth of Atlantic abyssal plains"]},
 
  {"min": 3500,"max": 5500,
   "descend": ["Deep‑sea storms may churn sediment here. Strong currents resuspend the seabed"],
@@ -285,7 +285,7 @@
   "ascend":  ["Below the CCD. Carbonate dissolves, so sediments turn to abyssal clay"]},
 
   {"min": 8600,"max": 8800,
-  "descend": ["You’re diving as deep as Mount Everest is tall (~8,848 m)!"],
+  "descend": ["You’re diving as deep as Mount Everest is tall!"],
   "ascend": ["You're rising through a depth equal to Everest's height inverted"]},
 
   {"min": 6000,"max": 10000,
@@ -302,7 +302,7 @@
   "ascend":  ["Ascending past the Challenger Deep’s lip. Its true bottom is even deeper"]},
 
   { "min": 10990, "max": 11050,
-    "descend": ["You’ve reached Earth’s deepest known point, the Challenger Deep (~10,995 m)"]},
+    "descend": ["You’ve reached Earth’s deepest known point, the Challenger Deep"]},
 
   { "min": 0, "max": 10,
     "descend": ["Full sunlight zone: tiny plants make most of the ocean’s oxygen here."],
@@ -478,7 +478,7 @@
     "ascend":  ["Leaving Challenger Deep’s doorway behind."] },
 
   { "min": 10900, "max": 11000,
-    "descend": ["Touchdown: Challenger Deep, ~10 928 m. The ocean’s absolute bottom!"],
+    "descend": ["Touchdown: Challenger Deep. The ocean’s absolute bottom!"],
     "ascend":  ["Ascending from the very deepest known place on the planet."] },
 
   { "min": 11000, "max": 12000,
@@ -565,30 +565,30 @@
   {"min": 1600,"max": 1700,
     "descend": ["Lake Baikal’s max depth lies here — the deepest continental lake, holding 20% of Earth's unfrozen fresh water. "]},
     
-  {"min": 1400,"max": 1500,"descend": ["Lake Tanganyika's max depth, the longest lake on Earth. Its ancient depths cradle uniquely evolved fish."] },
+  {"min": 1400,"max": 1500,"descend": ["Lake Tanganyika, the longest lake on Earth, is this deep. Its ancient depths cradle uniquely evolved fish."] },
     
   {"min": 600,"max": 650,"ascend": ["Great Slave Lake dives to to North America’s lowest freshwater point here. Even the CN Tower would disappear beneath its waves."]  },
     
-  {"min": 400,"max": 500,"descend": ["Quesnel Lake’s deepest point. A glacial fjord lake: old, deep, and eerily quiet."]  
+  {"min": 500,"max": 520,"descend": ["Quesnel Lake’s deepest point. A glacial fjord lake: old, deep, and eerily quiet."]  
   },
   
-  {"min": 3646,"max": 3926,
-    "descend": ["The Atlantic Ocean’s average depth (~3,646 m) greets you"],
-    "ascend": ["The Atlantic Ocean’s average depth (~3,646 m) greets you"]},
+  {"min": 3550,"max": 3750,
+    "descend": ["The Atlantic Ocean’s average depth greets you"],
+    "ascend": ["The Atlantic Ocean’s average depth greets you"]},
   
-  {"min": 4280,"max": 4500,
-    "descend": ["Cross into the Pacific's mean depths (~4,280 m)."],
-    "ascend": ["Cross into the Pacific's mean depths (~4,280 m)."]
+  {"min": 4180,"max": 4380,
+    "descend": ["Cross into the Pacific's mean depths."],
+    "ascend": ["Cross into the Pacific's mean depths."]
   },
   
   {"min": 5100,"max": 5300,
-    "descend": ["Dive into the Ionian and find Calypso Deep’s ~5,267 m abyss."],
-    "ascend": ["Dive into the Ionian and find Calypso Deep’s ~5,267 m abyss."]},
+    "descend": ["Dive into the Ionian and find Calypso Deep’s abyss at this depth."],
+    "ascend": ["Dive into the Ionian and find Calypso Deep’s abyss at this depth."]},
     
     
     {"min": 80,"max": 85,
-  "descend": ["Lake Victoria’s surface stretches wide, but plunges only ~82 m."],
-  "ascend": ["Lake Victoria’s surface stretches wide, but plunges only ~82 m."]},
+  "descend": ["Lake Victoria’s surface stretches wide, but plunges only about this far."],
+  "ascend": ["Lake Victoria’s surface stretches wide, but plunges only about this far."]},
   
 {"min": 270,"max": 285,
   "descend": ["At the bottom of Lake Michigan, sonar has revealed massive, unexplained crater-like hollows."],
@@ -597,8 +597,8 @@
 
 
   {"min": 210,"max": 230,
-    "descend": ["The Congo River descends to depths of ~220 m. At its bottom, blind shrimp drift through perpetual night."],
-    "ascend": ["The Congo River descends to depths of ~220 m. At its bottom, blind shrimp drift through perpetual night."]}, 
+    "descend": ["The Congo River descends to these depths. At its bottom, blind shrimp drift through perpetual night."],
+    "ascend": ["The Congo River descends to these depths. At its bottom, blind shrimp drift through perpetual night."]}, 
     
     
   {"min": 4900,

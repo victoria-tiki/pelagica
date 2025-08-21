@@ -229,15 +229,24 @@ def cached_images(fname: str):
         w = 640
 
     # Dev: serve from disk with same preference order
+    # Dev: serve from disk; respect ?variant=raw and transparency blacklist
     if not USE_R2:
         if gs:
-            p, r = _stems(gs, w)
-            for stem in (p, r):
+            prefer = (request.args.get("variant") or "").lower()
+            title = _canon_title(gs)                   # normalize (handles Wiki equivalents)
+            prefer_raw = (prefer == "raw") or (title in transp_set)
+
+            p, r = _stems(gs, w)                       # (processed, raw)
+            order = (r, p) if prefer_raw else (p, r)   # flip when raw is preferred
+
+            for stem in order:
                 f = f"{stem}.webp"
                 if os.path.exists(os.path.join(CACHE_DIR, f)):
                     return send_from_directory(CACHE_DIR, f)
-        # fallback to whatever was requested
+
+        # exact filename fallback
         return send_from_directory(CACHE_DIR, fname)
+
 
     # Prod: redirect to whichever exists on R2 (processed → raw → requested)
     candidates = []
@@ -504,7 +513,7 @@ advanced_filters = html.Div([           # collapsible area
 
     ], className="settings-group"),
     
-    html.Div("1,500+ species with approved images and faster loading", className="settings-note"),
+    html.Div("1,500+ species with approved images", className="settings-note"),
     
     html.Br(),
 
@@ -690,7 +699,7 @@ footer = html.Div(
     [
         html.Span("created by "),
         html.A("Victoria Tiki",
-               href="https://victoriatiki.com/about/?theme=themed",
+               href="https://victoriatiki.com/about/",
                target="_blank",
                rel="noopener",
                style={"color": "#fff"})
