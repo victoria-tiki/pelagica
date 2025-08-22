@@ -2017,54 +2017,83 @@ def build_eligible_bounds(wiki_val, pop_val, fav_val, lock_on, favs_data, curren
 
 
 
-
 app.clientside_callback(
     """
-    function(boundsAll, boundsLocked, seed){
-      // boundsAll/Locked: [[gs, sh, dp], ...]
-      if (!Array.isArray(boundsAll) || !boundsAll.length) return [null, null, null];
-
-      function h32(s){ var h=2166136261>>>0;
-        for (var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-        return h>>>0;
+    function(seed, boundsAll){
+      if (!seed || !Array.isArray(boundsAll)) {
+        return null;
       }
-      function mulberry32(a){ return function(){
-        var t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15, t|1);
-        t^= t+Math.imul(t^t>>>7, t|61); return ((t^t>>>14)>>>0)/4294967296;
-      };}
 
-      var base = (seed|0)>>>0;
-      var map  = {};
-      var arrAll = [];
-
-      // Build depth map from the FULL set (so quick-jumps ignore lock)
-      for (var i=0;i<boundsAll.length;i++){
-        var gs = boundsAll[i][0], sh = +boundsAll[i][1], dp = +boundsAll[i][2];
-        if (!(dp >= sh)) continue;
-        if (!(gs in map)){
-          var rng = mulberry32((base ^ h32(gs))>>>0);
-          map[gs] = sh + rng() * (dp - sh);
+      // Deterministic PRNG (Mulberry32)
+      function mulberry32(a) {
+        return function() {
+          var t = a += 0x6D2B79F5;
+          t = Math.imul(t ^ t >>> 15, t | 1);
+          t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+          return ((t ^ t >>> 14) >>> 0) / 4294967296;
         }
-        arrAll.push([gs, map[gs]]);
       }
-      arrAll.sort(function(a,b){ return a[1]-b[1]; });
-      var orderAll = arrAll.map(function(x){ return x[0]; });
+      var rng = mulberry32(seed);
 
-      // Locked order = filter orderAll by locked species set (preserves same ranking)
-      var lockedSet = new Set((boundsLocked||[]).map(function(x){return x[0];}));
-      var orderLocked = orderAll.filter(function(gs){ return lockedSet.has(gs); });
+      // Override species → always 0–5m
+      var overrides = new Set([
+        "Delphinus delphis",
+        "Homo sapiens",
+        "Mirounga leonina",
+        "Lobodon carcinophaga",
+        "Stenella coeruleoalba",
+        "Odobenus rosmarus",
+        "Stenella frontalis",
+        "Pagophilus groenlandicus",
+        "Stenella longirostris",
+        "Stenella attenuata",
+        "Grampus griseus",
+        "Tursiops truncatus"
+      ]);
 
-      return [map, orderAll, orderLocked];
+      var depthMap = {};
+      for (var i = 0; i < boundsAll.length; i++) {
+        var gs = boundsAll[i][0];
+        var s  = parseFloat(boundsAll[i][1]);
+        var d  = parseFloat(boundsAll[i][2]);
+
+        // Handle overrides
+        if (overrides.has(gs)) {
+          s = 0.0;
+          d = 5.0;
+        }
+
+        // Fallback if invalid range
+        if (isNaN(s) || isNaN(d) || s === d) {
+          depthMap[gs] = s;
+          continue;
+        }
+
+        var u = rng();
+        var depth;
+        if (s < 200) {
+          // shallow bias: u^1.3
+          depth = s + Math.pow(u, 1.3) * (d - s);
+        } else if (s < 2000) {
+          // medium bias: uniform
+          depth = s + u * (d - s);
+        } else {
+          // deep bias: 1 - (1-u)^2
+          depth = s + (1 - Math.pow(1 - u, 2.0)) * (d - s);
+        }
+
+        depthMap[gs] = depth;
+      }
+
+      return depthMap;
     }
     """,
-    Output("rand-depth-map",          "data", allow_duplicate=True),
-    Output("depth-order-store-all",   "data"),
-    Output("depth-order-store-locked","data"),
-    Input("eligible-depth-bounds-all",    "data"),
-    Input("eligible-depth-bounds-locked", "data"),
-    State("rand-seed", "data"),
-    prevent_initial_call="initial_duplicate"   # ← add this line
+    Output("rand-depth-map", "data", allow_duplicate=True),
+    Input("rand-seed", "data"),
+    State("eligible-depth-bounds-all", "data"),
+    prevent_initial_call=True,
 )
+
 
 
 app.clientside_callback(
