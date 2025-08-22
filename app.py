@@ -145,7 +145,7 @@ app = Dash(
     __name__,
     compress=True,serve_locally=False,
     external_stylesheets=external_stylesheets,
-    title="Pelagica — The Aquatic Life Atlas",
+    title="Pelagica - The Aquatic Life Atlas",
     meta_tags=[
         {"name": "description", "content": "Explore 69,000+ marine species by depth, size, and taxonomy. Ambient soundscapes, smooth descent animation, and curated images."},
         {"name": "viewport", "content": "width=device-width, initial-scale=1"}
@@ -177,7 +177,11 @@ def serve_viewer_file(filename):
     resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return resp
 
-    
+GOOGLE_VERIFY_FILE = "google50c42cdb868fa4f0.html"  
+
+@server.get(f"/{GOOGLE_VERIFY_FILE}")
+def google_site_verification():
+    return send_from_directory(os.path.dirname(__file__), GOOGLE_VERIFY_FILE)
     
 R2_PUBLIC = R2_BASE.rstrip("/")
 CACHE_DIR = os.path.abspath("image_cache")
@@ -834,6 +838,7 @@ feedback_link=html.A("give feedback", href="https://forms.gle/YuUFrYPmDWsqyHdt7"
 
 #  Assemble Layout
 app.layout = dbc.Container([
+    html.Div(id="seo-trigger", style={"display": "none"}),
     dcc.Location(id="url", refresh=False),
     dcc.Interval(id="sow-refresh", interval=60_000, n_intervals=0),  # 60s
 
@@ -1534,6 +1539,7 @@ def update_order_lock_label(locked, species_id, old_class):
 
 @app.callback(
     Output("species-img",  "src"),
+    Output("species-img",  "alt"),
     Output("info-content", "children"),
     Input("selected-species", "data"),
     Input("units-toggle",     "value")     # value is True/False
@@ -1789,9 +1795,9 @@ def update_image(gs_name, units_bool):
 
 
 
-
+    alt_text = f"Image of {row.FBname or ''} ({gs_name})".strip()
     gc.collect()
-    return img_src, info_lines
+    return img_src, alt_text, info_lines
 
 
 
@@ -2782,31 +2788,82 @@ app.clientside_callback(
     Input("selected-species", "data")
 )
 
+# Update document.title when a species is chosen
+app.clientside_callback(
+    """
+    function(gs){
+      if(!gs){ return window.dash_clientside.no_update; }
+      document.title = gs + " - Pelagica";
+      return window.dash_clientside.no_update;
+    }
+    """,
+    Output("seo-trigger", "children"),
+    Input("selected-species", "data"),
+    prevent_initial_call=True
+)
+
+
 #app.run(host="0.0.0.0", port=8050, debug=True)  #change to false later                
 
+app.title = "Pelagica - The Aquatic Life Atlas"
 app.index_string = '''
 <!DOCTYPE html>
-<html>
-    <head>
+<html lang="en">
+  <head>
         {%metas%}
-        <title>Pelagica</title>
+        <title>{%title%}</title>
         <link rel="icon" href="/favicon.ico" type="image/x-icon">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link rel="preconnect" href="https://pub-197edf068b764f1c992340f063f4f4f1.r2.dev" crossorigin>
 
-        {%css%}
-    </head>
-    <body>
-        {%app_entry%}
-        <footer>
-            {%config%}
-            {%scripts%}
-            {%renderer%}
-        </footer>
-    </body>
+    <!-- Canonical -->
+    <link rel="canonical" href="https://pelagica.victoriatiki.com/"/>
+
+    <!-- Basic SEO -->
+    <meta name="description" content="Pelagica - explore aquatic biodiversity by depth, size, and taxonomy with curated images and soundscapes." />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Pelagica - The Aquatic Life Atlas" />
+    <meta property="og:description" content="Explore aquatic species by depth, size, and taxonomy. Smooth descent animation, curated images, and more." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://pelagica.victoriatiki.com/" />
+    <meta property="og:image" content="https://pelagica.victoriatiki.com/assets/og/pelagica_1200x630.jpg" />
+    <meta property="og:image:width"  content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Pelagica - The Aquatic Life Atlas" />
+    <meta name="twitter:description" content="Explore marine species by depth, size, and taxonomy." />
+    <meta name="twitter:image" content="https://pelagica.victoriatiki.com/assets/og/pelagica_1200x630.jpg" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Pelagica",
+      "url": "https://pelagica.victoriatiki.com/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://pelagica.victoriatiki.com/?species={species}",
+        "query-input": "required name=species"
+      }
+    }
+    </script>
+
+    {%css%}
+  </head>
+  <body>
+    {%app_entry%}
+    <footer>
+      {%config%}
+      {%scripts%}
+      {%renderer%}
+    </footer>
+  </body>
 </html>
 '''
-
 
 # change the decorator to include compare-store
 @app.callback(
