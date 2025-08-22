@@ -209,7 +209,7 @@
 /* ---------- Force delayed start for species image loading (hacky, but this solves some racing issues where the image would never appear if it was processed too quickly) ---------- */
 (function () {
   const TARGET_ID = "species-img";
-  const DELAY_MS  = 500;
+  const DELAY_MS  = 1000;
 
   function installDelayedSrc(el) {
     if (!el || el.__delayedSrcInstalled) return;

@@ -17,7 +17,6 @@ import pandas as pd, random, datetime
 from urllib.parse import parse_qs
 #import dash_cytoscape as cyto
 #import networkx as nx
-import plotly.graph_objects as go
 import numpy as np 
 import json, base64   
 import glob
@@ -163,13 +162,13 @@ server.config.update(
         "application/javascript", "image/svg+xml"
     ],
     COMPRESS_LEVEL=3,        # safe default
-    COMPRESS_MIN_SIZE=1024   # don’t waste CPU on tiny payloads
+    COMPRESS_MIN_SIZE=4096   # don’t waste CPU on tiny payloads
 )
 
 
-app.server.config["COMPRESS_ALGORITHM"] = ["gzip"]
-app.server.config["COMPRESS_LEVEL"] = 4
-
+server.config["COMPRESS_ALGORITHM"] = ["gzip"]
+server.config["COMPRESS_LEVEL"] = 4
+server.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000  # 1 year
 
     
 @app.server.route("/viewer/<path:filename>")
@@ -872,12 +871,15 @@ app.layout = dbc.Container([
     html.Iframe(id="depth-iframe",src="/viewer/index.html",
             style={"width": "100%", "height": "100vh", "border": "none"},
         ),
+    
     dcc.Store(id="anim-done", data=False, storage_type="session"),
     dcc.Store(id="rand-depth-map", storage_type="session"),
     dcc.Store(id="depth-order-store", storage_type="session"),
-
-    
-    depth_store,
+    dcc.Store(id="eligible-depth-bounds-all",    storage_type="session"),
+    dcc.Store(id="eligible-depth-bounds-locked", storage_type="session"),
+    dcc.Store(id="depth-order-store-all",        storage_type="session"),
+    dcc.Store(id="depth-order-store-locked",     storage_type="session"),
+    dcc.Store(id="depth-store",                  storage_type="session"),
 
 
     footer,
@@ -1963,36 +1965,202 @@ def close_search_mobile(n, current_class):
         return new_class.strip(), "search-handle collapsed"
     raise PreventUpdate
     
-@app.callback(
-    Output("rand-depth-map", "data"),
-    Input("rand-seed", "data"),
-)
-def build_depth_map(seed):
-    if seed is None:
-        raise PreventUpdate
-    seed=int(seed)
-    tmp = assign_random_depth(df_full.copy(), seed)  # returns a frame with RandDepth
-    #depth_map = dict(zip(tmp["Genus_Species"], tmp["RandDepth"]))
-    #return depth_map
 
-    gs  = tmp["Genus_Species"].astype(str).tolist()
-    rds = pd.Series(tmp["RandDepth"]).astype(float).replace({np.nan: None}).tolist()
-    return {g: (None if v is None else float(v)) for g, v in zip(gs, rds)}
+@app.callback(
+    Output("eligible-depth-bounds-all",    "data"),
+    Output("eligible-depth-bounds-locked", "data"),
+    Input("wiki-toggle",      "value"),
+    Input("popular-toggle",   "value"),
+    Input("favs-toggle",      "value"),
+    Input("order-lock-state", "data"),   # True/False
+    State("favs-store",       "data"),
+    State("selected-species", "data"),
+)
+def build_eligible_bounds(wiki_val, pop_val, fav_val, lock_on, favs_data, current):
+    # 1) full eligible set (IGNORE lock here)
+    df_all = _apply_shared_filters(df_full, wiki_val, pop_val, fav_val, favs_data)
+
+    # choose Com bounds when present, else raw
+    sh_all = df_all["DepthRangeComShallow"].where(df_all["DepthRangeComShallow"].notna(),
+                                                  df_all["DepthRangeShallow"])
+    dp_all = df_all["DepthRangeComDeep"].where(df_all["DepthRangeComDeep"].notna(),
+                                               df_all["DepthRangeDeep"])
+
+    meta_all = (df_all.assign(_sh=sh_all, _dp=dp_all)[["Genus_Species", "_sh", "_dp", "order"]]
+                      .dropna())
+    meta_all = meta_all[meta_all["_dp"] >= meta_all["_sh"]]
+
+    # 2) locked subset (APPLY lock only for stepping)
+    if lock_on and current in df_full["Genus_Species"].values:
+        current_order = df_full.loc[df_full["Genus_Species"].eq(current), "order"].iloc[0]
+        df_locked = meta_all[meta_all["order"].eq(current_order)]
+    else:
+        df_locked = meta_all
+
+    # Compact lists: [gs, sh, dp] (and a second list for locked)
+    all_list    = [[gs, float(sh), float(dp)] for gs, sh, dp, _ in meta_all.itertuples(index=False, name=None)]
+    locked_list = [[gs, float(sh), float(dp)] for gs, sh, dp, _ in df_locked.itertuples(index=False, name=None)]
+
+    return all_list, locked_list
+
+
+
 
 app.clientside_callback(
     """
-    function (gs, depthMap) {
-      if (!gs) { return window.dash_clientside.no_update; }
-      const d = depthMap ? depthMap[gs] : null;
-      return (d == null || isNaN(d)) ? 0 : (+d);
+    function(boundsAll, boundsLocked, seed){
+      // boundsAll/Locked: [[gs, sh, dp], ...]
+      if (!Array.isArray(boundsAll) || !boundsAll.length) return [null, null, null];
+
+      function h32(s){ var h=2166136261>>>0;
+        for (var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return h>>>0;
+      }
+      function mulberry32(a){ return function(){
+        var t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15, t|1);
+        t^= t+Math.imul(t^t>>>7, t|61); return ((t^t>>>14)>>>0)/4294967296;
+      };}
+
+      var base = (seed|0)>>>0;
+      var map  = {};
+      var arrAll = [];
+
+      // Build depth map from the FULL set (so quick-jumps ignore lock)
+      for (var i=0;i<boundsAll.length;i++){
+        var gs = boundsAll[i][0], sh = +boundsAll[i][1], dp = +boundsAll[i][2];
+        if (!(dp >= sh)) continue;
+        if (!(gs in map)){
+          var rng = mulberry32((base ^ h32(gs))>>>0);
+          map[gs] = sh + rng() * (dp - sh);
+        }
+        arrAll.push([gs, map[gs]]);
+      }
+      arrAll.sort(function(a,b){ return a[1]-b[1]; });
+      var orderAll = arrAll.map(function(x){ return x[0]; });
+
+      // Locked order = filter orderAll by locked species set (preserves same ranking)
+      var lockedSet = new Set((boundsLocked||[]).map(function(x){return x[0];}));
+      var orderLocked = orderAll.filter(function(gs){ return lockedSet.has(gs); });
+
+      return [map, orderAll, orderLocked];
+    }
+    """,
+    Output("rand-depth-map",          "data", allow_duplicate=True),
+    Output("depth-order-store-all",   "data"),
+    Output("depth-order-store-locked","data"),
+    Input("eligible-depth-bounds-all",    "data"),
+    Input("eligible-depth-bounds-locked", "data"),
+    State("rand-seed", "data"),
+    prevent_initial_call="initial_duplicate"   # ← add this line
+)
+
+
+app.clientside_callback(
+    """
+    function(nUp, nDown, orderAll, orderLocked, lockOn, current){
+      var trig = (dash_clientside.callback_context.triggered[0]||{}).prop_id || "";
+      var order = (lockOn && Array.isArray(orderLocked) && orderLocked.length)
+                  ? orderLocked : orderAll;
+      if (!Array.isArray(order) || !order.length) return window.dash_clientside.no_update;
+
+      var idx = current ? order.indexOf(current) : -1;
+      if (idx < 0) idx = 0;
+
+      var dir = trig.startsWith("up-btn") ? -1 : +1;
+      var next = order[(idx + dir + order.length) % order.length];
+      if (next === current) return window.dash_clientside.no_update;
+      return next;
+    }
+    """,
+    Output("selected-species", "data", allow_duplicate=True),
+    Input("up-btn",   "n_clicks"),
+    Input("down-btn", "n_clicks"),
+    State("depth-order-store-all",    "data"),
+    State("depth-order-store-locked", "data"),
+    State("order-lock-state",         "data"),
+    State("selected-species",         "data"),
+    prevent_initial_call=True,
+)
+
+
+app.clientside_callback(
+    """
+    function(nShallow, nDeep, orderAll, current){
+      var trig = (dash_clientside.callback_context.triggered[0]||{}).prop_id || "";
+      if (!Array.isArray(orderAll) || !orderAll.length) return window.dash_clientside.no_update;
+
+      var target = trig.startsWith("shallowest-btn") ? orderAll[0] : orderAll[orderAll.length-1];
+      if (target === current) return window.dash_clientside.no_update;
+      return target;
+    }
+    """,
+    Output("selected-species", "data", allow_duplicate=True),
+    Input("shallowest-btn", "n_clicks"),
+    Input("deepest-btn",    "n_clicks"),
+    State("depth-order-store-all","data"),
+    State("selected-species",     "data"),
+    prevent_initial_call=True,
+)
+
+
+app.clientside_callback(
+    """
+    function(gs, depthMap){
+      if (!gs || !depthMap) return window.dash_clientside.no_update;
+      var d = depthMap[gs];
+      return (typeof d === "number") ? d : window.dash_clientside.no_update;
     }
     """,
     Output("depth-store", "data", allow_duplicate=True),
     Input("selected-species", "data"),
-    State("rand-depth-map", "data"),
-    prevent_initial_call="initial_duplicate"   # ← add this line
+    State("rand-depth-map",  "data"),
+    prevent_initial_call=True,
 )
 
+app.clientside_callback(
+    """
+    function(bounds, seed){
+      // bounds: [[gs, sh, dp], ...] from server (only when filters change)
+      if (!Array.isArray(bounds) || !bounds.length) { return [null, null]; }
+
+      // simple per-string 32-bit hash (FNV-1a)
+      function h32(s){ var h=2166136261>>>0;
+        for (var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return h>>>0;
+      }
+      // mulberry32 PRNG
+      function mulberry32(a){ return function(){
+        var t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15, t|1);
+        t^= t+Math.imul(t^t>>>7, t|61); return ((t^t>>>14)>>>0)/4294967296;
+      };}
+
+      var base = (seed|0)>>>0;  // your session seed
+      var map = {};             // {gs: randDepth}
+      var arr = [];             // [ [gs, randDepth], ... ]
+
+      for (var i=0;i<bounds.length;i++){
+        var gs = bounds[i][0], sh = +bounds[i][1], dp = +bounds[i][2];
+        if (!isFinite(sh) || !isFinite(dp) || dp < sh) continue;
+        var rng  = mulberry32((base ^ h32(gs))>>>0);  // per-species stable RNG
+        var u    = rng();
+        var d    = sh + u*(dp - sh);                 // uniform in [sh, dp]
+        map[gs]  = d;
+        arr.push([gs, d]);
+      }
+
+      // depth order for fast stepping & quick jumps
+      arr.sort(function(a,b){ return a[1]-b[1]; });
+      var order = arr.map(function(x){ return x[0]; });
+
+      return [map, order];
+    }
+    """,
+    Output("rand-depth-map",     "data", allow_duplicate=True),
+    Output("depth-order-store",  "data"),
+    Input("eligible-depth-bounds","data"),
+    State("rand-seed",            "data"),
+    prevent_initial_call="initial_duplicate"   # ← add this line
+)
 
 
 
@@ -2259,7 +2427,7 @@ def step_size(n_next, n_prev,
 # -------------------------------------------------------------------
 # Depth‑axis navigation (up / down)
 # -------------------------------------------------------------------
-@app.callback(
+'''@app.callback(
     Output("selected-species", "data", allow_duplicate=True),
 
     # triggers
@@ -2334,7 +2502,7 @@ def step_depth(n_up, n_down,
     new_sel = species[idx]
     if new_sel == current:
         raise PreventUpdate
-    return new_sel
+    return new_sel'''
 
 
 
@@ -2343,7 +2511,7 @@ def step_depth(n_up, n_down,
 # Quick‑jump buttons (deepest / shallowest / largest / smallest)
 # -------------------------------------------------------------------
 # Quick jumps
-@app.callback(
+'''@app.callback(
     Output("selected-species", "data", allow_duplicate=True),
     Input("deepest-btn",    "n_clicks"),
     Input("shallowest-btn", "n_clicks"),
@@ -2392,7 +2560,48 @@ def jump_to_extremes(n_deep, n_shallow, n_large, n_small,
     if new_gs == (current or ""):
         # already at that extreme → don't reload / re-arm image watcher
         raise PreventUpdate
+    return new_gs'''
+    
+# REPLACE the old jump_to_extremes with this size-only version.
+@app.callback(
+    Output("selected-species", "data", allow_duplicate=True),
+    Input("largest-btn",    "n_clicks"),
+    Input("smallest-btn",   "n_clicks"),
+    State("wiki-toggle",    "value"),
+    State("popular-toggle", "value"),
+    State("favs-toggle",    "value"),
+    State("favs-store",     "data"),
+    State("selected-species","data"),
+    prevent_initial_call=True
+)
+def jump_to_size_extremes(n_large, n_small,
+                          wiki_val, pop_val, fav_val, favs_data,
+                          current):
+    trig = ctx.triggered_id
+    if trig is None:
+        raise PreventUpdate
+
+    # Use your existing helper; depth flag is False here.
+    df_use = get_filtered_df(size_on=True, depth_on=False,
+                             wiki_val=wiki_val, pop_val=pop_val)
+
+    # Apply favs if enabled
+    if fav_val and "fav" in fav_val:
+        fav_set = set(json.loads(favs_data or "[]"))
+        df_use = df_use[df_use["Genus_Species"].isin(fav_set)]
+    if df_use.empty:
+        raise PreventUpdate
+
+    # Sort by size; keep your existing tie-breaker
+    df_use = df_use.sort_values(["Length_cm", "Length_in"], na_position="last")
+
+    row = df_use.iloc[-1] if trig == "largest-btn" else df_use.iloc[0]
+    new_gs = row["Genus_Species"]
+
+    if new_gs == (current or ""):
+        raise PreventUpdate
     return new_gs
+
 
 
 
@@ -2576,6 +2785,9 @@ app.index_string = '''
         {%metas%}
         <title>Pelagica</title>
         <link rel="icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="preconnect" href="https://pub-197edf068b764f1c992340f063f4f4f1.r2.dev" crossorigin>
+
         {%css%}
     </head>
     <body>
