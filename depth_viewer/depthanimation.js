@@ -1044,7 +1044,7 @@ function raf(ts) {
 
       /* prune off‑screen tiles (buffer ±5) */
       for (const s in layer.imgNodes) {
-        if (s < slice - 7 || s > slice + 7) {
+        if (s < slice - 5 || s > slice + 5) {
           layer.el.removeChild(layer.imgNodes[s]);
           delete layer.imgNodes[s];
         }
@@ -1093,23 +1093,38 @@ function wireUpButtons(){
 
 
 /* keeps one promise per URL so we don’t start the same fetch twice */
+
 const decodeCache = new Map();
+const MAX_IN_FLIGHT = 6;
+const q = [];
+let inFlight = 0;
 
-function preloadTile(prefix, n, cache){
-  const url = `${prefix}_${n}.webp`;
-  if (decodeCache.has(url)) return decodeCache.get(url);   // reuse
-
+function pump() {
+  if (inFlight >= MAX_IN_FLIGHT || q.length === 0) return;
+  const { url, resolve, reject } = q.shift();
+  inFlight++;
   const img = new Image();
   img.src = url;
+  const done = ('decode' in img) ? img.decode() : new Promise(r => img.onload = r);
+  done.then(() => resolve(img))
+      .catch(reject)
+      .finally(() => { inFlight--; pump(); });
+}
 
-  const p = ('decode' in img)
-      ? img.decode().then(()=>img)         // modern browsers
-      : new Promise(res => img.onload = () => res(img));
-
+function queuedDecode(url) {
+  if (decodeCache.has(url)) return decodeCache.get(url);
+  const p = new Promise((resolve, reject) => { q.push({ url, resolve, reject }); pump(); });
   decodeCache.set(url, p);
-  cache[n] = p;                            // your per‑layer cache still works
   return p;
 }
+
+function preloadTile(prefix, n, cache) {
+  const url = `${prefix}_${n}.webp`;
+  const p = queuedDecode(url);
+  cache[n] = p;    // keep your per-layer cache behavior
+  return p;
+}
+
 
 
 
@@ -1165,7 +1180,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const cache  = {};
 
     // Preload first few tiles
-    for (let k = 0; k <= 10 && k < total; k++) {
+    for (let k = 0; k <= 2 && k < total; k++) {
       preloadTile(prefix, k, cache);
     }
 

@@ -591,7 +591,13 @@ citations_panel = dbc.Offcanvas(
     autoFocus=False, 
     scrollable=True,
     style={"width": f"{CITATION_W}px"},   # <-- inject Python var here
-    children=html.Div(id="citation-box", style={"whiteSpace": "pre-wrap"})
+    children=html.Div(
+        id="citation-box",
+        style={"whiteSpace": "pre-wrap"},
+        children=[html.Br(), html.Br(),
+                  html.Span("Code, background images, animations, "
+                            "and UI design: © 2025 Victoria Tiki")]
+    )
 )
 
 

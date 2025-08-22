@@ -24,7 +24,7 @@ primary_region = "ord"      # e.g. Chicago (US) or "fra" (EU)
     hard_limit = 16
 
 [[vm]]
-  size = "shared-cpu-2x"
+  size = "shared-cpu-1x"
   memory = "768mb"          # bump to "1024mb" if needed
   #cpu_kind = "shared"
   #cpus = 1

@@ -62,6 +62,5 @@ CMD ["sh","-c", "\
     chmod -R a-w /pelagica/image_cache /pelagica/text_cache || true; \
   fi; \
   exec poetry run gunicorn app:server -b 0.0.0.0:${PORT:-8050} \
-    --workers 1 --worker-class gthread --threads 4 --timeout 180 --keep-alive 75 \
-    --max-requests 200 --max-requests-jitter 50 \
+    --workers 1 --worker-class gthread --threads 8 --timeout 120 --graceful-timeout 20 --keep-alive 3 \
 "]
