@@ -1,5 +1,6 @@
 // assets/logging.js
 
+/*
 // 1) Log exactly when the animation completes.
 // Assumes your viewer posts { type: "animationDone", species: "<name>" }.
 window.addEventListener("message", (ev) => {
@@ -53,6 +54,6 @@ window.addEventListener("message", (ev) => {
     });
   }
 })();
-
+*/
 
 

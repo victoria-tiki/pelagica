@@ -2019,23 +2019,31 @@ def build_eligible_bounds(wiki_val, pop_val, fav_val, lock_on, favs_data, curren
 
 app.clientside_callback(
     """
-    function(seed, boundsAll){
-      if (!seed || !Array.isArray(boundsAll)) {
-        return null;
+    function(boundsAll, boundsLocked, seed){
+      // bounds*: [[gs, shallow, deep], ...]
+      if (!Array.isArray(boundsAll) || !boundsAll.length) {
+        return [null, null, null];
       }
 
-      // Deterministic PRNG (Mulberry32)
-      function mulberry32(a) {
-        return function() {
+      // FNV-1a 32-bit
+      function h32(s){
+        var h = 2166136261>>>0;
+        for (var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return h>>>0;
+      }
+      // Mulberry32 PRNG
+      function mulberry32(a){
+        return function(){
           var t = a += 0x6D2B79F5;
           t = Math.imul(t ^ t >>> 15, t | 1);
           t ^= t + Math.imul(t ^ t >>> 7, t | 61);
           return ((t ^ t >>> 14) >>> 0) / 4294967296;
-        }
+        };
       }
-      var rng = mulberry32(seed);
 
-      // Override species → always 0–5m
+      var base = (seed|0)>>>0;
+
+      // Override species → force 0–5 m
       var overrides = new Set([
         "Delphinus delphis",
         "Homo sapiens",
@@ -2051,25 +2059,25 @@ app.clientside_callback(
         "Tursiops truncatus"
       ]);
 
-      var depthMap = {};
-      for (var i = 0; i < boundsAll.length; i++) {
+      var map   = {};
+      var arrAll = [];
+
+      // Build biased depths for ALL eligible species (quick jumps ignore lock)
+      for (var i=0; i<boundsAll.length; i++){
         var gs = boundsAll[i][0];
-        var s  = parseFloat(boundsAll[i][1]);
-        var d  = parseFloat(boundsAll[i][2]);
+        var s  = +boundsAll[i][1];
+        var d  = +boundsAll[i][2];
 
-        // Handle overrides
-        if (overrides.has(gs)) {
-          s = 0.0;
-          d = 5.0;
-        }
+        // overrides → clamp bounds to 0..5 m
+        if (overrides.has(gs)) { s = 0.0; d = 5.0; }
 
-        // Fallback if invalid range
-        if (isNaN(s) || isNaN(d) || s === d) {
-          depthMap[gs] = s;
-          continue;
-        }
+        // skip invalid ranges
+        if (!(d >= s)) { continue; }
 
+        // per-species RNG seeded by (session seed XOR hash(gs))
+        var rng = mulberry32((base ^ h32(gs))>>>0);
         var u = rng();
+
         var depth;
         if (s < 200) {
           // shallow bias: u^1.3
@@ -2082,16 +2090,30 @@ app.clientside_callback(
           depth = s + (1 - Math.pow(1 - u, 2.0)) * (d - s);
         }
 
-        depthMap[gs] = depth;
+        map[gs] = depth;
+        arrAll.push([gs, depth]);
       }
 
-      return depthMap;
+      // Sort ALL by depth → used by quick jumps (filters only)
+      arrAll.sort(function(a,b){ return a[1]-b[1]; });
+      var orderAll = arrAll.map(function(x){ return x[0]; });
+
+      // Locked order = same ranking but filtered to the locked set
+      var lockedSet = new Set((boundsLocked||[]).map(function(x){ return x[0]; }));
+      var orderLocked = orderAll.filter(function(gs){ return lockedSet.has(gs); });
+
+      return [map, orderAll, orderLocked];
     }
     """,
-    Output("rand-depth-map", "data", allow_duplicate=True),
-    Input("rand-seed", "data"),
-    State("eligible-depth-bounds-all", "data"),
-    prevent_initial_call=True,
+    [
+      Output("rand-depth-map",          "data", allow_duplicate=True),
+      Output("depth-order-store-all",   "data", allow_duplicate=True),
+      Output("depth-order-store-locked","data", allow_duplicate=True),
+    ],
+    Input("eligible-depth-bounds-all",    "data"),
+    Input("eligible-depth-bounds-locked", "data"),
+    State("rand-seed", "data"),
+    prevent_initial_call=True
 )
 
 
@@ -2158,7 +2180,7 @@ app.clientside_callback(
     prevent_initial_call=True,
 )
 
-app.clientside_callback(
+'''app.clientside_callback(
     """
     function(bounds, seed){
       // bounds: [[gs, sh, dp], ...] from server (only when filters change)
@@ -2201,7 +2223,7 @@ app.clientside_callback(
     Input("eligible-depth-bounds","data"),
     State("rand-seed",            "data"),
     prevent_initial_call="initial_duplicate"   # ← add this line
-)
+)'''
 
 
 
@@ -2853,10 +2875,11 @@ app.index_string = '''
 
     <!-- Open Graph -->
     <meta property="og:title" content="Pelagica - The Aquatic Life Atlas" />
+    <meta property="og:author" content="Victoria Tiki" />
     <meta property="og:description" content="Explore aquatic species by depth, size, and taxonomy. Smooth descent animation, curated images, and more." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://pelagica.victoriatiki.com/" />
-    <meta property="og:image" content="https://pelagica.victoriatiki.com/assets/og/pelagica_1200x630.jpg" />
+    <meta property="og:image" content="https://pelagica.victoriatiki.com/assets/og/pelagica_og_1200x630.jpg" />
     <meta property="og:image:width"  content="1200" />
     <meta property="og:image:height" content="630" />
 

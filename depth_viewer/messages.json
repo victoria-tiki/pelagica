@@ -342,7 +342,7 @@
 
   { "min": 90, "max": 100,
     "descend": ["Record breath‑hold dives reach about this deep. Very few people dare."],
-    "ascend":  ["You are swimming above the deepest human breath‑hold record."] },
+    "ascend":  ["You are swimming just above the deepest human breath‑hold record."] },
 
   { "min": 190, "max": 230,
     "descend": ["Leaving the sunlit ‘epipelagic’ layer. Welcome to the twilight zone."]},

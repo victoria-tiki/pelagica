@@ -31,7 +31,7 @@
   function hidePanel(why) {
     const panel = $("main-content");
     if (panel) panel.style.display = "none";
-    if (why) console.log("[Pelagica] hide main-content →", why);
+    //if (why) console.log("[Pelagica] hide main-content →", why);
   }
 
   function tryShowPanel() {
@@ -39,7 +39,7 @@
     const panel = $("main-content");
     if (panel) panel.style.display = "block";
     setOverlay(false);                     // overlay off when panel shows
-    console.log("[Pelagica] species panel SHOWN (anim + image ready).");
+    //console.log("[Pelagica] species panel SHOWN (anim + image ready).");
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@
     window.addEventListener("message", (e) => {
       if (e?.data?.type !== "animationDone") return;
       animGate = true;
-      console.log("[Pelagica] descent animation completed.");
+      //console.log("[Pelagica] descent animation completed.");
 
       // Show the overlay only if we are waiting on a NEW image to load.
       // (Do not hide it here; tryShowPanel() will hide it when both gates are open.)
@@ -133,7 +133,7 @@
           const onLoad = () => {
             if (img.getAttribute("src") === pendingSrc) {
               imgGate = true;
-              console.log("[Pelagica] image loaded:", pendingSrc);
+              //console.log("[Pelagica] image loaded:", pendingSrc);
               tryShowPanel();
               clearTimeout(imgWatchdog);
             }
