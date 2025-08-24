@@ -311,6 +311,24 @@ body.search-open .search-handle {
     font-size: 0.85rem !important;
 }
 
+/* Default (Settings collapsed): allow menus to extend past the panel */
+#search-panel {
+  overflow: visible;              /* dropdowns can overflow like before */
+}
+
+/* When Settings is OPEN: cap height and scroll the entire panel */
+#search-panel:has(#adv-box:not([style*="display: none"])) {
+  max-height: 90vh;               /* adjust if you prefer 100vh */
+  overflow-y: auto;
+}
+
+/* (Optional) keep long menus reasonable & above glass panels */
+#search-panel .Select-menu-outer {
+  max-height: 16rem;              /* internal scroll if very long */
+  overflow-y: auto;
+  z-index: 4000;
+}
+
 
 
 

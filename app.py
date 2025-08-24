@@ -591,11 +591,7 @@ search_panel = html.Div(
         search_stack,
         advanced_filters
     ],
-    id="search-panel", className="glass-panel search-panel open", 
-    style={
-        "maxHeight": "90vh",     # limit to viewport
-        "overflowY": "auto",     # enable scrolling
-    }
+    id="search-panel", className="glass-panel search-panel open"
 )
 
 
