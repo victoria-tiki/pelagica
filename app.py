@@ -99,7 +99,21 @@ for p in glob.glob("assets/species/scale/*.webp"):
     "length_cm": length_cm
     })
 
-
+# NEW: human silhouettes (same filename convention)
+_humanscale_db = []
+for p in glob.glob("assets/species/humanscale/*.webp"):
+    name = os.path.basename(p)
+    m = _pat.match(name)
+    if not m:
+        continue
+    desc, num, unit = m.groups()
+    num = float(num.replace('p', '.'))
+    length_cm = num if unit == "cm" else num * 100
+    _humanscale_db.append({
+        "path": media_url(f"assets/species/humanscale/{name}"),
+        "desc": desc.replace('_', ' '),
+        "length_cm": length_cm
+    })
 
 # ---------- Load & prep dataframe ---------------------------------------------------
 df_full = load_species_with_taxonomy()  # heavy table + taxonomic data (cached in process_data)
@@ -481,6 +495,13 @@ advanced_filters = html.Div([           # collapsible area
         value=[],                # default = OFF
         switch=True,
         className="settings-group",
+    ),
+    
+    # NEW: human silhouette switch (defaults OFF)
+    dbc.Checklist(
+        id="human-scale-toggle",
+        options=[{"label": "Human silhouette for size comparison", "value": "human"}],
+        value=[], switch=True, className="settings-group",
     ),
 
 
@@ -2748,34 +2769,42 @@ def update_scale_tooltip(gs_name, is_on):
     Output("sizecmp-img", "style"),
     Output("sizecmp-img", "title"),
     Input("selected-species", "data"),
-    Input("compare-store",    "data"),     # ← boolean
+    Input("compare-store", "data"),          # existing on/off for overlay
+    Input("human-scale-toggle", "value"),    # NEW
     prevent_initial_call=True
 )
-def update_sizecmp(gs_name, is_on):
+def update_sizecmp(gs_name, is_on, human_val):
     # OFF or no species → hide the silhouette
     if not gs_name or not is_on:
-        return "", {"display":"none"}, ""
+        return "", {"display": "none"}, ""
 
     genus, species = gs_name.split(" ", 1)
     row = df_full.loc[df_full["Genus_Species"] == gs_name].iloc[0]
     length = row.Length_cm
-
     if pd.isna(length) or length == 0:
         return "", {"display": "none"}, ""
 
+    # Pick database: humans if toggled, else the default scale objects.
+    use_human = isinstance(human_val, (list, tuple)) and ("human" in human_val)
+    db = _humanscale_db if (use_human and _humanscale_db) else _scale_db
 
-
-    species_len = row.Length_cm
-    best = min(_scale_db, key=lambda d: abs(d["length_cm"] - species_len))
+    species_len = float(length)
+    best = min(db, key=lambda d: abs(d["length_cm"] - species_len))
     scale = best["length_cm"] / species_len
 
     style = {
-        "position":"absolute", "left":"50%", "top":"50%", "transform":"translate(-50%,-50%)",
-        "width":f"{scale*100:.2f}%", "zIndex":3,
-        "opacity":0.85, "pointerEvents":"auto", "cursor":"pointer"
+        "position": "absolute",
+        "left": "50%", "top": "50%",
+        "transform": "translate(-50%, -50%)",
+        "width": f"{scale*100:.2f}%",
+        "zIndex": 3,
+        "opacity": 0.85,
+        "pointerEvents": "auto",
+        "cursor": "pointer",
     }
-    title = f"this is a {best['desc']}"
+    title = f"compare to {best['desc']}"
     return best["path"], style, title
+
 
 @app.callback(
     Output("arrow-img", "style"),

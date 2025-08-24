@@ -123,7 +123,7 @@
   "descend": ["Crossing into the mesopelagic zone. Light here is less than 1% of the surface"]},
   
   {"min": 800, "max": 1000,
-  "ascent": ["Crossing into the mesopelagic zone. Light here is less than 1% of the surface"]},
+  "ascend": ["Crossing into the mesopelagic zone. Light here is less than 1% of the surface"]},
   
   {"min": 60,"max": 100,
   "descend": ["You leave behind most of the sun’s light. The world dims quickly now"]},
@@ -144,10 +144,10 @@
 
   {"min": 30, "max": 45,
    "descend": ["In lakes or coastal waters, chlorophyll–rich layers often peak around here"],
-   "ascent": ["In lakes or coastal waters, chlorophyll–rich layers often peak around here"]},
+   "ascend": ["In lakes or coastal waters, chlorophyll–rich layers often peak around here"]},
    
   {"min": 60, "max": 80,
-  "ascent": ["In tropical seas, this often marks the chlorophyll maximum layer"],
+  "ascend": ["In tropical seas, this often marks the chlorophyll maximum layer"],
   "descend": ["In tropical seas, this often marks the chlorophyll maximum layer"]},
 
   {"min": 300, "max": 500,
@@ -198,7 +198,7 @@
 
   { "min": 1200, "max": 1300,
     "descend": ["Bioluminescent predators dominate here"],
-    "ascent": ["Bioluminescent predators dominate here"]},
+    "ascend": ["Bioluminescent predators dominate here"]},
 
   { "min": 1700, "max": 1800,
     "descend": ["Diel‑vertical‑migrant crustaceans rarely exceed this depth"],
@@ -315,6 +315,9 @@
   { "min": 20, "max": 30,
     "descend": ["Sea‑turtles often dive to this depth for tasty jellyfish."],
     "ascend":  ["Turtles and snorkelers meet just above you."] },
+    
+     { "min": 0, "max": 30,
+    "descend": ["From over a kilometer away, a shark senses your every splash. But don't sweat it… you're not their favorite flavor."]},
 
   { "min": 30, "max": 40,
     "descend": ["Below most surf waves. You now glide in calmer water."],
@@ -614,7 +617,7 @@
 
 {"min": 4000, "max": 6000,
   "descend": ["A whale’s final plunge. Its corpse becoming a multi-year feast for other marine species."],
-  "ascent": ["A whale’s final plunge. Its corpse becoming a multi-year feast for other marine species."] 
+  "ascend": ["A whale’s final plunge. Its corpse becoming a multi-year feast for other marine species."] 
 },
 
 {"min": 0,"max": 30,
@@ -776,7 +779,7 @@
   },
   
   
-  {"min": 87000,"max": 9200,
+  {"min": 8700,"max": 9200,
     "descend": ["A low, resonant sound hums through the hull; no origin, no end, just vibration."],
     "ascend":  ["A low, resonant sound hums through the hull; no origin, no end, just vibration."]
   }, 
@@ -813,12 +816,10 @@
 
 {"min": 6000,"max": 11000,
   "descend": [
-    "Beyond this point, replies from the surface take longer to return… if they return at all."], 
-   "descend": ["You’ve left the reach of radio. Now, the sea decides what messages pass through."]}
-
-
-
-
+    "Beyond this point, replies from the surface take longer to return… if they return at all."]},
+    
+{"min": 6000,"max": 11000,
+  "descend": ["You’ve left the reach of radio. Now, the sea decides what messages pass through."]}
 
 
 

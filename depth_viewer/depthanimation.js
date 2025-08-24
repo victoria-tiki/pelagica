@@ -481,7 +481,7 @@ function pauseAllMotion () {
   if (depthMode) {
     const now   = performance.now();
     const frac  = Math.min(1, (now - moveStart) / moveDur);
-    const eased = easeTriPhase(frac);
+    const eased = smoothest(frac);
 
     const y0    = depthToBaseY(startDepth);
     const y1    = depthToBaseY(targetDepth);
@@ -780,7 +780,7 @@ function goToDepth(){
       baseFrom : 0,                                          // default view
       baseTo   : depthToPixelMemo(0) - innerHeight/2,        // where 0 m lives
       start    : performance.now(),
-      dur      : 900                                         // ms – tweak to taste
+      dur      : 2200                                         // ms – tweak to taste
     };
     pendingDepth = v;        // remember the user’s real request
     updateGlitterForDepth(0);
@@ -868,8 +868,15 @@ function easeTriPhase(t){
 }
 
 
+function easeInOutCubic(t){
+  return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+}
+function easeInOutQuint(t){
+  return t < 0.5 ? 16*t*t*t*t*t : 1 - Math.pow(-2*t+2, 5)/2;
+}
 
-
+function smootherstep(t){ return t*t*t*(t*(6*t-15)+10); }
+function smoothest(t){ const s = smootherstep(t); return smootherstep(s); }
 
 /* RAF loop */
 let pausedDoc=false, frameCount=0, lastFPSStamp=0;
@@ -961,7 +968,7 @@ function raf(ts) {
   if (introTween) {
     const { baseFrom, baseTo, start, dur } = introTween;
     const t      = Math.min(1, (ts - start) / dur);
-    const eased  = 0.5 * (1 - Math.cos(Math.PI * t));
+    const eased  = t*t*t*(t*(6*t-15)+10);//0.5 * (1 - Math.cos(Math.PI * t));
     const baseY  = baseFrom + (baseTo - baseFrom) * eased;
     
     updateUnderwater(0);
