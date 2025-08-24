@@ -455,8 +455,6 @@ species_of_week_card = html.Div(
     className="glass-panel",
     style={"marginTop": "0.6rem", "cursor": "pointer"},  # ← always rendered
     children=[
-        html.Div(id="sow-title", children="Species of the Hour",
-                 style={"fontWeight": 600, "marginBottom": "0.25rem"}),
         html.Div(
             id="sow-body",
             style={"display": "flex", "alignItems": "center", "gap": "0.6rem"},
@@ -567,6 +565,7 @@ advanced_filters = html.Div([           # collapsible area
     ], className="gx-1"),
     
     # ↓ add this immediately after your two Quick jump rows
+    html.H6(id="sow-title", children="Species of the Week", className="settings-header"),
     species_of_week_card,
 
 
@@ -592,7 +591,11 @@ search_panel = html.Div(
         search_stack,
         advanced_filters
     ],
-    id="search-panel", className="glass-panel search-panel open"
+    id="search-panel", className="glass-panel search-panel open", 
+    style={
+        "maxHeight": "90vh",     # limit to viewport
+        "overflowY": "auto",     # enable scrolling
+    }
 )
 
 
@@ -3252,9 +3255,11 @@ SOW_PINNED_SPECIES = os.getenv("SOW_PINNED_SPECIES", "Grimpoteuthis discoveryi")
 def update_species_of_week(_):
     # Production mode: weekly window (Mon–Sun, UTC)
     now = utcnow()
-    cutoff = next_monday_start(now) + datetime.timedelta(days=7)
+    SOW_LIVE_START_UTC = datetime.datetime(2025, 9, 1, 0, 0, tzinfo=datetime.timezone.utc)
+    #cutoff = next_monday_start(now) + datetime.timedelta(days=7)
+    cutoff = SOW_LIVE_START_UTC
 
-    # Until next Monday → show pinned pick
+    # Until Sept 1 → show pinned pick
     if now < cutoff and SOW_PINNED_SPECIES:
         sp = SOW_PINNED_SPECIES
         genus, species = sp.split(" ", 1)
