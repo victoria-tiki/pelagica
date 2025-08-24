@@ -2365,12 +2365,11 @@ def init_seed(cur):
 app.clientside_callback(
     """
     function (depth, flag) {
-        /*
-           `flag` is the `value` array from the checklist.
-           When the box is checked   → ["on"]  (play)
-           When the box is unchecked → []      (skip)
-        */
-        const skip = !(Array.isArray(flag) && flag.length);
+      // Ignore until we have a real number
+      if (typeof depth !== "number" || !isFinite(depth)) {
+        return window.dash_clientside.no_update;
+      }
+      const skip = !(Array.isArray(flag) && flag.length);
 
         // 🔊 Pre-fade the audio TOWARD the target band immediately,
         // so the multi-second fade is already underway during the visual tween.
@@ -2383,10 +2382,10 @@ app.clientside_callback(
         } catch (e) {}
 
         // ▶️ now kick off the visual tween in the iframe
-        if (window.dash_clientside?.bridge?.sendDepth) {
-            window.dash_clientside.bridge.sendDepth(depth, skip);
-        }
-        return window.dash_clientside.no_update;
+          if (window.dash_clientside?.bridge?.sendDepth) {
+          window.dash_clientside.bridge.sendDepth(depth, skip);
+      }
+      return window.dash_clientside.no_update;
     }
     """,
     Output("depth-iframe", "title"),        # dummy
@@ -3317,8 +3316,12 @@ app.clientside_callback(
           window.dash_clientside.no_update
         ];
       }
-      // Clean restart defaults
-      return [0, {}, false];  // depth-store, rand-depth-map, compare-store
+      // Clean restart defaults (leave depth unset)
+        return [
+          window.dash_clientside.no_update,  // depth-store (do not force 0)
+          {},                                // rand-depth-map
+          false                              // compare-store
+        ];
     }
     """,
     Output("depth-store",    "data", allow_duplicate=True),
