@@ -858,75 +858,78 @@ feedback_link=html.A("give feedback", href="https://forms.gle/YuUFrYPmDWsqyHdt7"
 
 #  Assemble Layout
 app.layout = dbc.Container([
-    html.Div(id="seo-trigger", style={"display": "none"}),
-    dcc.Location(id="url", refresh=False),
-    dcc.Interval(id="sow-refresh", interval=60_000, n_intervals=0),  # 60s
-
-    search_panel,
-    invisible_toggles, 
-    search_handle,
-    dcc.Store(id="rand-seed", storage_type="session"),
-    
-    top_bar,
-    
-    dbc.Tooltip("Toggle ambient depth sound", target="depth-sound-btn",placement="bottom"),
-    dcc.Store(id="sound-on", data=False, storage_type="session"),
-    html.Audio(id="snd-surface-a", preload="none", style={"display":"none"}),
-    html.Audio(id="snd-surface-b", preload="none", style={"display":"none"}),
-    html.Audio(id="snd-epi2meso-a",preload="none", style={"display":"none"}),
-    html.Audio(id="snd-epi2meso-b",preload="none", style={"display":"none"}),
-    html.Audio(id="snd-abyss2hadal-a",preload="none", style={"display":"none"}),
-    html.Audio(id="snd-abyss2hadal-b",preload="none", style={"display":"none"}),
-    html.Audio(id="snd-meso2bath-a",preload="none", style={"display":"none"}),
-    html.Audio(id="snd-meso2bath-b",preload="none", style={"display":"none"}),
-    html.Audio(id="snd-bath2abyss-a",preload="none", style={"display":"none"}),
-    html.Audio(id="snd-bath2abyss-b", preload="none", style={"display":"none"}),
-    html.Div(id="js-audio-sink", style={"display": "none"}),
-    dcc.Store(id="audio-src-sink", data=None, storage_type="memory"),  
-
-
-    
-    fav_modal,
-
-
-    html.Div("citations",      id="citations-tab", className="side-tab"),
-    html.Div(feedback_link,   id="bug-tab",       className="side-tab"),
-
-    html.Div(centre_flex, id="main-content", style={"display": "none"}),
-    center_message,
-    html.Div(id="tree-click-trigger", style={"display": "none"}),
-    
-    nav_panel,
-    dcc.Store(id="order-lock-state", data=False, storage_type="memory"),
-    
-    html.Iframe(id="depth-iframe",src="/viewer/index.html",
+   html.Iframe(id="depth-iframe",src="/viewer/index.html",
             style={"width": "100%", "height": "100vh", "border": "none"},
         ),
-    
-    dcc.Store(id="anim-done", data=False, storage_type="session"),
-    dcc.Store(id="rand-depth-map", storage_type="session"),
-    dcc.Store(id="depth-order-store", storage_type="session"),
-    dcc.Store(id="eligible-depth-bounds-all",    storage_type="session"),
-    dcc.Store(id="eligible-depth-bounds-locked", storage_type="session"),
-    dcc.Store(id="depth-order-store-all",        storage_type="session"),
-    dcc.Store(id="depth-order-store-locked",     storage_type="session"),
-    dcc.Store(id="depth-store",                  storage_type="session"),
+    html.Div(id="scale-root", children=[
+        html.Div(id="seo-trigger", style={"display": "none"}),
+        dcc.Location(id="url", refresh=False),
+        dcc.Interval(id="sow-refresh", interval=60_000, n_intervals=0),  # 60s
+
+        search_panel,
+        invisible_toggles, 
+        search_handle,
+        dcc.Store(id="rand-seed", storage_type="session"),
+        
+        top_bar,
+        
+        dbc.Tooltip("Toggle ambient depth sound", target="depth-sound-btn",placement="bottom"),
+        dcc.Store(id="sound-on", data=False, storage_type="session"),
+        html.Audio(id="snd-surface-a", preload="none", style={"display":"none"}),
+        html.Audio(id="snd-surface-b", preload="none", style={"display":"none"}),
+        html.Audio(id="snd-epi2meso-a",preload="none", style={"display":"none"}),
+        html.Audio(id="snd-epi2meso-b",preload="none", style={"display":"none"}),
+        html.Audio(id="snd-abyss2hadal-a",preload="none", style={"display":"none"}),
+        html.Audio(id="snd-abyss2hadal-b",preload="none", style={"display":"none"}),
+        html.Audio(id="snd-meso2bath-a",preload="none", style={"display":"none"}),
+        html.Audio(id="snd-meso2bath-b",preload="none", style={"display":"none"}),
+        html.Audio(id="snd-bath2abyss-a",preload="none", style={"display":"none"}),
+        html.Audio(id="snd-bath2abyss-b", preload="none", style={"display":"none"}),
+        html.Div(id="js-audio-sink", style={"display": "none"}),
+        dcc.Store(id="audio-src-sink", data=None, storage_type="memory"),  
 
 
-    footer,
-    
-    
-    
-    html.Div(id="js-trigger", style={"display": "none"}),
-    html.Div(id="url-trigger", style={"display": "none"}),   # new
-    dcc.Store(id="selected-species", data=None),
-    dcc.Store(id="favs-store",storage_type="local"),      # persists in localStorage
-    dcc.Store(id="compare-store", data=False, storage_type="session"),
-    dcc.Store(id="common-opt-cache", data=[]),
-    
+        
+        fav_modal,
 
 
-    citations_panel,
+        html.Div("citations",      id="citations-tab", className="side-tab"),
+        html.Div(feedback_link,   id="bug-tab",       className="side-tab"),
+
+        html.Div(centre_flex, id="main-content", style={"display": "none"}),
+        center_message,
+        html.Div(id="tree-click-trigger", style={"display": "none"}),
+        
+        nav_panel,
+        dcc.Store(id="order-lock-state", data=False, storage_type="memory"),
+        
+ 
+        
+        dcc.Store(id="anim-done", data=False, storage_type="session"),
+        dcc.Store(id="rand-depth-map", storage_type="session"),
+        dcc.Store(id="depth-order-store", storage_type="session"),
+        dcc.Store(id="eligible-depth-bounds-all",    storage_type="session"),
+        dcc.Store(id="eligible-depth-bounds-locked", storage_type="session"),
+        dcc.Store(id="depth-order-store-all",        storage_type="session"),
+        dcc.Store(id="depth-order-store-locked",     storage_type="session"),
+        dcc.Store(id="depth-store",                  storage_type="session"),
+
+
+        footer,
+        
+        
+        
+        html.Div(id="js-trigger", style={"display": "none"}),
+        html.Div(id="url-trigger", style={"display": "none"}),   # new
+        dcc.Store(id="selected-species", data=None),
+        dcc.Store(id="favs-store",storage_type="local"),      # persists in localStorage
+        dcc.Store(id="compare-store", data=False, storage_type="session"),
+        dcc.Store(id="common-opt-cache", data=[]),
+        
+
+
+        citations_panel,
+    ])
 ], fluid=True)
 
 ################################################
@@ -1554,6 +1557,27 @@ def update_order_lock_label(locked, species_id, old_class):
     order_name = order.iloc[0] if not order.empty else "?"
     return f"Navigating among {order_name} only", base_class + " active"
 
+# --- Auto-release order lock on cross-order selection --------------------------
+@app.callback(
+    Output("order-lock-state", "data", allow_duplicate=True),
+    Output("order-lock-btn",   "className", allow_duplicate=True),
+    Input("selected-species",  "data"),
+    State("order-lock-state",  "data"),
+    State("depth-order-store-locked", "data"),
+    prevent_initial_call=True
+)
+def _auto_release_order_lock(new_gs, lock_on, locked_list):
+    # If the order lock is ON but the newly selected species isn't in the
+    # currently locked set (derived from the previous species' order),
+    # automatically turn the lock OFF so the user can roam freely.
+    if not lock_on or not new_gs:
+        raise PreventUpdate
+    try:
+        if isinstance(locked_list, (list, tuple)) and locked_list and new_gs not in locked_list:
+            return False, "nav-icon lock-icon"  # unlock + de-highlight
+    except Exception:
+        pass
+    raise PreventUpdate
 
 
 
