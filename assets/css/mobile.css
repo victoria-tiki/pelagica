@@ -1,0 +1,20 @@
+/* Global UI scale (default 1) */
+:root { --uiscale: 1; }
+
+/* Crisp on Chrome/Android */
+#scale-root { zoom: var(--uiscale); }
+
+/* Fallback when zoom is unsupported */
+@supports not (zoom: 1) {
+  #scale-root {
+    transform: scale(var(--uiscale));
+    transform-origin: top left;
+    width: calc(100% / var(--uiscale));
+    /* optional: keep full-height layouts sane */
+    min-height: calc(100vh / var(--uiscale));
+  }
+}
+
+/* Keep browsers from “helpfully” inflating text */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+

@@ -356,7 +356,7 @@ body.search-open .search-handle {
 
 #citations-tab {
   right: 0;
-  top: 70%;
+  top: 67%;
   z-index: 4
 }
 
@@ -605,7 +605,7 @@ body.search-open .search-handle {
   backdrop-filter: var(--blur-md);
   box-shadow: 0 2px 6px #0008;
   display: none;  /* toggle via JS/callback */
-  z-index:4;
+  z-index:2;
   pointer-events:auto;
 }
 
@@ -772,6 +772,37 @@ body.search-open .search-handle {
 
 
 
+/* Unified icon rail (bottom-left of #image-wrapper) */
+:root{
+  --icon-pad: 0.6rem;    /* distance from left/bottom edge */
+  --icon-size: 2rem;     /* ⌀ of each round button */
+  --icon-gap: 0.65rem;   /* space between buttons */
+}
+
+/* normalize all buttons’ positioning & dimensions */
+#image-wrapper { position: relative; } /* already set earlier; keep it */
+
+#info-handle, #fav-handle, .scale-icon, .tree-icon, .sound-icon {
+  position: absolute;
+  bottom: var(--icon-pad);
+  left: calc(var(--icon-pad) + (var(--icon-order, 0)) * (var(--icon-size) + var(--icon-gap)));
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: grid; place-items: center;
+  /* keep your existing visuals (glass, blur, shadows, etc.) */
+}
+
+/* assign the horizontal order (0,1,2,3,…) */
+#info-handle { --icon-order: 0; }
+#fav-handle  { --icon-order: 1; }
+.scale-icon  { --icon-order: 2; }
+.tree-icon   { --icon-order: 3; }
+.sound-icon  { --icon-order: 4; }
+
+/* Optional: slightly tighter on phones */
+@media (max-width: 768px){
+  :root{ --icon-size: 1.7rem;}
+}
 
 
 
@@ -1211,7 +1242,7 @@ helper text size matches the sideways labels
   position: fixed;
   inset: 0;                 /* top:0 left:0 right:0 bottom:0 */
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   border: none;
   z-index: 0;               /* sits underneath the glass UI */
   pointer-events: none;     /* clicks go to the UI, not the iframe */
@@ -1313,6 +1344,14 @@ helper text size matches the sideways labels
     object-fit: contain;
   }
 }
+
+/* Phones & emulators 
+@media (hover: none) and (pointer: coarse), (max-width: 1000px) {
+  #image-wrapper {
+    margin-top: clamp(1rem, 6vh, 2rem) !important;
+  }
+}*/
+
 
 /* Slider container: sits under the button */
 #sound-wrap:hover #sound-vol-wrap,
@@ -1434,5 +1473,21 @@ helper text size matches the sideways labels
 .nav-icon.greyed {
   filter: grayscale(100%);
   opacity: 0.55;
+}
+
+
+/* Phone-only: stop vertical centering and push the column down a bit */
+@media (max-width: 900px) {
+  #page-centre-flex{
+    justify-content: flex-start !important; /* was center */
+    padding-top: 28vh !important;          /* tune: 10–16vh */
+    /* keep or drop the desktop margin — if it feels too low, set this to 0 */
+    /* margin-top: 0 !important; */
+  }
+
+  /* Optional: tiny extra nudge for just the image block */
+  #image-wrapper{
+    margin-top: 10vh !important;
+  }
 }
 

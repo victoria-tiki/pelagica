@@ -317,7 +317,7 @@
     "ascend":  ["Turtles and snorkelers meet just above you."] },
     
      { "min": 0, "max": 30,
-    "descend": ["From over a kilometer away, a shark senses your every splash. But don't sweat it… you're not their favorite flavor."]},
+    "descend": ["From over a kilometer away, a shark senses your every splash. But don't sweat it… you're not their favorite flavor."], "ascend": ["From over a kilometer away, a shark senses your every splash. But don't sweat it… you're not their favorite flavor."]},
 
   { "min": 30, "max": 40,
     "descend": ["Below most surf waves. You now glide in calmer water."],
@@ -366,8 +366,8 @@
     "ascend":  ["The snow of dead plankton thins out above."] },
 
   { "min": 900, "max": 1000,
-    "descend": ["The sound channel's center. Whale songs can circle the globe from here."],
-    "ascend":  ["The sound channel's center. Whale songs can circle the globe from here."] },
+    "descend": ["The sound channel's center. Whale songs can reach across the ocean from here."],
+    "ascend":  ["The sound channel's center. Whale songs can reach across the ocean from here."] },
 
   { "min": 1000, "max": 1200,
     "descend": ["Entering the midnight zone. No sunlight ever reaches this layer."],
@@ -621,7 +621,7 @@
 },
 
 {"min": 0,"max": 30,
-  "descend": ["Special adaptations keep plankton from sinking into darkness. Once they fall, they starve."] 
+  "descend": ["Special adaptations keep plankton from sinking into darkness. Once they fall, they starve."] ,"ascend": ["Special adaptations keep plankton from sinking into darkness. Once they fall, they starve."] 
 }, 
 
 
