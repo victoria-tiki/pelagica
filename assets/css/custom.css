@@ -1477,7 +1477,7 @@ helper text size matches the sideways labels
 
 
 /* Phone-only: stop vertical centering and push the column down a bit */
-@media (max-width: 900px) {
+@media (hover: none) and (pointer: coarse) and (max-width: 760px) {
   #page-centre-flex{
     justify-content: flex-start !important; /* was center */
     padding-top: 28vh !important;          /* tune: 10–16vh */
