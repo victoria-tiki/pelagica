@@ -914,7 +914,13 @@ async function ensureSlice(layer, slice){
   if (slice < 0 || slice >= layer.total) return;
   if (layer.imgNodes[slice])             return;
 
-  const img = await preloadTile(layer.prefix, slice, layer.cache);
+  let img;
+  try {
+    img = await preloadTile(layer.prefix, slice, layer.cache);
+  } catch (err) {
+    // transient decode failure – cache entry was evicted; RAF will try again next frame
+    return;
+  }
 
   /* (styling block unchanged) */
   img.className = 'layer-img';
@@ -1102,7 +1108,7 @@ function wireUpButtons(){
 /* keeps one promise per URL so we don’t start the same fetch twice */
 
 const decodeCache = new Map();
-const MAX_IN_FLIGHT = 6;
+const MAX_IN_FLIGHT = 4;
 const q = [];
 let inFlight = 0;
 
@@ -1111,19 +1117,34 @@ function pump() {
   const { url, resolve, reject } = q.shift();
   inFlight++;
   const img = new Image();
+  img.decoding = 'async';
+  img.loading  = 'eager';
   img.src = url;
-  const done = ('decode' in img) ? img.decode() : new Promise(r => img.onload = r);
+  let done;
+  if ('decode' in img) {
+    done = img.decode().catch((err) => {
+      // Fallback: if it ended up loaded anyway, accept it; else wait onload/.onerror
+      if (img.complete && img.naturalWidth && img.naturalHeight) return;
+      return new Promise((res, rej) => { img.onload = () => res(); img.onerror = rej; });
+    });
+  } else {
+    done = new Promise((res, rej) => { img.onload = () => res(); img.onerror = rej; });
+  }
   done.then(() => resolve(img))
-      .catch(reject)
+      .catch((err) => reject(err))
       .finally(() => { inFlight--; pump(); });
 }
 
-function queuedDecode(url) {
-  if (decodeCache.has(url)) return decodeCache.get(url);
-  const p = new Promise((resolve, reject) => { q.push({ url, resolve, reject }); pump(); });
-  decodeCache.set(url, p);
-  return p;
-}
+ function queuedDecode(url) {
+   const hit = decodeCache.get(url);
+   if (hit) return hit;
+   const p = new Promise((resolve, reject) => { q.push({ url, resolve, reject }); pump(); });
+   // Important: do not permanently cache a failure
+   const wrapped = p.then(img => img)
+                    .catch(err => { decodeCache.delete(url); throw err; });
+   decodeCache.set(url, wrapped);
+   return wrapped;
+ }
 
 function preloadTile(prefix, n, cache) {
   const url = `${prefix}_${n}.webp`;

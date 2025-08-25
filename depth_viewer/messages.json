@@ -43,8 +43,8 @@
     "ascend":  ["You’re crossing layers that rarely mix. Water can stay trapped here for years."] },
 
   { "min": 130, "max": 150,
-    "descend": ["Water gets heavier and colder fast. This could be the thermocline."],
-    "ascend":  ["Water gets heavier and colder fast. This could be the thermocline."] },
+    "descend": ["Water gets colder fast. This could be the thermocline."],
+    "ascend":  ["Water gets warmer fast. This could be the thermocline."] },
 
   { "min": 140, "max": 160,
     "descend": ["You're deeper than most lake bottoms now. Welcome to the unknown."],
