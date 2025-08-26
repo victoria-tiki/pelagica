@@ -32,22 +32,34 @@ body {
 
 }
 
-/* Image stays centered and at natural width */
+/*Image stays centered and at natural width */
 .layer-img{
   position:absolute;
   top:0; left:50%;
-  transform:translate(-50%,0);
-  height:var(--strip-h,1000px);   /* NEW – full strip height once JS sets it */
-  image-rendering:crisp-edges;
-  transition:transform 1.2s ease-out;
-}
-
-
-
-
-.layer-img {
+  /*transform:translate(-50%,0);*/
+  height:var(--strip-h,1000px);   
+  backface-visibility: hidden;
+  /*image-rendering:crisp-edges;*/
+  will-change: transform;
+  image-rendering: auto !important; 
   transition: none !important;
+  transform: translate(-50%, 0) translateZ(0); 
 }
+
+/* Stabilize tile images on Chrome 
+.layer-img {
+  position:absolute;
+  top:0; left:50%;
+  height:var(--strip-h,1000px);   
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: none !important; 
+  image-rendering: auto !important; 
+  transform: translate(-50%, 0) translateZ(0); 
+}*/
+
+
 
 
 
