@@ -317,7 +317,7 @@
     "ascend":  ["Turtles and snorkelers meet just above you."] },
     
      { "min": 0, "max": 30,
-    "descend": ["From over a kilometer away, a shark senses your every splash. But don't sweat it… you're not their favorite flavor."], "ascend": ["From over a kilometer away, a shark senses your every splash. But don't sweat it… you're not their favorite flavor."]},
+    "descend": ["From over a kilometer away, a shark senses your every splash. But don't sweat it… you're not their favorite flavour."], "ascend": ["From over a kilometer away, a shark senses your every splash. But don't sweat it… you're not their favorite flavour."]},
 
   { "min": 30, "max": 40,
     "descend": ["Below most surf waves. You now glide in calmer water."],

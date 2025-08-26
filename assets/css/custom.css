@@ -356,16 +356,15 @@ body.search-open .search-handle {
 
 #citations-tab {
   right: 0;
-  top: 67%;
+  top: 65vh;           /* anchor the first tab */
   z-index: 4
 }
 
 #bug-tab {
   right: 0;
-  top: 80%;
-  z-index: 2
+  top: calc(65vh + 105px);  /* same anchor + constant gap */
+  z-index: 4
 }
-
 
 
 
@@ -1237,19 +1236,23 @@ helper text size matches the sideways labels
 
 /* custom.css  ─ add at the very end */
 
-/* a) let the iframe cover the viewport edge‑to‑edge */
-#depth-iframe {
+/* Fullscreen, sits under the UI, we’ll scale it in JS */
+/* Fullscreen baseline; JS can override later */
+#depth-iframe{
   position: fixed;
-  inset: 0;                 /* top:0 left:0 right:0 bottom:0 */
+  inset: 0;
   width: 100vw;
   height: 100dvh;
   border: none;
-  z-index: 0;               /* sits underneath the glass UI */
-  pointer-events: none;     /* clicks go to the UI, not the iframe */
+  z-index: 0;
+  pointer-events: none; /* UI remains clickable above */
 }
 
-/* b) remove the hard cap that caused the side gutters */
-.container-fluid { max-width: 100% !important; }  /* overrides the 1600 px rule */
+
+
+
+/* keep Bootstrap container from adding gutters over the viewer */
+.container-fluid { max-width: 100% !important; }
 
 
 .rand-icon {

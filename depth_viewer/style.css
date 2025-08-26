@@ -226,7 +226,7 @@ body.paused *{
 /* Mid‑screen caption */
 #message-box{
   position:fixed;
-  top:50%; left:50%; transform:translate(-50%,-50%);
+  top:58%; left:50%; transform:translate(-50%,-50%);
   font:700 2rem/1.3 system-ui;
   text-align:center;  white-space:pre-line;
   color:#fff; text-shadow:0 0 8px #000;
@@ -325,7 +325,6 @@ body.paused *{
 
 /* Phones & emulators: smaller and lower mid-screen message */
 @media (hover: none) and (pointer: coarse) and (max-width: 760px) {
-  /* normalize Android's text inflation on old Chrome builds */
   html {
     -webkit-text-size-adjust: 100% !important;
     text-size-adjust: 100% !important;
@@ -333,11 +332,11 @@ body.paused *{
   }
 
   #message-box {
-    top: 55% !important;                   /* lower than the default 50%; try 66–75% */
+    top: 55% !important;                   
     transform: translate(-50%, -50%) !important;
 
-    /* make it a bit smaller and cleaner */
-    font-size: 1.0rem !important;          /* try 0.95–1.15rem */
+
+    font-size: 1.0rem !important;         
     font-weight: 500 !important;
     line-height: 1.3 !important;
     font-family: Roboto, system-ui, -apple-system, "Segoe UI", Arial, sans-serif !important;

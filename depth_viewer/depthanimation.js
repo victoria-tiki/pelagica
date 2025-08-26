@@ -1223,6 +1223,17 @@ window.addEventListener('DOMContentLoaded', () => {
       imgNodes: { 0: img }
     };
   });
+  
+  // ✅ Warm-attach exactly one extra tile (slice 1) after layers exist
+    const schedule = window.requestIdleCallback || window.requestAnimationFrame;
+    schedule(() => {
+      layers.forEach(layer => {
+        if (layer.total > 1 && !layer.imgNodes[1]) {
+          // async; don't await to keep startup snappy
+          ensureSlice(layer, 1);
+        }
+      });
+    });
 
   document.body.classList.add('ready');
   requestAnimationFrame(raf);

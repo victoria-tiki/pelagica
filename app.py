@@ -854,12 +854,12 @@ nav_panel = html.Div([
 search_handle = html.Div(["🔍 Search"], id="search-handle", className="search-handle", **{"data-mobile-x": "true"})
 
 depth_store = dcc.Store(id="depth-store", storage_type="session")
-feedback_link=html.A("give feedback", href="https://forms.gle/YuUFrYPmDWsqyHdt7", target="_blank", style={"textDecoration": "none", "color": "inherit", "cursor": "pointer"})
+feedback_link=html.A("feedback", href="https://forms.gle/YuUFrYPmDWsqyHdt7", target="_blank", style={"textDecoration": "none", "color": "inherit", "cursor": "pointer"})
 
 #  Assemble Layout
 app.layout = dbc.Container([
    html.Iframe(id="depth-iframe",src="/viewer/index.html",
-            style={"width": "100%", "height": "100vh", "border": "none"},
+            style={"border": "none"},
         ),
     html.Div(id="scale-root", children=[
         html.Div(id="seo-trigger", style={"display": "none"}),
@@ -2824,7 +2824,7 @@ def update_sizecmp(gs_name, is_on, human_val):
         "pointerEvents": "auto",
         "cursor": "pointer",
     }
-    title = f"compare to {best['desc']}"
+    title = f"this is a {best['desc']}"
     return best["path"], style, title
 
 

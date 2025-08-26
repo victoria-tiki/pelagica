@@ -36,7 +36,7 @@
 
 
 
-/* ===== Phone-only UI tweaks (append at end of assets/mobile-scale.js) ===== */
+// ===== Phone-only UI tweaks (append at end of assets/mobile-scale.js) ===== 
 (function () {
   // Use the same detector you already use
   const isAndroid = /\bAndroid\b/i.test(navigator.userAgent);
