@@ -113,3 +113,37 @@
   if (window.visualViewport) visualViewport.addEventListener('resize', reapply, { passive: true });
 })();
 
+/*
+
+// Mobile iframe scale — safe zoom-out for phones/tablets
+(function () {
+  const isTouch = matchMedia('(hover: none) and (pointer: coarse)').matches;
+  const qs = new URLSearchParams(location.search);
+  const param = parseFloat(qs.get('framescale'));    // e.g. ?framescale=0.82
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  function computeDefault() {
+    const w = innerWidth, h = innerHeight;
+    const base = Math.min(w/1200, h/800) * 0.70;     // gentle bias out
+    return clamp(+base.toFixed(3), 0.50, 1.00);
+  }
+
+  function setScale() {
+    const ifr = document.getElementById('depth-iframe');
+    if (!ifr) return;
+    const s = Number.isFinite(param) ? clamp(param, 0.50, 1.00)
+            : (isTouch ? computeDefault() : 1);
+    // Use inline style so it definitely takes effect on mobile
+    ifr.style.transformOrigin = '50% 0';
+    ifr.style.transform = `scale(${s})`;
+  }
+
+  if (document.readyState === 'loading') {
+    addEventListener('DOMContentLoaded', setScale, { once: true });
+  } else {
+    setScale();
+  }
+  addEventListener('orientationchange', setScale, { passive: true });
+  addEventListener('resize',            setScale, { passive: true });
+})();
+*/

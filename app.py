@@ -610,8 +610,8 @@ citations_panel = dbc.Offcanvas(
     placement="end",
     title="Citations",
     is_open=False,
-    close_button=False,
-    backdrop=False,
+    close_button=True,    
+    backdrop=True,        
     autoFocus=False, 
     scrollable=True,
     style={"width": f"{CITATION_W}px"},   # <-- inject Python var here
@@ -846,7 +846,11 @@ nav_panel = html.Div([
 ], id="nav-panel", className="glass-panel")
 
 
-
+mobile_toast = html.Div(
+    "Desktop recommended (mobile supported)",
+    id="mobile-toast",
+    **{"aria-live": "polite"}  # accessibility hint
+)
 
 
 
@@ -927,7 +931,7 @@ app.layout = dbc.Container([
         dcc.Store(id="common-opt-cache", data=[]),
         
 
-
+        mobile_toast,
         citations_panel,
     ])
 ], fluid=True)
@@ -1849,14 +1853,14 @@ def update_image(gs_name, units_bool):
 
 
 # ---- slide citations tab (now mirrors settings) -------------------
-@app.callback(
+'''@app.callback(
     Output("citations-tab", "style"),
     Input("citations-canvas", "is_open")
 )
 def slide_citation_tab(opened):
     if opened:
         return {"right": f"{CITATION_W}px"}   # push left by its own width
-    return {"right": "0px"}
+    return {"right": "0px"}'''
 
 
 

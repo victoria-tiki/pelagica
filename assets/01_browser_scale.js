@@ -3,17 +3,18 @@
 
   // ---- platform detection ----
   const ua = navigator.userAgent || '';
-  const isIOS = /iP(ad|hone|od)/.test(ua);
-  const isWebkit = /WebKit/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
-  const isIOSSafari = isIOS && isWebkit;
+  const isIOS = /\b(iPad|iPhone|iPod)\b/i.test(ua) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS
   const isAndroid = /Android/i.test(ua);
+  const isMobile = isIOS || isAndroid;
 
   // ---- query param / JS flag override ----
   const urlParams = new URLSearchParams(location.search);
   const noZoom = urlParams.has('nozoom') || window.PELAGICA_NO_ZOOM_LOCK;
 
-  if (isIOSSafari || isAndroid || noZoom) {
-    console.log("Zoom lock disabled on this device.");
+  // Skip zoom lock on *all* mobile devices
+  if (isMobile || noZoom) {
+    console.log("Zoom lock disabled on mobile or via override.");
     return;
   }
 
