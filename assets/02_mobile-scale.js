@@ -8,7 +8,7 @@
   const remPx = parseFloat(getComputedStyle(root).fontSize) || 16;
 
   // === Tunables ===
-  const BASE_REM = 12;   // your design baseline
+  const BASE_REM = 14;   // your design baseline
   const BASE_W   = 428;  // design "normal" Android width in CSS px (try 411/414/428)
   const MIN_S    = 0.45; // allow stronger shrink if Genymotion defaults are aggressive
 

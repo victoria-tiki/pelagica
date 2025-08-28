@@ -697,11 +697,11 @@ centre_flex = html.Div(id="page-centre-flex", children=[
                     html.Div("📏", id="compare-handle", className="scale-icon"),
                     dbc.Tooltip(id="scale-tooltip", target="compare-handle", placement="top", style={"fontSize": "0.8rem"}, children="Compare size", key="initial"),
 
-                    html.Div("🎵", id="sound-handle", className="sound-icon", style={"display": "none"}),
-                    dbc.Tooltip("Play species sound", target="sound-handle", placement="top", style={"fontSize": "0.8rem"}),
-
                     html.Div("🧬", id="tree-handle", className="tree-icon"),
                     dbc.Tooltip("Show taxonomic tree", target="tree-handle", placement="top", style={"fontSize": "0.8rem"}),
+                    
+                    html.Div("🎵", id="sound-handle", className="sound-icon", style={"display": "none"}),
+                    dbc.Tooltip("Play species sound", target="sound-handle", placement="top", style={"fontSize": "0.8rem"}),
 
                     html.Div("💬", id="chat-handle", className="chat-icon", style={"display": "none"}),
                     dbc.Tooltip("Meet my personality", target="chat-handle", placement="top", style={"fontSize": "0.8rem"}),
@@ -3620,23 +3620,43 @@ def load_chat(gs_name):
     Output("info-card", "style", allow_duplicate=True),
     Input("chat-handle", "n_clicks"),
     Input("chat-close", "n_clicks"),
-    Input("info-handle", "n_clicks"),      # when user taps info, close chat
+    Input("info-handle", "n_clicks"),
     State("chat-card", "style"),
     State("info-card", "style"),
     prevent_initial_call=True
 )
 def toggle_panels(n_chat_open, n_chat_close, n_info_open, chat_style, info_style):
-    chat_style = chat_style or {"display":"none"}
-    info_style = info_style or {"display":"none"}
+    chat_style = chat_style or {"display": "none"}
+    info_style = info_style or {"display": "none"}
     trig = ctx.triggered_id
 
-    if trig == "chat-handle":   # open chat → close info
-        return {"display":"block"}, {"display":"none"}
-    if trig == "chat-close":    # close chat
-        return {"display":"none"}, info_style
-    if trig == "info-handle":   # open info → close chat
-        return {"display":"none"}, {"display":"block"}
+    if trig == "chat-handle":
+        # true toggle: if chat is open, close it; otherwise open it and close info
+        is_chat_open = chat_style.get("display") != "none"
+        if is_chat_open:
+            return {"display": "none"}, info_style
+        else:
+            return {"display": "block"}, {"display": "none"}
+
+    if trig == "chat-close":
+        # explicit close via ✕
+        return {"display": "none"}, info_style
+
+    if trig == "info-handle":
+        # keep info as open-only (and close chat)
+        return {"display": "none"}, {"display": "block"}
+
     raise PreventUpdate
+
+    
+@app.callback(
+    Output("chat-card", "style", allow_duplicate=True),
+    Input("selected-species", "data"),
+    prevent_initial_call=True
+)
+def close_chat_on_species_change(gs_name):
+    # Anytime the species changes, hide the chat panel
+    return {"display": "none"}
 
 
 if __name__ == "__main__" and os.getenv("USE_DEV_SERVER", "0") == "1":
