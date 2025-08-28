@@ -798,6 +798,68 @@ body.search-open .search-handle {
 .tree-icon   { --icon-order: 3; }
 .sound-icon  { --icon-order: 4; }
 
+/* === Icon rail (compacts automatically when some buttons are hidden) === */
+#icon-rail{
+  position:absolute;
+  left: var(--icon-pad);
+  bottom: var(--icon-pad);
+  display:flex;
+  gap: var(--icon-gap);
+  z-index: 4;                 /* above image, under panels */
+}
+
+/* Normalize buttons when inside the rail (no absolute coords here) */
+#icon-rail > .icon-btn,
+#icon-rail #info-handle,
+#icon-rail #fav-handle,
+#icon-rail .scale-icon,
+#icon-rail .tree-icon,
+#icon-rail .sound-icon,
+#icon-rail .chat-icon{
+  position: static !important;
+  left:auto !important;
+  bottom:auto !important;
+
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: grid;
+  place-items: center;
+  background: var(--glass-bg);
+  border: var(--glass-brd);
+  border-radius: 50%;
+  color: var(--text-light);
+  backdrop-filter: var(--blur-md);
+  box-shadow: 0 2px 6px #0008;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* Chat button look (same size as others) */
+.chat-icon { font-size: 1.1rem; }
+
+/* Chat panel matches info panel geometry so they never overlap visually */
+#chat-card{
+  padding: 1rem 1.2rem;
+  font-size: .9rem;
+  border-radius: .8rem;
+  overflow-y: auto;
+  z-index: 3;
+  position: absolute;
+  top: calc(100% + 0rem);
+  left: 0;
+  width: 100%;
+  max-width: 100%;
+  display: none;              /* toggled by Dash */
+}
+#chat-close{
+  position:absolute; top:.6rem; right:.6rem;
+  width:1.6rem; height:1.6rem; display:grid; place-items:center;
+  background: rgba(255,255,255,.15);
+  border-radius:50%; color:#fff; font-weight:700; cursor:pointer;
+  border: 1px solid #ffffff44;
+}
+
+
 /* Optional: slightly tighter on phones */
 @media (max-width: 768px){
   :root{ --icon-size: 1.7rem;}
@@ -1563,14 +1625,14 @@ body:has(#search-panel.open) { overflow: hidden; }
 /* Show it only on mobile-like contexts (either narrow or touch) */
 @media (max-width: 760px), (hover: none) and (pointer: coarse) {
   #mobile-toast {
-    animation: toast-pop 14s 0.6s ease-out 1 forwards;
+    animation: toast-pop 20s 0.6s ease-out 1 forwards;
   }
 }
 
 /* Respect reduced motion users: show briefly without movement */
 @media (prefers-reduced-motion: reduce) {
   #mobile-toast {
-    animation: toast-fade 14s 0.6s ease-out 1 forwards;
+    animation: toast-fade 20s 0.6s ease-out 1 forwards;
   }
 }
 

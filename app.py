@@ -363,7 +363,7 @@ top_bar = html.Div(
         html.Div(style={"flex": "1"}),
         
         html.Div(
-            ["🕪", html.Span("", className="sound-label")],
+            ["🎵", html.Span("", className="sound-label")],
             id="depth-sound-btn",
             className="top-sound",
             style={"cursor": "pointer", "fontSize": ".9rem", "marginRight": "0.0rem", "opacity": 0.5},
@@ -663,29 +663,52 @@ centre_flex = html.Div(id="page-centre-flex", children=[
         # this div now contains the image AND the up/down buttons
         html.Div(id="image-inner", children=[
             html.Img(id="species-img"),
-            html.Img( id="arrow-img",src="/assets/species/scale/arrow.webp",style={
-              "position": "absolute",
-              "left": "50%", "top": "50%",
-              "transform": "translate(-50%, -50%)",
-              "width": "100%",
-              "opacity": 0.9,
-              "pointerEvents": "none",  
-              "zIndex": 2               
-          }),
-           html.Img(id="sizecmp-img",style={"position": "absolute","left": 0, "top": 0,"zIndex":2,"opacity": 0.85,"pointerEvents": "auto","cursor": "pointer"}),
-            html.Div("i", id="info-handle", style={"display": "block","zIndex":4}),
-            dbc.Tooltip("Show more information about this species",target="info-handle",placement="top",style={"fontSize": "0.8rem"}),
-            html.Div("♡", id="fav-handle", className="heart-icon"),
-            dbc.Tooltip( "Add this species to favourites",target="fav-handle",placement="top",style={"fontSize": "0.8rem"}),
-            html.Div("📏", id="compare-handle", className="scale-icon"),
-            dbc.Tooltip(id="scale-tooltip",target="compare-handle",placement="top",style={"fontSize": "0.8rem"}, children="Compare size", key="initial"),
-            html.Div("🕪", id="sound-handle", className="sound-icon"),  
-            dbc.Tooltip("Play species sound", target="sound-handle",placement="top", style={"fontSize": "0.8rem"}),
-            html.Div("🧬", id="tree-handle", className="tree-icon"),
-            dbc.Tooltip("Show taxonomic tree (including a selection of related taxa)", target="tree-handle",placement="top", style={"fontSize": "0.8rem"}),
+            html.Img(
+                id="arrow-img", src="/assets/species/scale/arrow.webp",
+                style={
+                    "position": "absolute",
+                    "left": "50%", "top": "50%",
+                    "transform": "translate(-50%, -50%)",
+                    "width": "100%",
+                    "opacity": 0.9,
+                    "pointerEvents": "none",
+                    "zIndex": 2
+                }
+            ),
+            html.Img(
+                id="sizecmp-img",
+                style={
+                    "position": "absolute", "left": 0, "top": 0,
+                    "zIndex": 2, "opacity": 0.85,
+                    "pointerEvents": "auto", "cursor": "pointer"
+                }
+            ),
 
+            # 👇 NEW FLEX WRAPPER FOR ALL ICON BUTTONS
+            html.Div(
+                id="icon-rail",
+                children=[
+                    html.Div("i", id="info-handle"),
+                    dbc.Tooltip("Show more information about this species", target="info-handle", placement="top", style={"fontSize": "0.8rem"}),
 
+                    html.Div("♡", id="fav-handle", className="heart-icon"),
+                    dbc.Tooltip("Add this species to favourites", target="fav-handle", placement="top", style={"fontSize": "0.8rem"}),
+
+                    html.Div("📏", id="compare-handle", className="scale-icon"),
+                    dbc.Tooltip(id="scale-tooltip", target="compare-handle", placement="top", style={"fontSize": "0.8rem"}, children="Compare size", key="initial"),
+
+                    html.Div("🎵", id="sound-handle", className="sound-icon", style={"display": "none"}),
+                    dbc.Tooltip("Play species sound", target="sound-handle", placement="top", style={"fontSize": "0.8rem"}),
+
+                    html.Div("🧬", id="tree-handle", className="tree-icon"),
+                    dbc.Tooltip("Show taxonomic tree", target="tree-handle", placement="top", style={"fontSize": "0.8rem"}),
+
+                    html.Div("💬", id="chat-handle", className="chat-icon", style={"display": "none"}),
+                    dbc.Tooltip("Meet my personality", target="chat-handle", placement="top", style={"fontSize": "0.8rem"}),
+                ],
+            ),
         ]),
+
         
         taxonomic_tree,
 
@@ -694,6 +717,14 @@ centre_flex = html.Div(id="page-centre-flex", children=[
             html.Div(id="info-close", children="✕"),
             html.Div(id="info-content")
         ]),
+        
+        html.Div(
+            id="chat-card",
+            className="glass-panel",
+            children=[html.Div("✕", id="chat-close"), html.Div(id="chat-content")],
+            style={"display":"none"},
+        ),
+        
         html.Audio(id="species-audio", src="", preload="auto",style={"display": "none"}), 
         
     ])
@@ -847,7 +878,7 @@ nav_panel = html.Div([
 
 
 mobile_toast = html.Div(
-    "Desktop recommended (mobile supported)",
+    "Desktop recommended (limited mobile functionality)",
     id="mobile-toast",
     **{"aria-live": "polite"}  # accessibility hint
 )
@@ -1334,6 +1365,15 @@ def fill_citation(gs_name, sound_on):
 
     taxonomy_block=[html.Br(), html.Br(),  html.Span("Taxonomic information (kingdoms/phyla/classes/orders/families): Derived dataset GBIF.org (7 August 2025) Filtered export of GBIF occurrence data.  "), html.A('DOI', href="https://doi.org/10.15468/dd.wbjqgn", target="_blank"),]
     
+    personality_block = []
+    chat_json = f"assets/species/chat/{genus}_{species}.json"
+    if os.path.exists(chat_json):
+        personality_block = [
+            html.Br(), html.Br(),
+            html.Span("Personality text generated by ChatGPT 5. May contain errors.")
+        ]
+
+    
     soundtrack_block = []
     if sound_on:
         soundtrack_block = [
@@ -1344,7 +1384,7 @@ def fill_citation(gs_name, sound_on):
     
     victoria_block=[html.Br(), html.Br(), html.Span("All other content, including code, background images, animations, and UI design: © 2025 Victoria Tiki"),]
 
-    return image_block + wiki_block + data_block + taxonomy_block + sound_block + soundtrack_block+ victoria_block
+    return image_block + wiki_block + data_block + taxonomy_block+ personality_block + sound_block + soundtrack_block+ victoria_block
 
 
 # --- populate image + overlay + titles whenever species or units change ----------
@@ -1848,6 +1888,36 @@ def update_image(gs_name, units_bool):
     return img_src, alt_text, info_lines
 
 
+
+app.clientside_callback(
+    """
+    function (gs, currentClass) {
+      // Only act after a species has actually been selected
+      if (!gs) {
+        return [window.dash_clientside.no_update, window.dash_clientside.no_update];
+      }
+
+      // Mobile-ish detection (touch) + narrow-width fallback
+      const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+                       || window.innerWidth <= 760;
+      if (!isMobile) {
+        return [window.dash_clientside.no_update, window.dash_clientside.no_update];
+      }
+
+      const cls = (currentClass || '');
+      if (cls.includes(' open')) {
+        // strip the ' open' token to close the panel; collapse handle UI
+        return [cls.replace(' open', '').trim(), 'search-handle collapsed'];
+      }
+      return [window.dash_clientside.no_update, window.dash_clientside.no_update];
+    }
+    """,
+    Output("search-panel",  "className", allow_duplicate=True),
+    Output("search-handle", "className", allow_duplicate=True),
+    Input("selected-species", "data"),
+    State("search-panel", "className"),
+    prevent_initial_call=True
+)
 
 
 
@@ -3507,6 +3577,66 @@ app.clientside_callback(
 )
 
 
+@app.callback(
+    Output("chat-handle", "style"),
+    Input("selected-species", "data"),
+    prevent_initial_call=True
+)
+def toggle_chat_icon(gs_name):
+    if not gs_name:
+        raise PreventUpdate
+    try:
+        genus, species = gs_name.split(" ", 1)
+    except ValueError:
+        return {"display":"none"}
+    path = f"assets/species/chat/{genus}_{species}.json"
+    return {"display":"grid"} if os.path.exists(path) else {"display":"none"}
+
+@app.callback(
+    Output("chat-content", "children"),
+    Input("selected-species", "data"),
+    prevent_initial_call=True
+)
+def load_chat(gs_name):
+    if not gs_name:
+        raise PreventUpdate
+    genus, species = gs_name.split(" ", 1)
+    path = f"assets/species/chat/{genus}_{species}.json"
+    if not os.path.exists(path):
+        raise PreventUpdate
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        msgs = (data or {}).get("intros") or []
+        if not msgs:
+            return "No chat available."
+        return dcc.Markdown(random.choice(msgs))
+    except Exception as e:
+        return f"Error loading chat: {e}"
+
+
+@app.callback(
+    Output("chat-card", "style", allow_duplicate=True),
+    Output("info-card", "style", allow_duplicate=True),
+    Input("chat-handle", "n_clicks"),
+    Input("chat-close", "n_clicks"),
+    Input("info-handle", "n_clicks"),      # when user taps info, close chat
+    State("chat-card", "style"),
+    State("info-card", "style"),
+    prevent_initial_call=True
+)
+def toggle_panels(n_chat_open, n_chat_close, n_info_open, chat_style, info_style):
+    chat_style = chat_style or {"display":"none"}
+    info_style = info_style or {"display":"none"}
+    trig = ctx.triggered_id
+
+    if trig == "chat-handle":   # open chat → close info
+        return {"display":"block"}, {"display":"none"}
+    if trig == "chat-close":    # close chat
+        return {"display":"none"}, info_style
+    if trig == "info-handle":   # open info → close chat
+        return {"display":"none"}, {"display":"block"}
+    raise PreventUpdate
 
 
 if __name__ == "__main__" and os.getenv("USE_DEV_SERVER", "0") == "1":

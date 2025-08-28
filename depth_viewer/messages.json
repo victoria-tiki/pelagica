@@ -28,7 +28,7 @@
   { "min": 0, "max": 20, "descend": ["It starts here, with a little light, a little pressure, and a lot of questions."] }, 
   
     { "min": 0, "max": 30, "descend": ["Pressure isn’t much here. But wait."]},
-      { "min": 70, "max": 90,"descend": ["What’s above you fades out of sight. What’s below… unknown."],"ascend":  ["What’s above you fades out of sight. What’s below… unknown."] },
+      { "min": 70, "max": 90,"descend": ["What’s above you fades out of sight. What’s below… unknown."]},
     
       { "min": 100, "max": 120,"descend": ["Pressure is 11 times what it is at sea level. And still rising."]},
     
