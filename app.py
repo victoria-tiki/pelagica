@@ -1671,6 +1671,7 @@ def update_order_lock_label(locked, species_id, old_class):
     return f"Navigating among {order_name} only", base_class + " active"
 
 # --- Auto-release order lock on cross-order selection --------------------------
+# --- Auto-release: make it order-aware (sticky within the same order)
 @app.callback(
     Output("order-lock-state", "data", allow_duplicate=True),
     Output("order-lock-btn",   "className", allow_duplicate=True),
@@ -1680,13 +1681,20 @@ def update_order_lock_label(locked, species_id, old_class):
     prevent_initial_call=True
 )
 def _auto_release_order_lock(new_gs, lock_on, locked_list):
-    # If the order lock is ON but the newly selected species isn't in the
-    # currently locked set (derived from the previous species' order),
-    # automatically turn the lock OFF so the user can roam freely.
     if not lock_on or not new_gs:
         raise PreventUpdate
     try:
-        if isinstance(locked_list, (list, tuple)) and locked_list and new_gs not in locked_list:
+        # infer the locked order from any species in the locked list
+        locked_order = None
+        if isinstance(locked_list, (list, tuple)) and locked_list:
+            sample_gs = locked_list[0][0]
+            locked_order = df_full.loc[df_full["Genus_Species"].eq(sample_gs), "order"].iloc[0]
+
+        # get the order for the new selection
+        new_order = df_full.loc[df_full["Genus_Species"].eq(new_gs), "order"].iloc[0]
+
+        # only unlock if we truly switched orders
+        if locked_order and new_order != locked_order:
             return False, "nav-icon lock-icon"  # unlock + de-highlight
     except Exception:
         pass
@@ -3780,10 +3788,10 @@ def load_chat(gs_name):
     Output("chat-card", "style", allow_duplicate=True),
     Output("info-card", "style", allow_duplicate=True),
     Input("chat-handle", "n_clicks"),
-    Input("chat-close", "n_clicks"),
+    Input("chat-close",  "n_clicks"),
     Input("info-handle", "n_clicks"),
-    State("chat-card", "style"),
-    State("info-card", "style"),
+    State("chat-card",   "style"),
+    State("info-card",   "style"),
     prevent_initial_call=True
 )
 def toggle_panels(n_chat_open, n_chat_close, n_info_open, chat_style, info_style):
@@ -3792,20 +3800,16 @@ def toggle_panels(n_chat_open, n_chat_close, n_info_open, chat_style, info_style
     trig = ctx.triggered_id
 
     if trig == "chat-handle":
-        # true toggle: if chat is open, close it; otherwise open it and close info
         is_chat_open = chat_style.get("display") != "none"
-        if is_chat_open:
-            return {"display": "none"}, info_style
-        else:
-            return {"display": "block"}, {"display": "none"}
+        # toggle chat; leave info-card unchanged
+        return ({"display": "none"} if is_chat_open else {"display": "block"}), no_update
 
     if trig == "chat-close":
-        # explicit close via ✕
-        return {"display": "none"}, info_style
+        return {"display": "none"}, no_update
 
     if trig == "info-handle":
-        # keep info as open-only (and close chat)
-        return {"display": "none"}, {"display": "block"}
+        # ⓘ click should only close chat here; info open/close is handled by toggle_info
+        return {"display": "none"}, no_update
 
     raise PreventUpdate
 
