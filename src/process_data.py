@@ -1,5 +1,6 @@
 import pandas as pd, requests
 from functools import lru_cache
+import os
 
 def cm_to_in(cm):
     return round(cm / 2.54, 1) if pd.notna(cm) else None
@@ -37,6 +38,35 @@ def _wiki_pages_exist(names, batch_size=50):
                 existing.add(pg["title"])          # already "Genus Species"
     return existing
 # ------------------------------------------------------------------
+def _apply_common_name_overrides(df, path="data/processed/common_name_overrides.txt"):
+    if not os.path.exists(path):
+        return df
+    # robust read: allow comments and blank lines
+    ovr = pd.read_csv(
+        path,
+        header=None,
+        names=["Genus", "Species", "FBname"],
+        comment="#",
+        skip_blank_lines=True
+    )
+    # normalise + build join key
+    ovr["Genus"]  = ovr["Genus"].astype(str).str.strip()
+    ovr["Species"]= ovr["Species"].astype(str).str.strip()
+    ovr["FBname"] = ovr["FBname"].astype(str).str.strip()
+    ovr["Genus_Species"] = ovr["Genus"] + " " + ovr["Species"]
+
+    mapping = ovr.set_index("Genus_Species")["FBname"]
+    df.loc[df["Genus_Species"].isin(mapping.index), "FBname"] = df["Genus_Species"].map(mapping)
+
+    # rebuild the dropdown label AFTER overriding FBname (matches your existing scheme)
+    df["dropdown_label"] = (
+        df["FBname"].fillna("")
+          .str.cat(df["Genus_Species"].radd(" ("), na_rep="")
+          .str.rstrip("(").add(")")
+          .str.replace(" ()", "", regex=False)
+    )
+    return df
+
 
 @lru_cache(maxsize=1)
 def load_species_data() -> pd.DataFrame:
@@ -89,7 +119,7 @@ def load_species_data() -> pd.DataFrame:
           .str.rstrip("(").add(")")
           .str.replace(" ()", "", regex=False)
     )
-
+    df = _apply_common_name_overrides(df)
     return df
 
 @lru_cache(maxsize=1)
@@ -255,7 +285,7 @@ def load_necturus_maculosus():
 def load_castor_canadensis():
     return pd.DataFrame([{
         "SpecCode": "3",                      # just needs to be unique
-        "Genus": "castor",
+        "Genus": "Castor",
         "Species": "canadensis",
         "FBname": "North American Beaver",
         "has_wiki_page": True,
@@ -288,7 +318,7 @@ def load_castor_canadensis():
 def load_castor_fiber():
     return pd.DataFrame([{
         "SpecCode": "4",                      # just needs to be unique
-        "Genus": "castor",
+        "Genus": "Castor",
         "Species": "fiber",
         "FBname": "Eurasian Beaver",
         "has_wiki_page": True,
@@ -317,3 +347,6 @@ def load_castor_fiber():
 
         "Genus_Species": "Castor fiber"
     }])
+    
+    
+    

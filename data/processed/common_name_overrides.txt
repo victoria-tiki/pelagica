@@ -1,0 +1,3 @@
+# genus,species,new common name
+Pataecus,fronto, Red forehead fish
+Plectorhinchus,vittatus,Indian Ocean sweetlips

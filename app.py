@@ -877,10 +877,17 @@ nav_panel = html.Div([
 ], id="nav-panel", className="glass-panel")
 
 
+
 mobile_toast = html.Div(
-    "Desktop recommended (limited mobile functionality)",
+    [
+        html.Div("Big journeys don't fit into small screens.", className="headline"),
+        html.Div(
+            ["Desktop recommended ", html.Span("(limited mobile functionality)", className="muted")],
+            className="sub",
+        ),
+    ],
     id="mobile-toast",
-    **{"aria-live": "polite"}  # accessibility hint
+    **{"aria-live": "polite", "role": "status"}
 )
 
 
@@ -2117,7 +2124,7 @@ def build_eligible_bounds(wiki_val, pop_val, fav_val, lock_on, favs_data, curren
                                                df_all["DepthRangeDeep"])
 
     meta_all = (df_all.assign(_sh=sh_all, _dp=dp_all)[["Genus_Species", "_sh", "_dp", "order"]]
-                      .dropna())
+                       .dropna(subset=["_sh", "_dp"]) )
     meta_all = meta_all[meta_all["_dp"] >= meta_all["_sh"]]
 
     # 2) locked subset (APPLY lock only for stepping)
@@ -2286,11 +2293,14 @@ app.clientside_callback(
 
 app.clientside_callback(
     """
+
     function(gs, depthMap){
       if (!gs || !depthMap) return window.dash_clientside.no_update;
       var d = depthMap[gs];
-      return (typeof d === "number") ? d : window.dash_clientside.no_update;
+      // default to shallow water if not in map
+      return (typeof d === "number") ? d : 0;
     }
+
     """,
     Output("depth-store", "data", allow_duplicate=True),
     Input("selected-species", "data"),

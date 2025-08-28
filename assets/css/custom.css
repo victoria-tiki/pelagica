@@ -1562,7 +1562,7 @@ helper text size matches the sideways labels
 /* Mobile: pull the scene back by scaling the OUTER iframe */
 :root { --frameScale: 0.65; }  /* KNOB: smaller = more zoom-out */
 
-@media (hover: none) and (pointer: coarse) and (max-width: 860px) {
+@media (hover: none) and (pointer: coarse) and (max-width: 760px) {
   #depth-iframe {
     position: fixed;
     top: 0;
@@ -1607,29 +1607,46 @@ body:has(#search-panel.open) { overflow: hidden; }
 #mobile-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  bottom: calc(env(safe-area-inset-bottom) + 32px);
   transform: translateX(-50%) translateY(20px);
   background: rgba(20, 24, 28, 0.92);
   color: #fff;
   font-weight: 500;
-  font-size: 0.9rem;
-  line-height: 1.3;
-  padding: 10px 14px;
-  border-radius: 999px;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  text-align: center;
+
+  /* wider + multiline */
+  padding: 14px 18px;
+  max-width: clamp(280px, 92vw, 560px);
+  border-radius: 14px;                /* looks intentional for 2 lines */
   box-shadow: 0 8px 20px rgba(0,0,0,.25);
   opacity: 0;
-  pointer-events: none;     /* never blocks taps */
-  z-index: 9999;            /* above panels */
+  pointer-events: none;
+  z-index: 9999;
+  white-space: normal;
 }
 
+@supports (backdrop-filter: blur(6px)) {
+  #mobile-toast {
+    background: rgba(20, 24, 28, 0.70);
+    backdrop-filter: blur(6px);
+  }
+}
+
+/* Typographic hierarchy */
+#mobile-toast .headline { font-weight: 600; margin-bottom: 4px; }
+#mobile-toast .sub      { font-size: 0.85rem; opacity: 0.9; }
+#mobile-toast .muted    { opacity: 0.75; }
+
 /* Show it only on mobile-like contexts (either narrow or touch) */
-@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+@media (max-width: 760px) and (hover: none) and (pointer: coarse) {
   #mobile-toast {
     animation: toast-pop 20s 0.6s ease-out 1 forwards;
   }
 }
 
-/* Respect reduced motion users: show briefly without movement */
+/* Respect reduced motion users */
 @media (prefers-reduced-motion: reduce) {
   #mobile-toast {
     animation: toast-fade 20s 0.6s ease-out 1 forwards;
@@ -1642,11 +1659,11 @@ body:has(#search-panel.open) { overflow: hidden; }
   70%  { opacity: 1; transform: translateX(-50%) translateY(0); }
   100% { opacity: 0; transform: translateX(-50%) translateY(20px); visibility: hidden; }
 }
-
 @keyframes toast-fade {
   0%   { opacity: 0; }
   10%  { opacity: 1; }
   70%  { opacity: 1; }
   100% { opacity: 0; visibility: hidden; }
 }
+
 
