@@ -940,12 +940,15 @@ app.layout = dbc.Container([
 
         html.Div(centre_flex, id="main-content", style={"display": "none"}),
         center_message,
+        dcc.Store(id="info-pref", data={"hide_globally": False}, storage_type="local"),
+        dcc.Store(id="info-hide-once", data=False, storage_type="memory"),
+        dcc.Interval(id="info-toast-timer", interval=2600, n_intervals=0, disabled=True),
+        html.Div("Details hidden. Tap ⓘ to show again.",id="info-toast",**{"aria-live": "polite"}),
         html.Div(id="tree-click-trigger", style={"display": "none"}),
         
         nav_panel,
         dcc.Store(id="order-lock-state", data=False, storage_type="memory"),
         
- 
         
         dcc.Store(id="anim-done", data=False, storage_type="session"),
         dcc.Store(id="rand-depth-map", storage_type="session"),
@@ -958,7 +961,6 @@ app.layout = dbc.Container([
 
 
         footer,
-        
         
         
         html.Div(id="js-trigger", style={"display": "none"}),
@@ -1190,21 +1192,81 @@ def toggle_citations(n, is_open):
 
 
     
-#------ toggle INFO -------
+
 
 @app.callback(
-    Output("info-card",   "style", allow_duplicate=True),
-    Output("info-handle", "style"),
-    Input("info-close",   "n_clicks"),
-    Input("info-handle",  "n_clicks"),
-    State("info-card",    "style"),
+    Output("info-card",        "style", allow_duplicate=True),
+    Output("info-handle",      "style"),
+    Output("info-pref",        "data",  allow_duplicate=True),
+    Output("info-hide-once",   "data",  allow_duplicate=True),
+    Input("info-close",        "n_clicks"),   # ❌ temporary hide
+    Input("info-handle",       "n_clicks"),   # ⓘ global toggle
+    State("info-card",         "style"),
+    State("info-pref",         "data"),
     prevent_initial_call=True
 )
-def toggle_info(_, __, card_style):
-    show = card_style.get("display") != "none" if card_style else True
-    new_card  = {"display":"none"} if show else {"display":"block"}
-    new_handle= {"display":"block"} 
-    return new_card, new_handle
+def toggle_info(close_n, handle_n, card_style, pref):
+    trig = ctx.triggered_id
+    pref = pref or {"hide_globally": False}
+    hide_glob = bool(pref.get("hide_globally"))
+
+    if trig == "info-close":
+        # Hide only for the current species
+        return {"display": "none"}, {"display": "block"}, pref, True
+
+    if trig == "info-handle":
+        # Flip the global preference and persist it
+        hide_glob = not hide_glob
+        new_pref = {"hide_globally": hide_glob}
+
+        return (
+            {"display": "none"} if hide_glob else {"display": "block"},  
+            no_update,                                                   
+            new_pref,                                                    
+            False                                                        
+        )
+
+    raise PreventUpdate
+
+@app.callback(
+    Output("info-card", "style", allow_duplicate=True),
+    Output("info-hide-once", "data", allow_duplicate=True),
+    Input("selected-species", "data"),
+    State("info-pref", "data"),
+    State("info-hide-once", "data"),
+    prevent_initial_call=True
+)
+def maybe_show_info_on_species_change(gs, pref, hide_once):
+    if not gs:
+        raise PreventUpdate
+    pref = pref or {"hide_globally": False}
+    if pref.get("hide_globally"):
+        # Respect global OFF
+        return {"display": "none"}, False
+    # Re-open when user merely clicked ❌ on the previous species
+    return {"display": "block"}, False
+
+
+
+@app.callback(
+    Output("info-toast", "style"),
+    Output("info-toast-timer", "disabled"),
+    Output("info-toast-timer", "n_intervals"),
+    Input("info-close", "n_clicks"),           # show on X click
+    Input("info-toast-timer", "n_intervals"),  # hide when timer fires
+    prevent_initial_call=True
+)
+def drive_info_toast(close_clicks, tick):
+    trig = ctx.triggered_id
+    if trig == "info-close":
+        # Show toast + start timer (reset to 0 to get a fresh ~2.6s)
+        return {"opacity": 1, "transform": "translate(-50%, 0)"}, False, 0
+
+    if trig == "info-toast-timer":
+        # Hide toast + stop timer
+        return {"opacity": 0, "transform": "translate(-50%, 12px)"}, True, no_update
+
+    raise PreventUpdate
 
 
 # --- push citation text when species changes -------------------------------
@@ -2255,10 +2317,19 @@ app.clientside_callback(
       if (idx < 0) idx = 0;
 
       var dir = trig.startsWith("up-btn") ? -1 : +1;
-      var next = order[(idx + dir + order.length) % order.length];
+      const nextIdx = Math.max(0, Math.min(order.length - 1, idx + dir));
+      if (nextIdx === idx) {
+        window.dispatchEvent(new CustomEvent('pelagica:toast', {
+          detail: dir < 0 ? 'Already shallowest' : 'Already deepest'
+        }));
+        return window.dash_clientside.no_update;   // ← fixed
+      }
+      var next = order[nextIdx];                    // ← declare it
+
       if (next === current) return window.dash_clientside.no_update;
       return next;
     }
+
     """,
     Output("selected-species", "data", allow_duplicate=True),
     Input("up-btn",   "n_clicks"),
@@ -2269,6 +2340,73 @@ app.clientside_callback(
     State("selected-species",         "data"),
     prevent_initial_call=True,
 )
+
+app.clientside_callback(
+    """
+    function(current, orderAll, orderLocked, lockOn){
+      var order = (lockOn && Array.isArray(orderLocked) && orderLocked && orderLocked.length)
+                  ? orderLocked : orderAll;
+
+      if (!current || !Array.isArray(order) || !order.length) {
+        // No species yet or no order → enable both
+        return [false, false];
+      }
+      var i = order.indexOf(current);
+      if (i < 0) i = 0;
+
+      var atTop = (i <= 0);
+      var atBot = (i >= order.length - 1);
+      return [atTop, atBot];
+    }
+    """,
+    Output("up-btn",   "disabled"),
+    Output("down-btn", "disabled"),
+    # Recompute when any of these change:
+    Input("selected-species",        "data"),
+    Input("depth-order-store-all",   "data"),
+    Input("depth-order-store-locked","data"),
+    Input("order-lock-state",        "data"),
+    prevent_initial_call=True,
+)
+
+@app.callback(
+    Output("prev-btn", "disabled"),
+    Output("next-btn", "disabled"),
+    Input("selected-species",  "data"),
+    Input("wiki-toggle",       "value"),
+    Input("popular-toggle",    "value"),
+    Input("favs-toggle",       "value"),
+    Input("order-lock-state",  "data"),
+    State("favs-store",        "data"),
+    prevent_initial_call=True
+)
+def disable_size_extremes(current, wiki_val, pop_val, fav_val, lock_on, favs_json):
+    if not current:
+        raise PreventUpdate
+
+    # same filter logic as step_size()
+    df_use = get_filtered_df(True, False, wiki_val, pop_val)
+
+    if fav_val and "fav" in fav_val:
+        favs = set(json.loads(favs_json or "[]"))
+        df_use = df_use[df_use["Genus_Species"].isin(favs)]
+
+    if lock_on:
+        try:
+            order = df_full.loc[df_full["Genus_Species"] == current, "order"].iloc[0]
+            df_use = df_use[df_use["order"] == order]
+        except Exception:
+            pass
+
+    if df_use.empty:
+        raise PreventUpdate
+
+    df_use  = df_use.sort_values(["Length_cm", "Length_in"], na_position="last")
+    species = df_use["Genus_Species"].tolist()
+    idx = species.index(current) if current in species else 0
+
+    return (idx <= 0, idx >= len(species) - 1)
+
 
 
 app.clientside_callback(
@@ -2542,76 +2680,78 @@ app.clientside_callback(
 # -------------------------------------------------------------------
 # Size‑axis navigation (left / right)
 # -------------------------------------------------------------------
+
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
-
-    # triggers
     Input("next-btn",  "n_clicks"),
     Input("prev-btn",  "n_clicks"),
-
-    # filters
-    State("size-toggle",      "value"),
-    State("depth-toggle",     "value"),
-    State("wiki-toggle",      "value"),
-    State("popular-toggle",   "value"),
-    State("favs-toggle",      "value"),
-    State("favs-store",       "data"),
-
-    # order-lock state
-    State("order-lock-state", "data"),
-
-    # context
-    State("selected-species", "data"),
-    State("rand-seed",        "data"),
+    State("size-toggle",    "value"),
+    State("depth-toggle",   "value"),
+    State("wiki-toggle",    "value"),
+    State("popular-toggle", "value"),
+    State("favs-toggle",    "value"),
+    State("favs-store",     "data"),
+    State("order-lock-state","data"),
+    State("selected-species","data"),
+    State("rand-seed",      "data"),
     prevent_initial_call=True
 )
 def step_size(n_next, n_prev,
               size_val, depth_val, wiki_val, pop_val,
               fav_val, favs_data,
-              lock_on,                # ← comes from order-lock store
+              lock_on,
               current, seed):
 
     if ctx.triggered_id not in ("prev-btn", "next-btn"):
         raise PreventUpdate
 
+    # ---- filters (size axis ON, depth axis OFF) -------------------
+    df_use = get_filtered_df(True, False, wiki_val, pop_val, seed)
 
-    # ---- base dataframe after all UI filters ----------------------
-    size_on  = True
-    depth_on = False
-    df_use = get_filtered_df(size_on, depth_on,
-                             wiki_val, pop_val, seed)
-
-    # ---- favourites filter ----------------------------------------
     if fav_val and "fav" in fav_val:
         fav_set = set(json.loads(favs_data or "[]"))
         df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
 
-    # ---- limit to current order when lock is ON -------------------
-    if lock_on:
+    if lock_on and current:
         try:
-            # safest: look up order in the full taxonomy table
             order = df_full.loc[df_full["Genus_Species"] == current, "order"].iloc[0]
             df_use = df_use[df_use["order"] == order]
         except IndexError:
-            pass  # current not in df_full – ignore
+            pass
 
     if df_use.empty:
         raise PreventUpdate
 
-    # ---- rank by length and step ±1 -------------------------------
+    # ---- sort small → large --------------------------------------
     df_use  = df_use.sort_values(["Length_cm", "Length_in"])
     species = df_use["Genus_Species"].tolist()
-    if current not in species:
-        current = species[0]
 
-    idx = species.index(current)
-    idx = (idx - 1) % len(species) if ctx.triggered_id == "prev-btn" \
-         else (idx + 1) % len(species)
+    # Choose an index for `current` (nearest by length if not present)
+    if current in species:
+        idx = species.index(current)
+    else:
+        try:
+            cur_len = float(
+                df_full.loc[df_full["Genus_Species"] == current, "Length_cm"].dropna().iloc[0]
+            )
+            lens = df_use["Length_cm"].to_numpy(dtype=float)
+            # position where cur_len would be inserted
+            pos = int(np.searchsorted(lens, cur_len, side="left"))
+            # candidates: pos-1 and pos
+            cand_idxs = [max(0, pos-1), min(len(lens)-1, pos)]
+            # pick the closer one
+            idx = min(cand_idxs, key=lambda i: abs(lens[i] - cur_len))
+        except Exception:
+            idx = 0  # safe fallback
 
-    new_sel = species[idx]
-    if new_sel == current:
+    step = -1 if ctx.triggered_id == "prev-btn" else 1
+    new_idx = max(0, min(len(species) - 1, idx + step))  # ← clamp, no wrap
+
+    if new_idx == idx:
+        # At smallest/largest already — optionally emit a toast via another Output
         raise PreventUpdate
-    return new_sel
+
+    return species[new_idx]
 
 
 # -------------------------------------------------------------------
@@ -2802,14 +2942,21 @@ def jump_to_size_extremes(n_large, n_small,
     Output("next-wrap", "style"),
     Input("selected-species", "data"),
     Input("size-toggle",      "value"),
+    Input("prev-btn",         "disabled"),   # NEW
+    Input("next-btn",         "disabled"),   # NEW
     prevent_initial_call=True
 )
-def toggle_size_wrap(gs, size_val):
-    if gs: #and "size" in size_val:
-        style = {"opacity": "1", "pointerEvents": "auto"}
-    else:
-        style = {"opacity": "0.3", "pointerEvents": "none"}
-    return style, style
+def toggle_size_wrap(gs, _size_val, prev_disabled, next_disabled):
+    dim  = {"opacity": "0.3", "pointerEvents": "none"}
+    norm = {"opacity": "1",   "pointerEvents": "auto"}
+
+    # Before any species picked → both grey (your original behaviour)
+    if not gs:
+        return dim, dim
+
+    # Once a species exists → mirror the actual disabled state
+    return (dim if prev_disabled else norm,
+            dim if next_disabled else norm)
 
 
 # ── show/hide depth arrows ────────────────────────────────────────────
@@ -2818,16 +2965,20 @@ def toggle_size_wrap(gs, size_val):
     Output("down-wrap", "style"),
     Input("selected-species", "data"),
     Input("depth-toggle",     "value"),
+    Input("up-btn",           "disabled"),   # NEW
+    Input("down-btn",         "disabled"),   # NEW
     prevent_initial_call=True
 )
-def toggle_depth_wrap(gs, depth_val):
-    # when depth‐comparison is on and we have a species, make arrows fully visible…
-    if gs:# and "depth" in depth_val:
-        style = {"opacity": "1", "pointerEvents": "auto"}
-    # …otherwise “grey out” (low opacity + no clicks)
-    else:
-        style = {"opacity": "0.3", "pointerEvents": "none"}
-    return style, style
+def toggle_depth_wrap(gs, _depth_val, up_disabled, down_disabled):
+    dim  = {"opacity": "0.3", "pointerEvents": "none"}
+    norm = {"opacity": "1",   "pointerEvents": "auto"}
+
+    if not gs:
+        return dim, dim
+
+    return (dim if up_disabled else norm,
+            dim if down_disabled else norm)
+
 
 
 @app.callback(
