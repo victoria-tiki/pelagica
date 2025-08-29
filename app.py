@@ -1191,42 +1191,6 @@ def toggle_citations(n, is_open):
     return not is_open
 
 
-    
-
-
-@app.callback(
-    Output("info-card",        "style", allow_duplicate=True),
-    Output("info-handle",      "style"),
-    Output("info-pref",        "data",  allow_duplicate=True),
-    Output("info-hide-once",   "data",  allow_duplicate=True),
-    Input("info-close",        "n_clicks"),   # ❌ temporary hide
-    Input("info-handle",       "n_clicks"),   # ⓘ global toggle
-    State("info-card",         "style"),
-    State("info-pref",         "data"),
-    prevent_initial_call=True
-)
-def toggle_info(close_n, handle_n, card_style, pref):
-    trig = ctx.triggered_id
-    pref = pref or {"hide_globally": False}
-    hide_glob = bool(pref.get("hide_globally"))
-
-    if trig == "info-close":
-        # Hide only for the current species
-        return {"display": "none"}, {"display": "block"}, pref, True
-
-    if trig == "info-handle":
-        # Flip the global preference and persist it
-        hide_glob = not hide_glob
-        new_pref = {"hide_globally": hide_glob}
-
-        return (
-            {"display": "none"} if hide_glob else {"display": "block"},  
-            no_update,                                                   
-            new_pref,                                                    
-            False                                                        
-        )
-
-    raise PreventUpdate
 
 @app.callback(
     Output("info-card", "style", allow_duplicate=True),
@@ -1670,35 +1634,6 @@ def update_order_lock_label(locked, species_id, old_class):
     order_name = order.iloc[0] if not order.empty else "?"
     return f"Navigating among {order_name} only", base_class + " active"
 
-# --- Auto-release order lock on cross-order selection --------------------------
-# --- Auto-release: make it order-aware (sticky within the same order)
-@app.callback(
-    Output("order-lock-state", "data", allow_duplicate=True),
-    Output("order-lock-btn",   "className", allow_duplicate=True),
-    Input("selected-species",  "data"),
-    State("order-lock-state",  "data"),
-    State("depth-order-store-locked", "data"),
-    prevent_initial_call=True
-)
-def _auto_release_order_lock(new_gs, lock_on, locked_list):
-    if not lock_on or not new_gs:
-        raise PreventUpdate
-    try:
-        # infer the locked order from any species in the locked list
-        locked_order = None
-        if isinstance(locked_list, (list, tuple)) and locked_list:
-            sample_gs = locked_list[0][0]
-            locked_order = df_full.loc[df_full["Genus_Species"].eq(sample_gs), "order"].iloc[0]
-
-        # get the order for the new selection
-        new_order = df_full.loc[df_full["Genus_Species"].eq(new_gs), "order"].iloc[0]
-
-        # only unlock if we truly switched orders
-        if locked_order and new_order != locked_order:
-            return False, "nav-icon lock-icon"  # unlock + de-highlight
-    except Exception:
-        pass
-    raise PreventUpdate
 
 
 
@@ -2209,6 +2144,42 @@ def build_eligible_bounds(wiki_val, pop_val, fav_val, lock_on, favs_data, curren
     locked_list = [[gs, float(sh), float(dp)] for gs, sh, dp, _ in df_locked.itertuples(index=False, name=None)]
 
     return all_list, locked_list
+
+
+# --- Unlock ONLY when the selected species crosses to a different order ---
+@app.callback(
+    Output("order-lock-state", "data", allow_duplicate=True),
+    Output("order-lock-btn",   "className", allow_duplicate=True),
+    Input("selected-species",  "data"),
+    State("order-lock-state",         "data"),
+    State("depth-order-store-locked", "data"),
+    prevent_initial_call=True,
+)
+def unlock_on_cross_order(new_gs, lock_on, locked_list):
+    # Only care if the lock is ON and we actually have a selection
+    if not lock_on or not new_gs:
+        raise PreventUpdate
+
+    # Old order: infer from the currently locked list (source of truth while locked)
+    try:
+        sample_gs = None
+        if isinstance(locked_list, (list, tuple)) and locked_list:
+            first = locked_list[0]
+            sample_gs = first[0] if isinstance(first, (list, tuple)) else first
+        if not sample_gs:
+            raise PreventUpdate  # nothing to compare against → keep lock
+
+        old_order = df_full.loc[df_full["Genus_Species"].eq(sample_gs), "order"].iloc[0]
+        new_order = df_full.loc[df_full["Genus_Species"].eq(new_gs),   "order"].iloc[0]
+    except Exception:
+        # Any lookup hiccup → do nothing rather than surprise-unlock
+        raise PreventUpdate
+
+    # Cross-order? → unlock. Same order? → keep lock.
+    if new_order != old_order:
+        return False, "nav-icon lock-icon"
+
+    raise PreventUpdate
 
 
 
@@ -3784,34 +3755,85 @@ def load_chat(gs_name):
         return f"Error loading chat: {e}"
 
 
+def _style(open_: bool):
+    return {"display": "block"} if open_ else {"display": "none"}
+
 @app.callback(
-    Output("chat-card", "style", allow_duplicate=True),
-    Output("info-card", "style", allow_duplicate=True),
-    Input("chat-handle", "n_clicks"),
-    Input("chat-close",  "n_clicks"),
-    Input("info-handle", "n_clicks"),
-    State("chat-card",   "style"),
-    State("info-card",   "style"),
+    Output("chat-card", "style"),
+    Output("info-card", "style"),
+    Output("info-pref", "data"),          # {"hide_globally": bool}
+    Output("info-hide-once", "data"),     # bool: hide just the current species
+    Input("chat-handle",  "n_clicks"),
+    Input("chat-close",   "n_clicks"),
+    Input("info-handle",  "n_clicks"),
+    Input("info-close",   "n_clicks"),
+    Input("selected-species", "data"),
+    State("chat-card", "style"),
+    State("info-card", "style"),
+    State("info-pref", "data"),
+    State("info-hide-once", "data"),
     prevent_initial_call=True
 )
-def toggle_panels(n_chat_open, n_chat_close, n_info_open, chat_style, info_style):
-    chat_style = chat_style or {"display": "none"}
-    info_style = info_style or {"display": "none"}
+def manage_panels(n_chat_open, n_chat_close, n_info_click, n_info_close, species,
+                  chat_style, info_style, pref, hide_once):
+    chat_open = (chat_style or {}).get("display") != "none"
+    info_open = (info_style or {}).get("display") != "none"
+    pref = pref or {"hide_globally": False}
+    hide_once = bool(hide_once)
+
     trig = ctx.triggered_id
 
+    # Species change: one-off hide expires; honor global pref
+    if trig == "selected-species":
+        # Always close chat on species changes
+        chat_open = False
+
+        # One-off hide expires when we switch species
+        hide_once = False
+
+        # If no species is selected, keep info closed; otherwise honor global pref
+        if not species:
+            info_open = False
+        else:
+            info_open = not pref.get("hide_globally", False)
+
+        return _style(chat_open), _style(info_open), pref, hide_once
+
+
+    # Chat handle: toggle chat; opening chat forces info closed
     if trig == "chat-handle":
-        is_chat_open = chat_style.get("display") != "none"
-        # toggle chat; leave info-card unchanged
-        return ({"display": "none"} if is_chat_open else {"display": "block"}), no_update
+        chat_open = not chat_open
+        if chat_open:
+            info_open = False
+        return _style(chat_open), _style(info_open), pref, hide_once
 
+    # Chat close (✕): close chat only
     if trig == "chat-close":
-        return {"display": "none"}, no_update
+        chat_open = False
+        return _style(chat_open), _style(info_open), pref, hide_once
 
+    # Info handle (ⓘ):
+    # If info is NOT visible, force-show it (and set global to show),
+    # closing chat. If info IS visible, turn it off globally.
     if trig == "info-handle":
-        # ⓘ click should only close chat here; info open/close is handled by toggle_info
-        return {"display": "none"}, no_update
+        if not info_open:
+            pref["hide_globally"] = False   # ensure globally shown
+            chat_open = False
+            hide_once = False               # explicit open clears one-off hide
+            info_open = True
+        else:
+            pref["hide_globally"] = True    # globally hide when toggled while open
+            info_open = False
+        return _style(chat_open), _style(info_open), pref, hide_once
+
+    # Info close (✕): hide for this species only, leave global pref alone
+    if trig == "info-close":
+        info_open = False
+        hide_once = True
+        return _style(chat_open), _style(info_open), pref, hide_once
 
     raise PreventUpdate
+
 
     
 @app.callback(
@@ -3822,6 +3844,7 @@ def toggle_panels(n_chat_open, n_chat_close, n_info_open, chat_style, info_style
 def close_chat_on_species_change(gs_name):
     # Anytime the species changes, hide the chat panel
     return {"display": "none"}
+
 
 
 if __name__ == "__main__" and os.getenv("USE_DEV_SERVER", "0") == "1":
