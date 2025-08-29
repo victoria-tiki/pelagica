@@ -286,8 +286,17 @@ def cached_images(fname: str):
     return abort(404)
 
     
+@app.server.route("/about/")
+def about_page():
+    return send_from_directory("about", "index.html")
 
-
+@app.server.route("/about/<path:filename>")
+def about_static(filename):
+    # Serve any file under the about/ folder (e.g. background.png, imgs, css)
+    resp = send_from_directory("about", filename, conditional=True)
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return resp
+    
 @app.server.route('/favicon.ico')
 def serve_favicon():
     return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'favicon.ico')
@@ -895,7 +904,7 @@ mobile_toast = html.Div(
 #-------------
 search_handle = html.Div(["🔍 Search"], id="search-handle", className="search-handle", **{"data-mobile-x": "true"})
 
-depth_store = dcc.Store(id="depth-store", storage_type="session")
+depth_store = dcc.Store(id="depth-store", storage_type="memory")
 feedback_link=html.A("feedback", href="https://forms.gle/YuUFrYPmDWsqyHdt7", target="_blank", style={"textDecoration": "none", "color": "inherit", "cursor": "pointer"})
 
 #  Assemble Layout

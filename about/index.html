@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>About – Pelagica</title>
+  <meta name="description" content="Pelagica is an interactive atlas of 69,000+ aquatic species. Explore by depth, size, taxonomy, with immersive images, sounds, and animations.">
+<meta property="og:title" content="Pelagica – The Aquatic Life Atlas">
+<meta property="og:description" content="Interactive atlas of 69,000+ aquatic species. Explore by depth, size, taxonomy, with images, sound, and animation.">
+<meta property="og:image" content="https://pelagica.victoriatiki.com/assets/og/pelagica_og_1200x630.jpg">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://pelagica.victoriatiki.com/about/">
+<meta property="og:author" content="Victoria Tiki">
+
+  <!-- Match app fonts (optional, harmless if repeated) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+
+  <!-- Your main app styles (for .glass-panel, .tagline, etc.) -->
+  <link rel="stylesheet" href="../assets/css/custom.css">
+
+  <style>
+    html, body { height: 100%; margin: 0; }
+    /* Fullscreen background using about/background.png */
+    body {
+      /* absolute path is robust */
+      background: url("/about/background.png") center center / cover no-repeat fixed;
+    }
+    /* Ensure content sits above the background */
+    #top-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      z-index: 1000;
+    }
+
+    /* About content card */
+    #about-content {
+      position: relative;
+      max-width: 900px;
+      margin: 6.5rem auto 3rem;  /* clears the fixed top bar */
+      padding: 1.5rem 1.25rem;
+      z-index: 20;
+    }
+
+    #about-content h1 { margin-top: 0; }
+    .spacer { flex: 1; }
+
+    /* Small polish for the right link */
+    .about-rightlink {
+      text-decoration: none;
+      color: inherit;
+      opacity: 0.85;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .about-rightlink:hover { opacity: 1; }
+  </style>
+  
+  <style>
+  /* Lighter glass look just for About page content */
+  #about-content.glass-panel {
+    background: rgba(255, 255, 255, 0.2) !important; /* lighter, semi-transparent */
+    color: #000;  /* black main text */
+  }
+
+  /* Keep headings white for contrast */
+  #about-content h1,
+  #about-content h2,
+  #about-content h3,
+  #about-content h4 {
+    color: #111 !important;
+  }
+
+  /* Links a bit darker too */
+  #about-content a {
+    color: #003366;  /* deep blue link color */
+    text-decoration: underline;
+  }
+  #about-content a:hover {
+    opacity: 0.8;
+  }
+</style>
+
+</head>
+<body>
+
+  <!-- Top bar: same structure/ids/classes so your CSS applies -->
+  <div id="top-bar" class="glass-panel">
+    <!-- 1) logo + tagline -->
+    <a id="logo-link" href="/"
+       style="display:flex; align-items:center; text-decoration:none; color:inherit;">
+      <img src="/assets/img/logo_pelagica_colour.webp"
+           alt="Pelagica" style="height:50px">
+      <span class="tagline"
+            style="margin-left:.5rem; font-size:.9rem; font-weight:500;">
+        The Aquatic Life Atlas
+      </span>
+    </a>
+
+    <!-- 2) spacer -->
+    <div class="spacer"></div>
+
+    <!-- Right side: keep it minimal on About -->
+  </div>
+
+  <!-- Content card -->
+  <main id="about-content" class="glass-panel">
+    <p>
+      Pelagica is an interactive visualization that lets you explore aquatic biodiversity by depth, size, and taxonomy. Its goal is to make 69,000+ species and their marine/lake/river habitats feel more approachable by combining depth descent animation with images, sound, and information.
+    </p>
+    <p> Pelagica is best used on Desktop, though mobile use is supported.</p>
+    
+        <h2>Usage</h2>
+    <p>
+      Upon choosing a species (by common name, scientific name or random choice) through the search panel, the view descends to the depth at which this species lives. Since the databases (Fishbase and Sealifebase) list ranges for habitat depth, a random depth within that range is chosen. During the descend or ascend animation, which can optionally be disabled, a message describing the habitat is displayed. For each species, an infopanel is shown (ⓘ), a scale comparison is given (📏 - which can be either an object or a human diver's silhouette), and a taxonomic tree is rendered (🧬). For some species, users can listen to the sounds (♫) the animal makes or toggle a 💬-icon to hear the species introduce itself. Every species the user favourites (♡) is added to that user's exportable list of favourited species and is also recorded on the server-side list of popular species. 
+    </p>
+    <p>
+    Once a species is selected, the navigation bridge may be used to navigate between species. Deeper/shallower arrows enable navigation by depth and smaller/larger buttons by size. The 🧬-icon in the panel may be toggled on to limit navigation to species within the current taxonomic order. This enables visual investigation of effects such as <a href="https://victoriatiki.com/projects/deepseagigantism/" rel="noopener noreferrer"> deep sea gigantism</a>.
+    </p>
+    <p> Additionally, an ambient depth-dependend sound can be enabled, species can be searched by order and family, filters applied, and units toggled. All used media is cited in the citations panel.
+    </p>
+
+    <h2>Project</h2>
+    <p>
+  Pelagica is built with a combination of <strong>Python/Dash</strong> for the app framework and <strong>JavaScript</strong> for interactive elements and animations. It brings together several open data sources, including <a href="https://commons.wikimedia.org" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> for species blurbs and images, <a href="https://www.sealifebase.se/search.php" target="_blank" rel="noopener noreferrer">SeaLifeBase</a> and <a href="https://fishbase.se/search.php" target="_blank" rel="noopener noreferrer">FishBase</a> for biological records, and <a href="https://www.gbif.org/" target="_blank" rel="noopener noreferrer">GBIF</a> for taxonomic data. To prepare images, I used <a href="https://github.com/danielgatis/rembg" target="_blank" rel="noopener noreferrer">rembg</a>, a background-removal tool, so that species could be placed cleanly into the layered seascape.
+</p>
+
+
+<p>The animation system is based on parallax scrolling: I designed nine tall images in GIMP, each with different heights and moving at different speeds to create a sense of depth. On top of that, depth-dependent CSS and HTML animations, all steered by JavaScript code, add animations like caustics, glitter, and bioluminescence that shift as you descend.</p>
+
+  <p>Pelagica is currently hosted on Fly.io.</p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions and suggestions are welcome through the
+      <a href="https://forms.gle/YuUFrYPmDWsqyHdt7" target="_blank" rel="noopener noreferrer">feedback form</a>
+      or my
+      <a href="https://victoriatiki.com/contact/" target="_blank" rel="noopener noreferrer">contact page</a>.
+    </p>
+
+  </main>
+
+</body>
+</html>
+
