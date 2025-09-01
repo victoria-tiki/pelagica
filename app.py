@@ -966,7 +966,7 @@ app.layout = dbc.Container([
         dcc.Store(id="eligible-depth-bounds-locked", storage_type="session"),
         dcc.Store(id="depth-order-store-all",        storage_type="session"),
         dcc.Store(id="depth-order-store-locked",     storage_type="session"),
-        dcc.Store(id="depth-store",                  storage_type="session"),
+        dcc.Store(id="depth-store",                  storage_type="memory"),
 
 
         footer,
@@ -978,6 +978,13 @@ app.layout = dbc.Container([
         dcc.Store(id="favs-store",storage_type="local"),      # persists in localStorage
         dcc.Store(id="compare-store", data=False, storage_type="session"),
         dcc.Store(id="common-opt-cache", data=[]),
+        
+        # --- Mobile detector + desktop-only feature toast ---
+        dcc.Store(id="is-mobile", data=False, storage_type="memory"),
+        dcc.Interval(id="mobile-detect", interval=200, n_intervals=0, max_intervals=1),
+        html.Div(id="feature-toast", **{"aria-live": "polite"}),
+        dcc.Interval(id="feature-toast-timer", interval=3000, n_intervals=0, disabled=True),
+
         
 
         mobile_toast,
@@ -1114,13 +1121,14 @@ def update_species_options(genus, wiki_val, pop_val,
     State("favs-toggle",    "value"),
     State("favs-store",     "data"),
     State("order-lock-state", "data"),
+    State("is-mobile", "data"),  # ← add to the callback's State list
     State("selected-species", "data"),
     prevent_initial_call=True
 )
 def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
                    size_val, depth_val,
                    wiki_val, pop_val,
-                   fav_val, favs_data, lock_on,
+                   fav_val, favs_data, lock_on, is_mobile,
                    current_sel):
 
     """
@@ -1146,6 +1154,10 @@ def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
 
     # 1) Random buttons
     if trig in ("random-btn", "nav-random-btn"):
+
+        if is_mobile and trig == "nav-random-btn":
+            raise PreventUpdate
+
         size_on  = "size"  in size_val
         depth_on = "depth" in depth_val
         df_use = get_filtered_df(size_on, depth_on, wiki_val, pop_val)
@@ -2060,13 +2072,22 @@ def filter_common(search, wiki_val, pop_val, fav_val, favs_data, current, cached
 # toggle the advanced-filters box
 @app.callback(
     Output("adv-box", "style"),
-    Input("open-settings-btn", "n_clicks"),   
+    Input("open-settings-btn", "n_clicks"),
     State("adv-box", "style"),
+    State("is-mobile", "data"),
     prevent_initial_call=True
 )
-def toggle_advanced(n, style):
+def toggle_advanced(n, style, is_mobile):
+    if not n:
+        raise PreventUpdate
+
+    if is_mobile:
+        # Block on mobile — don’t change adv-box
+        raise PreventUpdate
+
     hidden = style and style.get("display") == "none"
     return {} if hidden else {"display": "none"}
+
 
 @app.callback(
     Output("fav-modal", "is_open"),
@@ -2293,9 +2314,13 @@ app.clientside_callback(
 
 
 
+# depth step (clientside): block on mobile
 app.clientside_callback(
     """
-    function(nUp, nDown, orderAll, orderLocked, lockOn, current){
+    function(nUp, nDown, orderAll, orderLocked, lockOn, current, isMobile){
+      // Block the action entirely on mobile, but let the click drive the toast
+      if (isMobile) return window.dash_clientside.no_update;
+
       var trig = (dash_clientside.callback_context.triggered[0]||{}).prop_id || "";
       var order = (lockOn && Array.isArray(orderLocked) && orderLocked.length)
                   ? orderLocked : orderAll;
@@ -2307,17 +2332,13 @@ app.clientside_callback(
       var dir = trig.startsWith("up-btn") ? -1 : +1;
       const nextIdx = Math.max(0, Math.min(order.length - 1, idx + dir));
       if (nextIdx === idx) {
-        window.dispatchEvent(new CustomEvent('pelagica:toast', {
-          detail: dir < 0 ? 'Already shallowest' : 'Already deepest'
-        }));
-        return window.dash_clientside.no_update;   // ← fixed
+        // already at boundary → no change
+        return window.dash_clientside.no_update;
       }
-      var next = order[nextIdx];                    // ← declare it
-
+      var next = order[nextIdx];
       if (next === current) return window.dash_clientside.no_update;
       return next;
     }
-
     """,
     Output("selected-species", "data", allow_duplicate=True),
     Input("up-btn",   "n_clicks"),
@@ -2326,8 +2347,10 @@ app.clientside_callback(
     State("depth-order-store-locked", "data"),
     State("order-lock-state",         "data"),
     State("selected-species",         "data"),
+    State("is-mobile",                "data"),  # ← NEW
     prevent_initial_call=True,
 )
+
 
 app.clientside_callback(
     """
@@ -2682,14 +2705,16 @@ app.clientside_callback(
     State("order-lock-state","data"),
     State("selected-species","data"),
     State("rand-seed",      "data"),
+    State("is-mobile","data"),
     prevent_initial_call=True
 )
 def step_size(n_next, n_prev,
               size_val, depth_val, wiki_val, pop_val,
               fav_val, favs_data,
               lock_on,
-              current, seed):
-
+              current, seed, is_mobile):
+    if is_mobile:
+        raise PreventUpdate                    
     if ctx.triggered_id not in ("prev-btn", "next-btn"):
         raise PreventUpdate
 
@@ -3069,17 +3094,24 @@ def toggle_arrow(gs_name, is_on):
     }
 
 
+
+# order-lock: desktop only + set the button class
 @app.callback(
     Output("order-lock-state", "data"),
     Output("order-lock-btn",   "className"),
     Input("order-lock-btn", "n_clicks"),
     State("order-lock-state", "data"),
+    State("is-mobile", "data"),
     prevent_initial_call=True
 )
-def toggle_order_lock(n, locked):
-    locked = not locked
+def toggle_order_lock(n, locked, is_mobile):
+    if not n or is_mobile:
+        raise PreventUpdate
+    locked = not bool(locked)
     cls = "nav-icon lock-icon" + (" active" if locked else "")
     return locked, cls
+
+
 
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
@@ -3521,7 +3553,15 @@ def update_species_of_week(_):
     sp, _scores = top_species(debug=False, option="ever_favved")  # production
 
     if not sp:
-        return ("/assets/img/placeholder_fish.webp", "", "—", "No favourites recorded last week", "Species of the Week")
+        return ("/assets/img/placeholder_fish.webp", "", "—",
+                "No favourites recorded last week", "Species of the Week")
+
+    # --- ADD THESE LINES ---
+    common = COMMON_NAMES.get(sp, "")
+    week_end   = next_monday_start(now) - datetime.timedelta(seconds=1)
+    week_start = week_end - datetime.timedelta(days=6)
+    note = f"Most-favourited in the previous week"
+    # --- END ADD ---
 
     genus, species = sp.split(" ", 1)
     skip_bg = sp in transp_set
@@ -3530,6 +3570,7 @@ def update_species_of_week(_):
     if base.startswith("/cached-images/"):
         base = f"{base}{'&' if '?' in base else '?'}gs={genus}_{species}"
     return (base, common, sp, note, "Species of the Week")
+
 
 
 
@@ -3853,6 +3894,89 @@ def manage_panels(n_chat_open, n_chat_close, n_info_click, n_info_close, species
 def close_chat_on_species_change(gs_name):
     # Anytime the species changes, hide the chat panel
     return {"display": "none"}
+
+
+############ MOBILE VIEW OPTION #################
+app.clientside_callback(
+    """
+    function(tick){
+      const narrow = window.matchMedia('(max-width: 768px)').matches;
+      const touchy = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+      return !!(narrow || touchy);
+    }
+    """,
+    Output("is-mobile", "data"),
+    Input("mobile-detect", "n_intervals"),
+)
+
+'''@app.callback(
+    Output("instant-toggle", "value"),
+    Output("depth-toggle",   "value"),
+    Output("size-toggle",    "value"),
+    Input("is-mobile", "data"),
+    prevent_initial_call=True
+)
+def sync_mobile_defaults(is_mobile):
+    if is_mobile:
+        # Mobile preview: no descend animation, no size/depth navigation
+        return [], [], []
+    # Desktop: keep your current defaults
+    return ["on"], ["depth"], ["size"]'''
+
+
+
+@app.callback(
+    Output("feature-toast", "children"),
+    Output("feature-toast", "style"),
+    Output("feature-toast-timer", "disabled"),
+    Output("feature-toast-timer", "n_intervals"),
+    Input("open-settings-btn", "n_clicks"),
+    Input("up-btn",     "n_clicks"),
+    Input("down-btn",   "n_clicks"),
+    Input("prev-btn",   "n_clicks"),
+    Input("next-btn",   "n_clicks"),
+    Input("nav-random-btn", "n_clicks"),
+    Input("order-lock-btn", "n_clicks"),
+    State("is-mobile", "data"),
+    prevent_initial_call=True
+)
+def show_desktop_only_toast(*args):
+    *clicks, is_mobile = args
+    if not is_mobile:
+        raise PreventUpdate
+    # Show the banner and auto-hide via the timer
+    msg = "🐚 This feature is not available on mobile"
+    return msg, {"opacity": 1, "transform": "translate(-50%, 0)"}, False, 0
+
+
+@app.callback(
+    Output("feature-toast", "style", allow_duplicate=True),
+    Input("feature-toast-timer", "n_intervals"),
+    State("feature-toast", "style"),
+    prevent_initial_call=True
+)
+def hide_feature_toast(tick, style):
+    if tick is None or tick < 1:               # ← ignore the reset to 0
+        raise PreventUpdate
+    new_style = dict(style or {})
+    new_style.update({"opacity": 0, "transform": "translate(-50%, 12px)"})
+    return new_style
+
+
+'''@app.callback(
+    Output("feature-toast", "children", allow_duplicate=True),
+    Output("feature-toast", "style", allow_duplicate=True),
+    Output("feature-toast-timer", "disabled", allow_duplicate=True),
+    Output("feature-toast-timer", "n_intervals", allow_duplicate=True),
+    Input("selected-species", "data"),
+    State("is-mobile", "data"),
+    prevent_initial_call=True
+)
+def mobile_dive_missed(gs, is_mobile):
+    if not (gs and is_mobile):
+        raise PreventUpdate
+    msg = "Open on Desktop for dive animations."
+    return msg, {"opacity": 1, "transform": "translate(-50%, 0)"}, False, 0'''
 
 
 
