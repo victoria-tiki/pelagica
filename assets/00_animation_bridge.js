@@ -193,6 +193,22 @@
   } else {
     document.addEventListener("DOMContentLoaded", attachWhenReady);
   }
+  
+  
+      // After the block that wires attachWhenReady/DOMContentLoaded:
+    document.addEventListener("DOMContentLoaded", () => {
+      const el = document.getElementById("units-toggle");
+      const frame = document.getElementById("depth-iframe");
+      if (el && frame && frame.contentWindow) {
+        el.addEventListener("change", () => {
+          frame.contentWindow.postMessage(
+            { type: "setUnits", units: el.checked ? "imperial" : "metric" },
+            "*"
+          );
+        });
+      }
+    });
+
 
   //if some other code toggles the overlay visibility later, keep to showing/hiding only (no text writes here).
   const msg = $("load-message");

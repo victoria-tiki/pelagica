@@ -16,19 +16,19 @@ window.addEventListener('error', e => {
 });
 
 /* Tiny on-screen FPS / depth debug */
-if (window.self === window.top) {  // only show debug overlay when *not* in an iframe
-  (function makeDebugOverlay(){
-    const box = document.createElement('div');
-    box.id = 'debugBox';
-    Object.assign(box.style,{
-      position:'fixed',bottom:'4px',left:'6px',font:'12px/1.2 monospace',
-      background:'rgba(0,0,0,.5)',color:'#fff',padding:'4px 6px',
-      zIndex:9999,borderRadius:'4px',pointerEvents:'none'
-    });
-    box.textContent='init…';
-    document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(box));
-  })();
-}
+(function makeDebugOverlay(){
+  const box = document.createElement('div');
+  box.id = 'debugBox';
+  Object.assign(box.style,{
+    position:'fixed',bottom:'4px',left:'6px',font:'12px/1.2 monospace',
+    background:'rgba(0,0,0,.5)',color:'#fff',padding:'4px 6px',
+    zIndex:9999,borderRadius:'4px',pointerEvents:'none'
+  });
+  box.textContent='init…';
+  document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(box));
+})();
+
+
 
 
 /* Hide the control overlay when the page is running inside Pelagica */
@@ -97,13 +97,25 @@ fetch("messages.json")
 let   messageBox, hideTimer;
 let units = "metric";  
 
-function formatDepth(val){
+// Keep global units = "metric" | "imperial"
+function formatDepthInt(val){        // for captions (integer)
+  const m = Number(val) || 0;
   if (units === "imperial") {
-    const ft = val * 3.28084;
-    return `${Math.round(ft)} ft`;
+    const ft = m * 3.28084;
+    return `${Math.round(ft)} ft`;
   }
-  return `${Math.round(val)} m`;
+  return `${Math.round(m)} m`;
 }
+
+function formatDepth2(val){          // for HUD (two decimals)
+  const m = Number(val) || 0;
+  if (units === "imperial") {
+    const ft = m * 3.28084;
+    return `${ft.toFixed(2)} ft`;
+  }
+  return `${m.toFixed(2)} m`;
+}
+
 
 
 function showMessage(txt, ms){
@@ -152,7 +164,7 @@ function randomDepthMsg(depth, direction) {
              : direction === "descend" ? "Descending to"
              : "Traveling to";
 
-  return `${verb} ${formatDepth(depth)}\n${msg}`;
+  return `${verb} ${formatDepthInt(depth)}\n${msg}`;
 }
 
 
@@ -742,12 +754,18 @@ window.addEventListener("message", (e) => {
     const d = Number(e.data.depth) || 0;
     document.getElementById("depth-input").value = d;
     goToDepth();
+  } else if (t === "setUnits") {
+    // live toggle from parent
+    units = e.data?.units || "metric";
+    // Force a quick HUD refresh on the next raf() FPS tick
+    lastFPSStamp = 0; // (this variable already exists in your file)
   } else if (t === "pauseAll") {
     pauseAllMotion();
   } else if (t === "resumeAll") {
     resumeAllMotion();
   }
 });
+
 
 
 /* Go button */
@@ -1078,8 +1096,15 @@ function raf(ts) {
   frameCount++;
   if (fpsBox && ts - lastFPSStamp > 250) {
     const fps = frameCount * 1000 / (ts - lastFPSStamp);
-    fpsBox.textContent =
-      `fps:${fps.toFixed(1)}  depth:${hasDepth ? currentDepth.toFixed(1) : '—'}`;
+    const inIframe = (window.self !== window.top);
+    const depthTxt = hasDepth ? formatDepth2(currentDepth) : '—';
+
+    fpsBox.textContent = inIframe
+      ? `depth:${depthTxt}`                             // iframe: depth only
+      : `fps:${fps.toFixed(1)}  depth:${depthTxt}`;    // top-level: fps + depth
+
+
+
     lastFPSStamp = ts;
     frameCount   = 0;
   }

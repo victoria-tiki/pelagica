@@ -985,7 +985,53 @@ app.layout = dbc.Container([
         html.Div(id="feature-toast", **{"aria-live": "polite"}),
         dcc.Interval(id="feature-toast-timer", interval=3000, n_intervals=0, disabled=True),
 
-        
+        # --- Depth hint toast (surface crowding) ---
+        dcc.Store(id="shallow-hint-shown", data=False, storage_type="session"),
+        dcc.Store(id="shallow-hint-count", data=0, storage_type="session"),
+
+
+        html.Div(
+            id="depth-hint-toast",
+            n_clicks=0,                        # optional, harmless
+            **{"aria-live": "polite", "role": "status"},
+            style={
+                "position": "fixed", "left": "50%", "bottom": "1.25rem",
+                "transform": "translate(-50%, 12px)",
+                "opacity": 0,
+                "transition": "opacity .25s ease, transform .25s ease",
+                "zIndex": 9999,
+                "padding": "0.6rem 1.2rem 0.6rem 0.9rem",   # room for ✕
+                "backgroundColor": "rgba(0,0,0,0.75)",
+                "color": "#fff", "fontSize": "0.95rem",
+                "borderRadius": "8px",
+                "pointerEvents": "none",  # flipped to "auto" when visible
+                "textAlign": "center", "whiteSpace": "pre-wrap",
+                "maxWidth": "min(92vw, 640px)",
+            },
+            children=[
+                # --- close button ---
+                html.Button("×", id="depth-hint-close",
+                            n_clicks=0,
+                            style={
+                                "all": "unset",               # reset button styles
+                                "cursor": "pointer",
+                                "fontSize": "1.2rem",
+                                "position": "absolute",
+                                "top": "4px",
+                                "right": "8px",
+                                "lineHeight": "1",
+                                "color": "#fff",
+                            }),
+                # --- span that will hold the message text ---
+                html.Span(id="depth-hint-text"),
+            ],
+        ),
+
+
+
+
+        dcc.Interval(id="depth-hint-timer", interval=10000, n_intervals=0, disabled=True),
+
 
         mobile_toast,
         citations_panel,
@@ -3977,6 +4023,69 @@ def mobile_dive_missed(gs, is_mobile):
         raise PreventUpdate
     msg = "Open on Desktop for dive animations."
     return msg, {"opacity": 1, "transform": "translate(-50%, 0)"}, False, 0'''
+
+
+@app.callback(
+    Output("depth-hint-toast",  "style"),
+    Output("depth-hint-text",   "children"),     # ⚠️ note: text span
+    Output("shallow-hint-count","data"),
+    Output("depth-hint-timer",  "disabled"),
+    Output("depth-hint-timer",  "n_intervals"),
+    Input("up-btn",             "n_clicks"),
+    Input("down-btn",           "n_clicks"),
+    Input("depth-hint-timer",   "n_intervals"),
+    Input("depth-hint-close",   "n_clicks"),     # 👈 new
+    State("depth-store",        "data"),
+    State("shallow-hint-count", "data"),
+    prevent_initial_call=True,
+)
+def surface_hint(n_up, n_down, timer_tick, close_clicks,
+                 depth_data, click_count):
+    trig = ctx.triggered_id
+
+    hidden = {
+        "position": "fixed","left": "50%","bottom": "1.25rem",
+        "transform": "translate(-50%, 12px)","opacity": 0,
+        "transition": "opacity .25s ease, transform .25s ease",
+        "zIndex": 9999,"padding": "0.6rem 1.2rem 0.6rem 0.9rem",
+        "backgroundColor": "rgba(0,0,0,0.75)","color": "#fff",
+        "fontSize": "0.95rem","borderRadius": "8px",
+        "pointerEvents": "none","textAlign": "center",
+        "whiteSpace": "pre-wrap","maxWidth": "min(92vw, 640px)",
+    }
+    visible = dict(hidden, **{
+        "opacity": 1,
+        "transform": "translate(-50%, 0)",
+        "pointerEvents": "auto",
+    })
+
+    # 1) Timer fired or ✕ clicked → hide, stop timer
+    if trig in ("depth-hint-timer", "depth-hint-close"):
+        return hidden, no_update, click_count, True, no_update
+
+    # 2) Ignore anything that isn't one of the nav buttons
+    if trig not in ("up-btn", "down-btn"):
+        raise PreventUpdate
+
+    # 3) Parse depth (same as before, omitted here for brevity) ...
+    cur_depth = 0.0
+    # (parsing logic ↑)
+
+    if cur_depth <= 200.0:
+        click_count += 1
+        if click_count == 1:
+            return hidden, no_update, click_count, True, no_update
+        if click_count == 2:
+            msg = (
+                "The surface is crowded with life! 🌊\n"
+                "Depth steps up here can be tinier than a pixel, "
+                "so the view may look still. Dive deeper "
+                "for a bigger swoosh."
+            )
+            return visible, msg, click_count, False, 0
+
+    raise PreventUpdate
+
 
 
 
