@@ -4067,9 +4067,16 @@ def surface_hint(n_up, n_down, timer_tick, close_clicks,
     if trig not in ("up-btn", "down-btn"):
         raise PreventUpdate
 
-    # 3) Parse depth (same as before, omitted here for brevity) ...
-    cur_depth = 0.0
-    # (parsing logic ↑)
+    # 3) Parse current depth in meters from depth-store (clientside sets a number)
+    try:
+        cur_depth = float(depth_data) if depth_data is not None else None
+    except (TypeError, ValueError):
+        cur_depth = None
+
+    if cur_depth is None:
+        # No depth known yet → don’t show or change anything
+        raise PreventUpdate
+
 
     if cur_depth <= 200.0:
         click_count += 1
