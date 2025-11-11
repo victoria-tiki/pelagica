@@ -1,6 +1,7 @@
 # Pelagica – The Aquatic Life Atlas
 
-Pelagica is an interactive web atlas of marine and aquatic life. It combines curated species data, occurrence records, imagery, and sound to visualize where organisms live in the water column and how they relate in depth, scale, and taxonomy.
+Pelagica is an interactive web atlas of marine and aquatic life. It combines curated species data, occurrence records, imagery, and sound to visualize where organisms live in the water column and how they relate in depth, scale, and taxonomy. A demo of this project can be viewed on the [project page](https://victoriatiki.com/projects/pelagica/).
+
 
 ---
 
