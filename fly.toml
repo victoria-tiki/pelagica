@@ -20,8 +20,8 @@ primary_region = "ord"      # e.g. Chicago (US) or "fra" (EU)
   processes = ["app"]
   [http_service.concurrency]
     type = "requests"
-    soft_limit = 8
-    hard_limit = 16
+    soft_limit = 16
+    hard_limit = 32
 
 [[vm]]
   size = "shared-cpu-1x"
