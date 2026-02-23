@@ -149,19 +149,19 @@ def _label_with_common(taxon: str) -> str:
 
 
 #------------ Cloudflare analytics -------------------------
+
+
 CF_TOKEN = os.getenv("CF_WEB_ANALYTICS_TOKEN")
 
 external_scripts = []
-
 if CF_TOKEN:
-    external_scripts.append({
-        "src": "https://static.cloudflareinsights.com/beacon.min.js",
+    external_scripts = [{
+        "src": f"https://static.cloudflareinsights.com/beacon.min.js?token={CF_TOKEN}",
         "defer": "defer",
-        "data-cf-beacon": json.dumps({
-            "token": CF_TOKEN
-        })
-    })
-    
+    }]
+else:
+    print("CF_WEB_ANALYTICS_TOKEN is not set")
+
 # ---------- Build Dash app ----------------------------------------------------------
 # external sheets (font + bootstrap)
 external_stylesheets = [
