@@ -148,7 +148,20 @@ def _label_with_common(taxon: str) -> str:
     return f"{taxon} ({cmn})" if cmn else taxon
 
 
+#------------ Cloudflare analytics -------------------------
+CF_TOKEN = os.getenv("CF_WEB_ANALYTICS_TOKEN")
 
+external_scripts = []
+
+if CF_TOKEN:
+    external_scripts.append({
+        "src": "https://static.cloudflareinsights.com/beacon.min.js",
+        "defer": "defer",
+        "data-cf-beacon": json.dumps({
+            "token": CF_TOKEN
+        })
+    })
+    
 # ---------- Build Dash app ----------------------------------------------------------
 # external sheets (font + bootstrap)
 external_stylesheets = [
@@ -158,6 +171,7 @@ external_stylesheets = [
 app = Dash(
     __name__,
     compress=True,serve_locally=False,
+    external_scripts=external_scripts,
     external_stylesheets=external_stylesheets,
     title="Pelagica - The Aquatic Life Atlas",
     meta_tags=[
