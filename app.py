@@ -1040,6 +1040,42 @@ app.layout = dbc.Container([
                 html.Span(id="depth-hint-text"),
             ],
         ),
+        
+        
+        # --- Nav random "empty" toast ---
+        html.Div(
+            id="nav-toast",
+            **{"aria-live": "polite", "role": "status"},
+            style={
+                "position": "fixed", "left": "50%", "bottom": "3.75rem",
+                "transform": "translate(-50%, 12px)",
+                "opacity": 0,
+                "transition": "opacity .25s ease, transform .25s ease",
+                "zIndex": 9999,
+                "padding": "0.6rem 1.2rem 0.6rem 0.9rem",
+                "backgroundColor": "rgba(0,0,0,0.80)",
+                "color": "#fff", "fontSize": "0.95rem",
+                "borderRadius": "8px",
+                "pointerEvents": "none",
+                "textAlign": "center", "whiteSpace": "pre-wrap",
+                "maxWidth": "min(92vw, 640px)",
+            },
+            children=[
+                html.Button("×", id="nav-toast-close", n_clicks=0,
+                            style={
+                                "all": "unset",
+                                "cursor": "pointer",
+                                "fontSize": "1.2rem",
+                                "position": "absolute",
+                                "top": "4px",
+                                "right": "8px",
+                                "lineHeight": "1",
+                                "color": "#fff",
+                            }),
+                html.Span(id="nav-toast-text"),
+            ],
+        ),
+        dcc.Interval(id="nav-toast-timer", interval=5000, n_intervals=0, disabled=True),
 
 
 
@@ -1163,12 +1199,13 @@ def update_species_options(genus, wiki_val, pop_val,
 
 
 
-
 # -------------------------------------------------------------------
-# Callback 2 – whenever any chooser fires, update selected‑species
+# Callback 2 – whenever any chooser fires, update selected-species
 # -------------------------------------------------------------------
 @app.callback(
     Output("selected-species", "data", allow_duplicate=True),
+    Output("order-lock-state", "data", allow_duplicate=True),      # NEW
+    Output("order-lock-btn",   "className", allow_duplicate=True), # NEW (optional but keeps UI consistent)
     Input("species-dd", "value"),
     Input("genus-dd",   "value"),
     Input("common-dd",  "value"),
@@ -1181,7 +1218,7 @@ def update_species_options(genus, wiki_val, pop_val,
     State("favs-toggle",    "value"),
     State("favs-store",     "data"),
     State("order-lock-state", "data"),
-    State("is-mobile", "data"),  # ← add to the callback's State list
+    State("is-mobile", "data"),
     State("selected-species", "data"),
     prevent_initial_call=True
 )
@@ -1191,26 +1228,16 @@ def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
                    fav_val, favs_data, lock_on, is_mobile,
                    current_sel):
 
-    """
-    Decide which species string “Genus Species” should be stored in
-    `selected-species` whenever *any* of the four selectors fires.
-
-    • genus‑dd / species‑dd pair  → exact match
-    • common‑dd                   → value of the dropdown
-    • random‑btn                  → random row honouring every active filter:
-        – Wiki‑only
-        – Popular‑only
-        – Favourites
-        – Size/Depth navigation toggles
-          (requires full depth‑pair or positive Length_cm)
-    """
     trig = ctx.triggered_id
 
     def _emit(new_gs):
-        # If it's the same as what we already have, do nothing.
         if (new_gs or "").strip() == (current_sel or "").strip():
             raise PreventUpdate
-        return new_gs
+
+        if trig == "random-btn":
+            return new_gs, False, "nav-icon lock-icon"   # <- no "active"
+
+        return new_gs, no_update, no_update
 
     # 1) Random buttons
     if trig in ("random-btn", "nav-random-btn"):
@@ -1218,17 +1245,17 @@ def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
         if is_mobile and trig == "nav-random-btn":
             raise PreventUpdate
 
-        size_on  = "size"  in size_val
-        depth_on = "depth" in depth_val
+        size_on  = "size"  in (size_val or [])
+        depth_on = "depth" in (depth_val or [])
+
+        # strict pool (original behavior)
         df_use = get_filtered_df(size_on, depth_on, wiki_val, pop_val)
 
-        if fav_val and "fav" in fav_val:
+        if fav_val and "fav" in (fav_val or []):
             fav_set = set(json.loads(favs_data or "[]"))
             df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
-        if df_use.empty:
-            raise PreventUpdate
-            
-         # ── honour order-lock *only* for nav-random ─────────────
+
+        # honour order-lock ONLY for nav-random (original behavior)
         if trig == "nav-random-btn" and lock_on and current_sel:
             try:
                 cur_order = (
@@ -1237,11 +1264,37 @@ def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
                 )
                 df_use = df_use[df_use["order"] == cur_order]
             except IndexError:
-                pass        # keep whole list if lookup fails      
+                pass  # keep whole list if lookup fails
 
-        # Prefer a *different* species; fall back if only one candidate.
+        # If strict pool is empty for nav-random, relax size/depth completeness only
+        if df_use.empty and trig == "nav-random-btn":
+            df_use = get_filtered_df(False, False, wiki_val, pop_val)
+
+            if fav_val and "fav" in (fav_val or []):
+                fav_set = set(json.loads(favs_data or "[]"))
+                df_use  = df_use[df_use["Genus_Species"].isin(fav_set)]
+
+            if lock_on and current_sel:
+                try:
+                    cur_order = (
+                        df_full.loc[df_full["Genus_Species"] == current_sel, "order"]
+                        .iloc[0]
+                    )
+                    df_use = df_use[df_use["order"] == cur_order]
+                except IndexError:
+                    pass
+
+        if df_use.empty:
+            raise PreventUpdate
+
+        # Prefer a different species; but do NOT wipe out the list
         if len(df_use) > 1 and current_sel in set(df_use["Genus_Species"]):
-            df_use = df_use[df_use["Genus_Species"] != current_sel]
+            df_alt = df_use[df_use["Genus_Species"] != current_sel]
+            if not df_alt.empty:
+                df_use = df_alt
+
+        if df_use.empty:
+            raise PreventUpdate
 
         row = df_use.sample(1).iloc[0]
         return _emit(f"{row.Genus} {row.Species}")
@@ -1257,7 +1310,118 @@ def choose_species(species_val, genus_val, common_val, rnd, rnd_nav,
     raise PreventUpdate
 
 
+# -------------------------------------------------------------------
+# Nav toast – show when nav-random has no eligible pick (or only current)
+# -------------------------------------------------------------------
+@app.callback(
+    Output("nav-toast-text", "children"),
+    Output("nav-toast", "style"),
+    Output("nav-toast-timer", "disabled"),
+    Output("nav-toast-timer", "n_intervals"),
+    Input("nav-random-btn", "n_clicks"),
+    Input("nav-toast-close", "n_clicks"),
+    Input("nav-toast-timer", "n_intervals"),
+    State("size-toggle", "value"),
+    State("depth-toggle", "value"),
+    State("wiki-toggle", "value"),
+    State("popular-toggle", "value"),
+    State("favs-toggle", "value"),
+    State("favs-store", "data"),
+    State("order-lock-state", "data"),
+    State("selected-species", "data"),
+    State("is-mobile", "data"),
+    State("nav-toast", "style"),
+    prevent_initial_call=True,
+)
+def nav_random_empty_toast(nav_clicks, close_clicks, tick,
+                           size_val, depth_val, wiki_val, pop_val,
+                           fav_val, favs_data, lock_on, current_sel,
+                           is_mobile, cur_style):
+    trig = ctx.triggered_id
 
+    def hide(style):
+        s = dict(style or {})
+        s.update({
+            "opacity": 0,
+            "transform": "translate(-50%, 12px)",
+            "pointerEvents": "none",
+        })
+        return "", s, True, 0
+
+    def show(style, msg):
+        s = dict(style or {})
+        s.update({
+            "opacity": 1,
+            "transform": "translate(-50%, 0)",
+            "pointerEvents": "auto",
+        })
+        return msg, s, False, 0
+
+    # hide on close or after timer fires once
+    if trig == "nav-toast-close" or (trig == "nav-toast-timer" and tick and tick >= 1):
+        return hide(cur_style)
+
+    # only evaluate/show on nav-random clicks
+    if trig != "nav-random-btn":
+        raise PreventUpdate
+
+    if is_mobile:
+        raise PreventUpdate
+
+    size_on  = "size"  in (size_val or [])
+    depth_on = "depth" in (depth_val or [])
+
+    def apply_favs(df):
+        if fav_val and "fav" in (fav_val or []):
+            fav_set = set(json.loads(favs_data or "[]"))
+            df = df[df["Genus_Species"].isin(fav_set)]
+        return df
+
+    def apply_order_lock(df):
+        # order-lock applies for nav-random
+        if lock_on and current_sel:
+            try:
+                cur_order = df_full.loc[df_full["Genus_Species"] == current_sel, "order"].iloc[0]
+                df = df[df["order"] == cur_order]
+            except IndexError:
+                pass
+        return df
+
+    # strict pool (same as choose_species before relaxing)
+    strict = get_filtered_df(size_on, depth_on, wiki_val, pop_val)
+    strict = apply_favs(strict)
+    strict = apply_order_lock(strict)
+
+    # if strict has a usable alternative, no toast
+    if not strict.empty:
+        if current_sel and len(strict) == 1 and strict["Genus_Species"].iloc[0] == current_sel:
+            msg = (
+                "No other eligible species under the current order and filters."
+                "Try turning off 🧬."
+            )
+            return show(cur_style, msg)
+        raise PreventUpdate
+
+    # relaxed pool (only relax size/depth completeness)
+    relaxed = get_filtered_df(False, False, wiki_val, pop_val)
+    relaxed = apply_favs(relaxed)
+    relaxed = apply_order_lock(relaxed)
+
+    if not relaxed.empty:
+        if current_sel and len(relaxed) == 1 and relaxed["Genus_Species"].iloc[0] == current_sel:
+            msg = (
+                "No other eligible species under the current order and filters."
+                "Try turning off 🧬."
+            )
+            return show(cur_style, msg)
+        raise PreventUpdate
+
+    # truly empty even after relaxing
+    msg = (
+        "No other eligible species under the current order and filters."
+        "Try turning off 🧬."
+    )
+    return show(cur_style, msg)
 
 # --- CITATIONS panel toggle -----------------------------------
 @app.callback(
@@ -1737,6 +1901,7 @@ def update_image(gs_name, units_bool):
         "pelagic-neritic":   "lives in coastal open water, above the continental shelf",
         "bathydemersal":     "inhabits deep waters near the sea floor",
         "sessile":           "attached to a surface and doesn’t move",
+        "host":              "lives on or inside another organism",
         "bathypelagic":      "inhabits the open‑waters at the ocean’s mid‑depths (roughly 1 000–4 000 m)",
         "others":             "other habitats, may not be strictly aquatic"
     }
@@ -2474,8 +2639,12 @@ def disable_size_extremes(current, wiki_val, pop_val, fav_val, lock_on, favs_jso
 
     df_use  = df_use.sort_values(["Length_cm", "Length_in"], na_position="last")
     species = df_use["Genus_Species"].tolist()
-    idx = species.index(current) if current in species else 0
 
+    # NEW: if current isn't in the navigable list (e.g., missing length), disable both
+    if current not in species:
+        return True, True
+
+    idx = species.index(current)
     return (idx <= 0, idx >= len(species) - 1)
 
 
@@ -3374,15 +3543,23 @@ def make_tree_figure(df, target_species):
     rank_order = ["kingdom", "phylum", "class", "order", "family", "genus", "species"]
     rank_index = {r: i for i, r in enumerate(rank_order)}
 
-    def get_rank(n):
+    def get_rank(n, _seen=None):
+        if _seen is None:
+            _seen = set()
+        if n in _seen:
+            return "species"  # cycle fallback
+        _seen.add(n)
+
         r = node_meta.get(n, {}).get("rank")
         if r in rank_index:
             return r
+
         p = parent_of.get(n)
         if p:
-            pi = rank_index.get(get_rank(p))
+            pi = rank_index.get(get_rank(p, _seen))
             if pi is not None and pi + 1 < len(rank_order):
                 return rank_order[pi + 1]
+
         return "species"
 
     # Deterministic child ordering
@@ -3402,20 +3579,45 @@ def make_tree_figure(df, target_species):
 
     x_pos, y_pos = {}, {}
     next_leaf_col = 0
+    laid_out = set()
 
-    def layout(n):
+    def layout(n, stack=None):
         nonlocal next_leaf_col
+        if stack is None:
+            stack = set()
+
+        # break cycles / repeated visits
+        if n in stack:
+            if n not in x_pos:
+                ri = rank_index.get(get_rank(n), len(rank_order) - 1)
+                y_pos[n] = -ri * Y_SPACING
+                x_pos[n] = next_leaf_col * X_SPACING
+                next_leaf_col += 1
+            return
+
+        if n in laid_out:
+            return
+
+        stack.add(n)
+
         ri = rank_index.get(get_rank(n), len(rank_order) - 1)
         y_pos[n] = -ri * Y_SPACING
         ch = children_of.get(n, [])
-        if not ch:
+
+        # ignore children that would create an immediate cycle
+        safe_children = [c for c in ch if c not in stack]
+
+        if not safe_children:
             x_pos[n] = next_leaf_col * X_SPACING
             next_leaf_col += 1
         else:
-            for c in ch:
-                layout(c)
-            xs = [x_pos[c] for c in ch]
-            x_pos[n] = sum(xs) / len(xs)
+            for c in safe_children:
+                layout(c, stack)
+            xs = [x_pos[c] for c in safe_children if c in x_pos]
+            x_pos[n] = (sum(xs) / len(xs)) if xs else (next_leaf_col * X_SPACING)
+
+        stack.remove(n)
+        laid_out.add(n)
 
     if root: layout(root)
 

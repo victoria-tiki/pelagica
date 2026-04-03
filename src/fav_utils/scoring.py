@@ -13,7 +13,7 @@ def _load_df(path, cols):
 
 def _suppression_multiplier(species, winners_df, week_start_utc, m0=0.6, horizon=8):
     if winners_df.empty: return 1.0
-    w = winners_df[winners_df["species"] == species]
+    w = winners_df.loc[winners_df["species"] == species].copy()
     if w.empty: return 1.0
     w["week_start_utc"] = pd.to_datetime(w["week_start_utc"], utc=True)
     past = w[w["week_start_utc"] <= week_start_utc]
